@@ -19,7 +19,7 @@
 
         <!-- Ein Satz: was der Reiter tut -->
         <DockPanel Grid.Row="0" Margin="4,0,4,10">
-            <Button x:Name="bspBtnSettings" DockPanel.Dock="Right" Content="&#x2699;" Style="{StaticResource ToolButton}" Width="34"
+            <Button x:Name="bspBtnSettings" DockPanel.Dock="Right" Content="&#x2699; Einstellungen" Style="{StaticResource ToolButton}"
                     ToolTip="Einstellungen dieses Reiters"/>
             <TextBlock Text="Dateien hineinziehen oder auswählen - der Reiter listet sie auf (nur zum Ausprobieren)."
                        Foreground="#CCCCCC" FontSize="14" VerticalAlignment="Center" TextWrapping="Wrap"/>

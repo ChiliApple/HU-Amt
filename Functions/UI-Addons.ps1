@@ -161,6 +161,95 @@ function Set-HUBusyDot($Dot, [bool]$On) {
     }
 }
 
+# ============================================================================
+# Private Module: im Hintergrund die neueste signierte Fassung holen (wirkt nach dem Neustart)
+# ============================================================================
+function Start-HUAddonUpdate([switch]$Loud) {
+    $src = @(Get-HUAddonSources)
+    if (-not $src.Count) { if ($Loud) { Write-HULogInfo 'Module: kein privates Modul hinterlegt' }; return }
+    $cfg = $null; try { $cfg = Update-UpdateConfig } catch { }
+    $tp = if ($cfg -and $cfg.SignerThumbprint) { $cfg.SignerThumbprint } else { "$($script:App.signer)" }
+    $chan = if ($cfg) { "$($cfg.Channel)" } else { 'Stable' }
+    $script:AddonUpdateLoud = [bool]$Loud
+    Invoke-AsyncCommand -ScriptBlock {
+        param($lib, $addonLib, $pathsMod, $sources, $dir, $ver, $chan, $tp)
+        Import-Module $pathsMod -DisableNameChecking
+        . $lib; . $addonLib
+        try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+        $out = @()
+        foreach ($s in @($sources)) {
+            $r = Install-HUAddon -Owner $s.Owner -Repo $s.Repo -Token $s.Token -AddonsDir $dir -AppVersion ([Version]$ver) -Channel $chan -Thumbprint $tp
+            $out += "$($r.Status)|$($s.Owner)/$($s.Repo)|$($r.Text)"
+        }
+        return ($out -join "`n")
+    } -ArgumentList @($script:UpdateLib, (Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src, (Get-HUAddonsDir), "$($script:Version)", $chan, $tp) -TimeoutSec 300 -OnComplete {
+        param($result)
+        $neu = @()
+        foreach ($ln in @("$result" -split "`n" | Where-Object { $_ })) {
+            $p = $ln -split '\|', 3
+            switch ($p[0]) {
+                'Neu' { Write-HULogOK "Modul: $($p[2])"; $neu += ($p[2] -replace ' geladen - .*$', '') }
+                'Aktuell' { if ($script:AddonUpdateLoud) { Write-HULogInfo "Modul: $($p[2])" } }
+                default { Write-HULogWarn "Modul $($p[1]): $($p[2])" }
+            }
+        }
+        if ($neu.Count) { Show-HUAddonRestartPrompt $neu }
+    }
+}
+
+# Fenster (nur Verwalter): privates Modul hinterlegen (Repository + Nur-Lese-Token) oder entfernen
+function Show-HUAddonDialog {
+    $x = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Module" Width="560" MinWidth="560" SizeToContent="Height" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" Background="#1E1E1E" ShowInTaskbar="False">
+    <Window.Resources>
+        <!--HU:THEME-->
+    </Window.Resources>
+    <StackPanel Margin="16">
+        <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,0,10"
+                   Text="Private Module liegen in privaten Repositories. Mit dem Nur-Lese-Token, das du vom Herausgeber bekommst, lädt die App das Modul und hält es aktuell. Geladen wird nur, was mit dem Zertifikat des Herausgebers signiert ist. Der Token wird verschlüsselt nur für deinen Windows-Benutzer gespeichert."/>
+        <TextBlock Text="Hinterlegt" Foreground="#AAAAAA" FontSize="11"/>
+        <ListBox x:Name="lstSrc" Height="80" Margin="0,2,0,10" Background="#252526" Foreground="#CCCCCC" BorderBrush="#3E3E42" ToolTip="Hinterlegte Repositories"/>
+        <TextBlock Text="Repository (Besitzer/Name)" Foreground="#AAAAAA" FontSize="11"/>
+        <TextBox x:Name="txtRepo" Style="{StaticResource DarkTextBox}" Margin="0,2,0,8" ToolTip="z. B. Besitzer/Modulname"/>
+        <TextBlock Text="Nur-Lese-Token" Foreground="#AAAAAA" FontSize="11"/>
+        <PasswordBox x:Name="pwdTok" Margin="0,2,0,12" Background="#2D2D30" Foreground="White" BorderBrush="#3E3E42" Padding="4,3" ToolTip="Token vom Herausgeber (wird verschlüsselt gespeichert)"/>
+        <WrapPanel HorizontalAlignment="Right">
+            <Button x:Name="btnDel" Content="Markiertes entfernen" Width="160" Background="#C62828" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Token des markierten Repositories löschen"/>
+            <Button x:Name="btnAdd" Content="Hinterlegen und laden" Width="170" Background="#388E3C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Token speichern und das Modul laden"/>
+            <Button x:Name="btnClose" Content="Schließen" Width="100" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True" ToolTip="Fenster schließen"/>
+        </WrapPanel>
+    </StackPanel>
+</Window>
+'@
+    $d = New-HUWindow -XamlText (Get-HUThemedXaml $x)
+    $w = $d.Window; $c = $d.C
+    $fill = {
+        $c.lstSrc.Items.Clear()
+        $loaded = @($script:LoadedAddons | ForEach-Object { "$($_.Title) $($_.Version)" })
+        foreach ($s in @(Get-HUAddonSources)) { [void]$c.lstSrc.Items.Add("$($s.Owner)/$($s.Repo)") }
+        if ($loaded.Count) { $w.Title = "Module - geladen: $($loaded -join ', ')" }
+    }
+    & $fill
+    $c.btnAdd.Add_Click({
+            $parts = "$($c.txtRepo.Text)".Trim() -split '/', 2
+            if ($parts.Count -ne 2 -or -not (Test-HUAddonRepoName $parts[0] $parts[1])) { Show-HUMessage 'Repository bitte als Besitzer/Name eingeben.' -Icon Info -Owner $w; return }
+            if (-not $c.pwdTok.SecurePassword.Length) { Show-HUMessage 'Bitte den Token eingeben.' -Icon Info -Owner $w; return }
+            try { Save-HUAddonToken $parts[0] $parts[1] $c.pwdTok.SecurePassword } catch { Show-HUMessage "Nicht gespeichert: $($_.Exception.Message)" -Icon Warning -Owner $w; return }
+            $c.pwdTok.Clear(); $c.txtRepo.Text = ''
+            & $fill
+            Write-HULogInfo "Modul $($parts[0])/$($parts[1]) hinterlegt - wird geladen ..."
+            Start-HUAddonUpdate -Loud
+        })
+    $c.btnDel.Add_Click({
+            $sel = "$($c.lstSrc.SelectedItem)"
+            if (-not $sel) { return }
+            if (-not (Confirm-HU -Warning "Token für $sel entfernen? Das Modul wird dann nicht mehr aktualisiert; der Ordner unter Addons bleibt, bis du ihn löschst." 'Module')) { return }
+            $p = $sel -split '/', 2; Remove-HUAddonToken $p[0] $p[1]; & $fill
+        })
+    [void]$w.ShowDialog()
+}
+
 # Hinweis nach dem Laden einer neuen Fassung: jetzt neu starten?
 function Show-HUAddonRestartPrompt([string[]]$Names) {
     $txt = "Modul geladen:`n`n  $($Names -join "`n  ")`n`nEs wird nach einem Neustart von $($script:AppTitle) aktiv. Jetzt neu starten?"

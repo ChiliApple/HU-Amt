@@ -150,7 +150,7 @@ foreach ($mod in @('HU.Logging')) {
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Update', 'Core-Addons', 'UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Addons')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -163,7 +163,7 @@ Set-HUSplashStatus 'Einstellungen ...'
 $script:SettingsPath = Join-Path $script:UserRoot 'settings.json'
 $script:FirstRun = -not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))
 $script:Settings = [pscustomobject]@{
-    ui      = [pscustomobject]@{ splashAnimation = $true; maxLogLines = 1000 }
+    ui      = [pscustomobject]@{ splashAnimation = $true; maxLogLines = 1000; checkUpdatesOnStart = $true }
     logging = [pscustomobject]@{ logLevel = 'INFO'; retentionDays = 30 }
 }
 $saved = Read-HUJsonFile $script:SettingsPath
@@ -220,12 +220,18 @@ try {
         Where-Object { $_.LastWriteTime -lt $limit } | Remove-Item -Force -ErrorAction SilentlyContinue
 } catch { }
 
-# Kopfzeile: Version und Titel
+Initialize-AsyncPool -PoolSize 4
+
+# Kopfzeile: Version und Update-Kanal. Stabil = gruen, Test = orange, Entwicklungsstand (Branch) = rot.
 function Update-VersionDisplay {
+    $cfg = $null; try { $cfg = Update-UpdateConfig } catch { }
+    $txt = 'Kanal Stabil'; $col = '#4CAF50'
+    if ($cfg -and $cfg.UseBranch) { $txt = 'Entwicklungsstand'; $col = '#EF5350' }
+    elseif ($cfg -and "$($cfg.Channel)" -eq 'Test') { $txt = 'Kanal Test'; $col = '#FFA726' }
     $t = $script:Controls['txtVersion']
-    $t.Text = "v$($script:Version)  |  Testversion"
-    $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#FFA726')
-    $t.ToolTip = 'Testversion: noch nicht für den Alltag freigegeben.'
+    $t.Text = "v$($script:Version)  |  $txt"
+    $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($col)
+    $t.ToolTip = $(if ($cfg -and $cfg.UseBranch) { "Updates kommen direkt aus dem Repo (Branch $($cfg.Branch)), ohne freigegebene Version" } elseif ($txt -eq 'Kanal Test') { 'Updates: auch Testversionen.' } else { 'Updates: nur freigegebene Versionen.' })
     $script:Window.Title = "$($script:AppTitle) v$($script:Version)"
 }
 
@@ -236,7 +242,7 @@ $soon = { Show-HUMessage 'Diese Funktion kommt in einer der nächsten Testversio
 $c['btnSettings'].Add_Click($soon)
 $c['btnSupport'].Add_Click($soon)
 $c['btnHelp'].Add_Click($soon)
-$c['btnUpdate'].Add_Click($soon)
+Register-HUUpdateHandlers
 $c['btnOpenLogFolder'].Add_Click({ Open-HUPath $script:LogDir })
 # Protokoll unten: Hoehe per Ziehgriff (gemerkt), nie hoeher als das Fenster minus Platz fuer die Reiter
 try { $h = [double](Get-HUStateValue 'logHeight' 170); if ($h -ge 80 -and $h -le 900) { $c['pnlLog'].Height = $h } } catch { }
@@ -324,6 +330,8 @@ $script:Window.Add_ContentRendered({
         $script:SmokeTimer.Start()
         return
     }
+    # Update-Pruefung im Hintergrund (Knopf wird gold), Module im Hintergrund aktualisieren
+    if ($script:Settings.ui.checkUpdatesOnStart -ne $false) { try { Invoke-UpdateCheck -Quiet; Start-HUAddonUpdate } catch { Write-HULogWarn "Update-Prüfung: $($_.Exception.Message)" } }
     # Starter HU-Amt.exe (eigenes Logo, ohne Konsolenfenster) bereitstellen, falls er fehlt
     try { [void](New-HULauncher) } catch { }
     if ($script:FirstRun) {
@@ -344,6 +352,7 @@ $script:Window.Add_Closing({
     if (-not $script:AbRestored) { Save-HUWindowState }
     try { Close-HUToasts } catch { }
     try { Stop-HUAddons } catch { }
+    try { Close-AsyncPool } catch { }
     Write-HULog -Message "=== $($script:AppTitle) beendet ===" -Level 'INFO'
 })
 
