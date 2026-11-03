@@ -6,7 +6,7 @@
     Startpunkt. Liest Config\app.json (Name, Repo, Signatur), laedt Core-Module (Core\*.psm1),
     Oberflaeche (XAML\*.xaml) und Funktionen (Functions\*.ps1).
       Config\      app.json, version.json (im Repo); lokale Dateien wie update.json nicht im Repo
-      Core\        Logging
+      Core\        Logging, Datenordner und Sperren (HU.Paths)
       Functions\   Oberflaeche: Dialoge, Fensterzustand, Startbildschirm, Starter und Verknuepfungen
       XAML\        Fenster und gemeinsames Theme
       Data\        wird vom Update nie angefasst; Persoenliches in Data\Benutzer\<Name>\
@@ -37,7 +37,7 @@ $script:AppRoot = $PSScriptRoot
 $script:Window = $null; $script:Controls = @{}; $script:AppIcon = $null; $script:UiScale = 1.0
 $script:StartupDone = $false; $script:AbRestored = $false; $script:LastDialog = $null
 $script:SmokeTestFile = $SmokeTest; $script:SmokeTimer = $null
-$script:Settings = $null; $script:App = $null
+$script:Settings = $null; $script:App = $null; $script:Paths = $null; $script:RunLock = $null
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
 
@@ -104,18 +104,23 @@ if (Test-Path -LiteralPath (Join-Path $script:AppRoot 'Config\pull-journal.json'
 }
 
 # ============================================================================
-# DATENORDNER: Gemeinsames in Data\<Modul-Id>\, Persoenliches in Data\Benutzer\<Name>\
+# DATENORDNER (Core\HU.Paths): Gemeinsames in Data\<Modul-Id>\, Persoenliches in Data\Benutzer\<Name>\,
+# laufende Apps in Data\Laufend\ - gilt am Einzel-PC und im gemeinsamen Netzordner gleich
 # ============================================================================
-$script:DataRoot = Join-Path $script:AppRoot 'Data'
-$script:UserName = "$env:USERNAME"
-$script:UserRoot = Join-Path (Join-Path $script:DataRoot 'Benutzer') $script:UserName
+$pathsMod = Join-Path $script:AppRoot 'Core\HU.Paths.psm1'
+if (-not (Test-Path -LiteralPath $pathsMod)) { Show-HUFatal "Core-Modul fehlt: $pathsMod`n`nPull.ps1 ausführen, um die Dateien zu laden." }
+Import-Module $pathsMod -Force -DisableNameChecking
 try {
-    foreach ($d in $script:DataRoot, $script:UserRoot) { if (-not (Test-Path -LiteralPath $d)) { [void](New-Item -ItemType Directory -Path $d -Force) } }
-    $probe = Join-Path $script:UserRoot ('.schreibtest-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-    [IO.File]::WriteAllText($probe, 'x'); Remove-Item -LiteralPath $probe -Force
+    $script:Paths = Initialize-HUDataPaths -AppRoot $script:AppRoot
+    Assert-HUWritable $script:Paths.UserRoot
 } catch {
-    Show-HUFatal "Der Datenordner ist nicht beschreibbar:`n$($script:UserRoot)`n`nBitte Schreibrechte auf den Ordner Data geben lassen.`n`n$($_.Exception.Message)"
+    Show-HUFatal "Der Datenordner ist nicht beschreibbar:`n$(Join-Path $script:AppRoot 'Data')`n`nBitte Schreibrechte auf den Ordner Data geben lassen.`n`n$($_.Exception.Message)"
 }
+$script:DataRoot = $script:Paths.DataRoot
+$script:UserRoot = $script:Paths.UserRoot
+$script:UserName = $script:Paths.UserName
+# angemeldet als laufend (Regel 2) - nicht im Starttest, damit die CI keine Sperren hinterlaesst
+if (-not $SmokeTest) { try { $script:RunLock = Open-HURunLock -RunDir $script:Paths.RunDir } catch { $script:RunLock = $null } }
 
 # ============================================================================
 # STARTBILDSCHIRM - im eigenen Thread, erscheint sofort, waehrend Module und Oberflaeche laden
@@ -308,7 +313,15 @@ Write-HULogInfo "$($script:AppTitle) v$($script:Version) startet (PowerShell $($
 Update-VersionDisplay
 Restore-HUWindowState
 Select-HUStartTab
+try {
+    $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock)
+    if ($others.Count) { Write-HULogInfo "Ebenfalls geöffnet: $(($others | ForEach-Object { "$($_.UserName) ($($_.ComputerName))" }) -join ', ')" }
+} catch { }
+if (-not $SmokeTest -and -not $script:RunLock) { Write-HULogWarn 'Anmeldung in Data\Laufend nicht möglich - ein Update erkennt diese Sitzung nicht.' }
 Write-HULogOK 'Bereit.'
 
 try { [void]$script:Window.ShowDialog() }
-finally { if ($script:InstanceMutex) { try { $script:InstanceMutex.ReleaseMutex() } catch { }; $script:InstanceMutex.Dispose() } }
+finally {
+    Close-HURunLock $script:RunLock
+    if ($script:InstanceMutex) { try { $script:InstanceMutex.ReleaseMutex() } catch { }; $script:InstanceMutex.Dispose() }
+}

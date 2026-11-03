@@ -15,6 +15,14 @@
 
 ### 📁 Daten
 - **Ordner `Data`:** Persönliches (Fenster, Protokoll) liegt getrennt je Benutzer in `Data\Benutzer\<Name>`.
+- **Gemeinsamer Netzordner:** Mehrere Personen können dieselbe Installation auf einer Freigabe nutzen.
+  - Jede geöffnete App meldet sich in `Data\Laufend` an; nach einem Absturz gibt Windows die Anmeldung von selbst frei.
+  - Gemeinsame Listen lassen sich nur von einer Person zugleich bearbeiten, die anderen sehen, wer gerade bearbeitet.
+  - Vor dem Speichern einer gemeinsamen Liste entsteht eine Kopie mit Zeitstempel.
+- **Klare Meldung**, wenn der Datenordner nicht beschreibbar ist.
 
 ### 🚧 Grenzen
 - Einstellungen, Support, Hilfe und Update sind noch ohne Funktion.
+
+### ✅ Qualität
+- 23 Tests.
