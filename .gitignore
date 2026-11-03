@@ -1,0 +1,36 @@
+# === LOKALE DATEN (nie committen) ===
+Data/
+Addons/
+AddonsDev/
+bin/
+Config/update.json
+Config/installed.json
+Config/pull-journal.json
+Config/powershell-host.txt
+Config/GitHubToken_*.xml
+*.tmp
+*.pulltmp
+*.pullold
+
+# === LAUFZEIT ===
+Logs/
+HU-Amt.exe
+HU-Amt.exe.*.old
+
+# === ARBEITSDATEIEN ===
+*.zip
+_tmp*/
+.claude/
+CLAUDE.md
+docs-intern/
+
+# === WINDOWS ===
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# === EDITOR ===
+.vscode/
+*.code-workspace
+*.psd1.bak
+*.psm1.bak
