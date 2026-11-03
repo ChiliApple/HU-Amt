@@ -20,8 +20,6 @@ HU-Amt.exe.*.old
 # === ARBEITSDATEIEN ===
 *.zip
 _tmp*/
-.claude/
-CLAUDE.md
 docs-intern/
 
 # === WINDOWS ===
