@@ -145,12 +145,12 @@ if (-not $SmokeTest) {
 # 1. CORE-MODULE, FUNKTIONEN
 # ============================================================================
 Set-HUSplashStatus 'Module werden geladen ...'
-foreach ($mod in @('HU.Logging')) {
+foreach ($mod in @('HU.Logging', 'HU.AppBackup')) {
     $modPath = Join-Path $script:AppRoot "Core\$mod.psm1"
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -239,8 +239,10 @@ function Update-VersionDisplay {
 # 4. EREIGNISSE
 # ============================================================================
 $soon = { Show-HUMessage 'Diese Funktion kommt in einer der nächsten Testversionen.' -Icon Info }
-$c['btnSettings'].Add_Click($soon)
-$c['btnSupport'].Add_Click($soon)
+# Einstellungen: bis zum Einstellungsfenster oeffnet der Knopf fuer Verwalter die Sicherung
+$c['btnSettings'].Add_Click({ if (Test-HUVerwalter) { Show-HUAppBackupDialog } else { Show-HUMessage 'Die Einstellungen kommen in einer der nächsten Testversionen.' -Icon Info } })
+$c['btnSupport'].Add_Click({ Show-HUSupport })
+$c['txtBackupStatus'].Add_MouseLeftButtonUp({ Show-HUAppBackupDialog })
 $c['btnHelp'].Add_Click($soon)
 Register-HUUpdateHandlers
 $c['btnOpenLogFolder'].Add_Click({ Open-HUPath $script:LogDir })
@@ -318,6 +320,27 @@ $script:Window.Add_ContentRendered({
                     $steps += "Ziehen-$($a.Id)"
                 }
                 if (Resolve-HUDropTarget @('C:\Test\Datei.unbekannt')) { throw 'Hineinziehen: unbekannte Endung angenommen' }
+                # Sicherung: Quellen nur aus Data, ohne Logs, Token, Sperren
+                $src = @(Get-HUAppBackupSources -DataRoot $script:DataRoot)
+                if (@($src | Where-Object { $_.Name -match '/(Logs|Token)/|^data/(Laufend|Docs)/|\.lock$' }).Count) { throw 'Sicherung: verbotene Dateien in der Liste' }
+                $steps += "Sicherung=$($src.Count)"
+                # Support: Info ohne Benutzername, ZIP entsteht
+                if ((Get-HUSupportInfo) -match [regex]::Escape($env:USERNAME)) { throw 'Support: Benutzername in info.txt' }
+                $zf = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtSmoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+                $z = New-HUSupportZip -Logs -Folder $zf
+                if (-not (Test-Path -LiteralPath $z)) { throw 'Support-ZIP fehlt' }
+                Remove-Item -LiteralPath $zf -Recurse -Force
+                $steps += 'Support'
+                # Fenster wirklich aufbauen: ein zweiter Timer schliesst das jeweils offene Fenster nach kurzer Zeit
+                $closer = [System.Windows.Threading.DispatcherTimer]::new()
+                $closer.Interval = [TimeSpan]::FromMilliseconds(1200)
+                $closer.Add_Tick({ if ($script:LastDialog -and $script:LastDialog.IsVisible) { $script:LastDialog.Close() } })
+                $closer.Start()
+                try {
+                    Show-HUSupport; $steps += 'Fenster-Support'
+                    Show-HUAppBackupDialog; $steps += 'Fenster-Sicherung'
+                    Show-HUAbout; $steps += 'Fenster-Info'
+                } finally { $closer.Stop() }
                 Save-HUWindowState
                 if (-not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))) { throw 'Fensterzustand nicht gespeichert' }
                 $steps += 'Fensterzustand'
@@ -330,6 +353,8 @@ $script:Window.Add_ContentRendered({
         $script:SmokeTimer.Start()
         return
     }
+    # Sicherung: Stand in der Kopfzeile, Automatik (beim Start und stuendlich, wenn faellig)
+    try { Update-HUAbStatus; Start-HUAppBackupScheduler } catch { Write-HULogWarn "Sicherung: $($_.Exception.Message)" }
     # Update-Pruefung im Hintergrund (Knopf wird gold), Module im Hintergrund aktualisieren
     if ($script:Settings.ui.checkUpdatesOnStart -ne $false) { try { Invoke-UpdateCheck -Quiet; Start-HUAddonUpdate } catch { Write-HULogWarn "Update-Prüfung: $($_.Exception.Message)" } }
     # Starter HU-Amt.exe (eigenes Logo, ohne Konsolenfenster) bereitstellen, falls er fehlt
@@ -351,6 +376,7 @@ $script:Window.Add_Closing({
     # nach dem Wiederherstellen einer Sicherung nichts aus dem Speicher zurueckschreiben
     if (-not $script:AbRestored) { Save-HUWindowState }
     try { Close-HUToasts } catch { }
+    try { if ($script:AbTimer) { $script:AbTimer.Stop() } } catch { }
     try { Stop-HUAddons } catch { }
     try { Close-AsyncPool } catch { }
     Write-HULog -Message "=== $($script:AppTitle) beendet ===" -Level 'INFO'

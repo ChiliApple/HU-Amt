@@ -25,6 +25,18 @@
   - Verwalter ist, wer in `Data\Verwalter.txt` steht.
 - **Info-Fenster** mit Version, Kanal und Prüfung der Installation.
 
+### 💾 Sicherung
+- **Verschlüsselte Sicherung aller Daten** (`.husicherung`) in einen Ordner, am besten auf ein Netzlaufwerk.
+  - Automatisch täglich oder wöchentlich; im gemeinsamen Netzordner sichert nur einer.
+  - Ohne Kennwort lässt sich eine Sicherung nicht öffnen. Das Kennwort für die Automatik bleibt verschlüsselt beim eigenen Windows-Benutzer.
+  - Jede Sicherung wird nach dem Schreiben zurückgelesen und geprüft.
+- **Wiederherstellen nach Bereichen:** je Modul, Benutzer, Verwalter, Allgemein. Der vorherige Stand bleibt in `Data\Wiederherstellung`.
+- **Stand in der Kopfzeile** für Verwalter; Klick öffnet die Sicherung.
+
+### 🛟 Support
+- **Support-ZIP:** Versionen, Umgebung und auf Wunsch die eigenen Protokolle als ZIP im Ordner Downloads.
+  - Namen, PC und Pfade werden unkenntlich gemacht; Daten, Kennwörter und Token sind nie dabei.
+
 ### 🖥️ Start
 - **Desktop-Symbol:** Beim ersten Start fragt die App, ob ein Symbol auf den Desktop soll.
 - **PowerShell 7 oder 5.1:** Die App startet mit PowerShell 7, wenn installiert, sonst mit Windows PowerShell 5.1.
@@ -38,7 +50,7 @@
 - **Klare Meldung**, wenn der Datenordner nicht beschreibbar ist.
 
 ### 🚧 Grenzen
-- Einstellungen, Support und Hilfe sind noch ohne Funktion.
+- Das Einstellungsfenster und die Hilfe fehlen noch. Bis dahin öffnet „Einstellungen“ für Verwalter die Sicherung.
 
 ### ✅ Qualität
-- 46 Tests.
+- 57 Tests.

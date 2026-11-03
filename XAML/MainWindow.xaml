@@ -29,6 +29,8 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="txtAppTitle" FontSize="17" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                             <TextBlock x:Name="txtAppSubtitle" FontSize="11" Foreground="#858585" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            <!-- Stand der Sicherung (nur Verwalter, Klick: Sicherung einstellen) -->
+                            <TextBlock x:Name="txtBackupStatus" FontSize="10" Foreground="#858585" Margin="40,0,0,0" VerticalAlignment="Center" Cursor="Hand" Visibility="Collapsed"/>
                         </StackPanel>
                         <TextBlock x:Name="txtVersion" FontSize="10" Foreground="#4CAF50"/>
                     </StackPanel>
