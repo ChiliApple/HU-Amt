@@ -1,0 +1,88 @@
+﻿<!--
+    Hauptfenster: Kopfzeile, Reiter (einer je Modul), Protokoll unten.
+    Styles: XAML\Theme.xaml (wird beim Laden an der Markierung HU:THEME eingesetzt).
+    Alle Elemente mit x:Name stehen im Code als $script:Controls['Name'] zur Verfuegung.
+-->
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="HU-Amt"
+    Width="1180" Height="800" MinWidth="820" MinHeight="520"
+    WindowStartupLocation="CenterScreen"
+    Background="#1E1E1E"
+    UseLayoutRounding="True"
+    TextOptions.TextFormattingMode="Display"
+    ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <!--HU:THEME-->
+    </Window.Resources>
+
+    <DockPanel x:Name="rootPanel" Margin="0">
+
+        <!-- ========== TITELLEISTE ========== -->
+        <Border x:Name="hdrBar" DockPanel.Dock="Top" Background="#2D2D2D" Padding="14,8">
+            <DockPanel>
+                <StackPanel x:Name="hdrLeft" Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <Image x:Name="imgLogo" Width="32" Height="32" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtAppTitle" FontSize="17" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtAppSubtitle" FontSize="11" Foreground="#858585" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock x:Name="txtVersion" FontSize="10" Foreground="#4CAF50"/>
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel x:Name="hdrRight" Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="btnSettings" Content="&#x2699; Einstellungen" Style="{StaticResource ToolButton}" Margin="0,0,6,0"
+                            ToolTip="Einstellungen: Allgemein, Sicherung, Update"/>
+                    <Button x:Name="btnSupport" Content="&#x1F6DF; Support" Style="{StaticResource ToolButton}" Margin="0,0,6,0"
+                            ToolTip="Protokolle als ZIP packen, um Hilfe anzufragen"/>
+                    <Button x:Name="btnHelp" Content="?" Style="{StaticResource ToolButton}" Width="32" Margin="0,0,6,0"
+                            ToolTip="Hilfe zum aktuellen Reiter (F1)"/>
+                    <Button x:Name="btnUpdate" Content="Update" Style="{StaticResource ToolButton}"
+                            ToolTip="Nach einer neuen Version suchen und installieren"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ========== PROTOKOLL (unten) ========== -->
+        <Border x:Name="pnlLog" DockPanel.Dock="Bottom" Background="#2D2D2D" CornerRadius="4" Padding="10" Margin="10,0,10,10" Height="170">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <Button x:Name="btnOpenLogFolder" Content="Log-Ordner" Background="#3E3E42"
+                            Style="{StaticResource DarkButton}" DockPanel.Dock="Right" FontSize="11" Padding="14,4"
+                            ToolTip="Ordner mit den Protokolldateien oeffnen"/>
+                    <TextBlock Text="Protokoll" FontWeight="Bold" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                </DockPanel>
+                <RichTextBox x:Name="rtbLog" Background="#1E1E1E" Foreground="White"
+                             FontFamily="Consolas" FontSize="11" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" BorderThickness="0" Padding="6"
+                             ToolTip="Was die App gerade tut (neueste Eintraege oben)">
+                    <RichTextBox.Document>
+                        <FlowDocument/>
+                    </RichTextBox.Document>
+                </RichTextBox>
+            </DockPanel>
+        </Border>
+
+        <!-- ========== REITER (einer je Modul) ========== -->
+        <Grid x:Name="gridMain" Margin="10,8,10,8">
+            <TabControl x:Name="tabMain" Style="{StaticResource DarkTabControl}" Background="#1E1E1E">
+                <!-- Platzhalter, solange kein Modul geladen ist -->
+                <TabItem x:Name="tabStart" Header="Start" Style="{StaticResource DarkTabItem}">
+                    <Grid Background="#1E1E1E">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
+                            <Image x:Name="imgStartLogo" Width="96" Height="96" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,0,14"/>
+                            <TextBlock x:Name="txtStartTitle" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Hier erscheint fuer jedes Modul ein eigener Reiter, zum Beispiel fuer Rechnungen oder Texterkennung."
+                                       Foreground="#CCCCCC" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/>
+                            <TextBlock x:Name="txtStartHint" Text="Noch ist kein Modul installiert."
+                                       Foreground="#858585" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </DockPanel>
+</Window>

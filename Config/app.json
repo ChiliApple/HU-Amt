@@ -1,0 +1,8 @@
+﻿{
+  "id": "HU-Amt",
+  "title": "HU-Amt",
+  "subtitle": "Werkzeuge für die Gemeindeverwaltung",
+  "repo": { "owner": "ChiliApple", "name": "HU-Amt" },
+  "docsRepo": { "owner": "ChiliApple", "name": "HU-Amt-Docs" },
+  "signer": "1B669AE240DA1A91043C4576763D9F8E0BF762FA"
+}

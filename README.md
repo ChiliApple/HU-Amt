@@ -1,4 +1,4 @@
-# HU-Amt
+﻿# HU-Amt
 
 Werkzeuge für die Gemeindeverwaltung: ein Fenster mit Reitern, jeder Reiter ein Modul. Dazu Update per Knopf, Sicherung, Hilfe und dunkles Farbschema.
 
