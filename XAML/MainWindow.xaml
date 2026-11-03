@@ -52,13 +52,13 @@
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                     <Button x:Name="btnOpenLogFolder" Content="Log-Ordner" Background="#3E3E42"
                             Style="{StaticResource DarkButton}" DockPanel.Dock="Right" FontSize="11" Padding="14,4"
-                            ToolTip="Ordner mit den Protokolldateien oeffnen"/>
+                            ToolTip="Ordner mit den Protokolldateien öffnen"/>
                     <TextBlock Text="Protokoll" FontWeight="Bold" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
                 </DockPanel>
                 <RichTextBox x:Name="rtbLog" Background="#1E1E1E" Foreground="White"
                              FontFamily="Consolas" FontSize="11" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" BorderThickness="0" Padding="6"
-                             ToolTip="Was die App gerade tut (neueste Eintraege oben)">
+                             ToolTip="Was die App gerade tut (neueste Einträge oben)">
                     <RichTextBox.Document>
                         <FlowDocument/>
                     </RichTextBox.Document>
@@ -75,7 +75,7 @@
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
                             <Image x:Name="imgStartLogo" Width="96" Height="96" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,0,14"/>
                             <TextBlock x:Name="txtStartTitle" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Hier erscheint fuer jedes Modul ein eigener Reiter, zum Beispiel fuer Rechnungen oder Texterkennung."
+                            <TextBlock Text="Hier erscheint für jedes Modul ein eigener Reiter, zum Beispiel für Rechnungen oder Texterkennung."
                                        Foreground="#CCCCCC" FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0"/>
                             <TextBlock x:Name="txtStartHint" Text="Noch ist kein Modul installiert."
                                        Foreground="#858585" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0"/>

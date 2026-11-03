@@ -192,7 +192,9 @@ $script:Window.Dispatcher.Add_UnhandledException({
     })
 $script:Controls = $d.C
 $c = $script:Controls
-if ($script:AppIcon) { $script:Window.Icon = $script:AppIcon; $c['imgLogo'].Source = $script:AppIcon; $c['imgStartLogo'].Source = $script:AppIcon }
+if ($script:AppIcon) { $script:Window.Icon = $script:AppIcon; $c['imgLogo'].Source = $script:AppIcon }
+# grosses Logo in der Mitte: groesstes Bild aus icon.ico (das erste ist klein und wuerde unscharf hochgezogen)
+try { $big = Get-HUSplashIcon $script:AppRoot; if ($big) { $c['imgStartLogo'].Source = $big } elseif ($script:AppIcon) { $c['imgStartLogo'].Source = $script:AppIcon } } catch { }
 $script:Window.Add_SourceInitialized({ Set-HUWindowTaskbar $script:Window })
 $c['txtAppTitle'].Text = $script:AppTitle
 $c['txtAppSubtitle'].Text = "$($script:App.subtitle)"
