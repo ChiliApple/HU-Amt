@@ -4,7 +4,7 @@
 BeforeAll {
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:Files = @(Get-ChildItem -LiteralPath $script:Root -Recurse -File |
-            Where-Object { $_.FullName -notmatch '\\\.git\\' -and $_.Extension -in '.ps1', '.psm1', '.xaml', '.json', '.md', '.cmd', '.yml' })
+            Where-Object { $_.FullName -notmatch '\\\.git\\' -and $_.Extension -in '.ps1', '.psm1', '.xaml', '.json', '.md', '.cmd', '.yml', '.html' })
 }
 
 Describe 'App-Manifest' {

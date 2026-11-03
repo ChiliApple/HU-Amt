@@ -16,6 +16,16 @@
 - **Dateien ins Fenster ziehen:** Die Dateien gehen an den aktiven Reiter. Passt er nicht, aber genau ein anderer Reiter, wechselt die App dorthin.
 - **Daten je Modul** liegen gemeinsam für alle in `Data\<Modul>`.
 
+### ⚙️ Einstellungen
+- **Einstellungsfenster:** Allgemein für alle (Verknüpfung, Startanimation, Update-Prüfung beim Start, Zeilen im Protokoll).
+  - Nur für Verwalter: PowerShell beim Start, Sicherung, Update-Kanal und Signaturpflicht, geladene Module, Verwalter-Liste.
+- **Verwalter-Ansicht:** Protokoll und Verwaltung sehen nur Verwalter; alle anderen bekommen eine aufgeräumte Oberfläche.
+  - Verwalter lassen sich in den Einstellungen eintragen und entfernen (mit Rückfrage, vorher eine Kopie der Liste).
+
+### ❓ Hilfe
+- **F1 und „?“** öffnen die Hilfe zum aktuellen Reiter im Browser, Rechtsklick auf „?“ die Übersicht.
+  - Ohne eigene Hilfe eines Moduls erscheint eine kurze Grundhilfe.
+
 ### 🔄 Update
 - **Goldener Knopf „Update“:** Beim Start sucht die App im Hintergrund nach einer neuen Version; ist eine da, wird der Knopf gold. Ein Klick installiert sie.
   - Jede Version wird vor dem Ersetzen vollständig geladen und mit Prüfsumme und Signatur geprüft; bei einem Fehler bleibt alles unverändert.
@@ -49,8 +59,5 @@
   - Vor dem Speichern einer gemeinsamen Liste entsteht eine Kopie mit Zeitstempel.
 - **Klare Meldung**, wenn der Datenordner nicht beschreibbar ist.
 
-### 🚧 Grenzen
-- Das Einstellungsfenster und die Hilfe fehlen noch. Bis dahin öffnet „Einstellungen“ für Verwalter die Sicherung.
-
 ### ✅ Qualität
-- 57 Tests.
+- 67 Tests.

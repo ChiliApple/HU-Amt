@@ -24,6 +24,7 @@ $script:UpdateRemoteVer = ''
 $script:UpdateQuiet = $false
 $script:SignCtx = $null; $script:PubCtx = $null; $script:UpdMenuAdmin = @(); $script:UpdMenuSign = @()
 $script:SignTokFile = ''; $script:PubTokFile = ''
+$script:IsVerwalter = $null   # Zwischenspeicher; nach dem Speichern der Verwalter-Liste auf $null setzen
 
 function Update-UpdateConfig {
     if (-not (Get-Command Get-HMUpdateConfig -ErrorAction SilentlyContinue)) { return $null }
@@ -40,9 +41,11 @@ function Get-HUVerwalterList {
     return @([IO.File]::ReadAllLines($f, [Text.Encoding]::UTF8) | ForEach-Object { "$_".Trim() } | Where-Object { $_ -and $_ -notlike '#*' })
 }
 function Test-HUVerwalter {
+    if ($null -ne $script:IsVerwalter) { return $script:IsVerwalter }
     $l = Get-HUVerwalterList
-    if ($null -ne $l) { return [bool](@($l | Where-Object { $_ -ieq $script:UserName -or $_ -ieq "$env:USERDOMAIN\$($script:UserName)" }).Count) }
-    return (Test-HUCanSign)
+    if ($null -ne $l) { $script:IsVerwalter = [bool](@($l | Where-Object { $_ -ieq $script:UserName -or $_ -ieq "$env:USERDOMAIN\$($script:UserName)" }).Count) }
+    else { $script:IsVerwalter = [bool](Test-HUCanSign) }
+    return $script:IsVerwalter
 }
 
 # --- GitHub-Token (nur private Repos; je Benutzer, DPAPI) ------------------------------------------

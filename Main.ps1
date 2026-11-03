@@ -150,7 +150,7 @@ foreach ($mod in @('HU.Logging', 'HU.AppBackup')) {
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -238,12 +238,10 @@ function Update-VersionDisplay {
 # ============================================================================
 # 4. EREIGNISSE
 # ============================================================================
-$soon = { Show-HUMessage 'Diese Funktion kommt in einer der nächsten Testversionen.' -Icon Info }
-# Einstellungen: bis zum Einstellungsfenster oeffnet der Knopf fuer Verwalter die Sicherung
-$c['btnSettings'].Add_Click({ if (Test-HUVerwalter) { Show-HUAppBackupDialog } else { Show-HUMessage 'Die Einstellungen kommen in einer der nächsten Testversionen.' -Icon Info } })
+$c['btnSettings'].Add_Click({ Open-HUSettings })
 $c['btnSupport'].Add_Click({ Show-HUSupport })
 $c['txtBackupStatus'].Add_MouseLeftButtonUp({ Show-HUAppBackupDialog })
-$c['btnHelp'].Add_Click($soon)
+Register-HUHelpHandlers
 Register-HUUpdateHandlers
 $c['btnOpenLogFolder'].Add_Click({ Open-HUPath $script:LogDir })
 # Protokoll unten: Hoehe per Ziehgriff (gemerkt), nie hoeher als das Fenster minus Platz fuer die Reiter
@@ -278,7 +276,7 @@ Register-HUFileDrop
 $script:Window.Add_PreviewKeyDown({
     param($s, $e)
     $ctrl = ([System.Windows.Input.Keyboard]::Modifiers -band [System.Windows.Input.ModifierKeys]::Control) -ne 0
-    if ("$($e.Key)" -eq 'F1') { $e.Handled = $true; Show-HUMessage 'Die Hilfe kommt in einer der nächsten Testversionen.' -Icon Info; return }
+    if ("$($e.Key)" -eq 'F1') { $e.Handled = $true; Show-HUHelp; return }
     if ($ctrl -and "$($e.Key)" -in 'D0', 'NumPad0') { $e.Handled = $true; Set-HUUiScale 1.0; return }
 })
 # Strg + Mausrad = Oberflaeche skalieren
@@ -340,6 +338,9 @@ $script:Window.Add_ContentRendered({
                     Show-HUSupport; $steps += 'Fenster-Support'
                     Show-HUAppBackupDialog; $steps += 'Fenster-Sicherung'
                     Show-HUAbout; $steps += 'Fenster-Info'
+                    Open-HUSettings; $steps += 'Fenster-Einstellungen'
+                    if (-not (Get-HUHelpPage $null)) { throw 'Grundhilfe fehlt' }
+                    $steps += 'Hilfe'
                 } finally { $closer.Stop() }
                 Save-HUWindowState
                 if (-not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))) { throw 'Fensterzustand nicht gespeichert' }
@@ -386,6 +387,9 @@ $script:Window.Add_Closing({
 # 5. START
 # ============================================================================
 Update-VersionDisplay
+# Verwalter-Ansicht: Protokoll und Verwaltung nur fuer Verwalter
+Update-HUAdminView
+Write-HULogInfo "Ansicht: $(if (Test-HUVerwalter) { 'Verwalter' } else { 'Bedienung' })"
 Restore-HUWindowState
 Select-HUStartTab
 try {
