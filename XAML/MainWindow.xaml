@@ -47,7 +47,7 @@
         </Border>
 
         <!-- ========== PROTOKOLL (unten) ========== -->
-        <Border x:Name="pnlLog" DockPanel.Dock="Bottom" Background="#2D2D2D" CornerRadius="4" Padding="10" Margin="10,0,10,10" Height="170">
+        <Border x:Name="pnlLog" DockPanel.Dock="Bottom" Background="#2D2D2D" CornerRadius="4" Padding="10" Margin="10,0,10,10" Height="170" MinHeight="80">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                     <Button x:Name="btnOpenLogFolder" Content="Log-Ordner" Background="#3E3E42"
@@ -65,6 +65,13 @@
                 </RichTextBox>
             </DockPanel>
         </Border>
+
+        <!-- Ziehgriff: Hoehe des Protokolls (wie HU-Standard, gemerkt je Benutzer) -->
+        <Thumb x:Name="thbLog" DockPanel.Dock="Bottom" Height="8" Cursor="SizeNS" Margin="10,0,10,2" ToolTip="Höhe des Protokolls anpassen (ziehen)">
+            <Thumb.Template>
+                <ControlTemplate TargetType="Thumb"><Border Background="#3E3E42" Opacity="0.5" Height="4" VerticalAlignment="Center"/></ControlTemplate>
+            </Thumb.Template>
+        </Thumb>
 
         <!-- ========== REITER (einer je Modul) ========== -->
         <Grid x:Name="gridMain" Margin="10,8,10,8">

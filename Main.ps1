@@ -7,7 +7,8 @@
     Oberflaeche (XAML\*.xaml) und Funktionen (Functions\*.ps1).
       Config\      app.json, version.json (im Repo); lokale Dateien wie update.json nicht im Repo
       Core\        Logging, Datenordner und Sperren (HU.Paths)
-      Functions\   Oberflaeche: Dialoge, Fensterzustand, Startbildschirm, Starter und Verknuepfungen
+      Functions\   Oberflaeche: Dialoge, Fensterzustand, Startbildschirm, Starter und Verknuepfungen, Module, Update-Bibliothek
+      Modules\     mitgelieferte Module; Addons\ private (signiert); AddonsDev\ Entwicklung - je Modul ein Reiter
       XAML\        Fenster und gemeinsames Theme
       Data\        wird vom Update nie angefasst; Persoenliches in Data\Benutzer\<Name>\
     Start: HU-Amt.exe (Desktop-Verknuepfung) oder Start-HU-Amt.cmd.
@@ -149,7 +150,7 @@ foreach ($mod in @('HU.Logging')) {
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash')) {
+foreach ($f in @('Core-Update', 'Core-Addons', 'UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Addons')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -210,6 +211,7 @@ $logFile = Join-Path $script:LogDir "$($script:App.id)_{date}.log"
 $minLevel = "$($script:Settings.logging.logLevel)".ToUpper()
 if ($minLevel -notin 'DEBUG', 'INFO', 'OK', 'WARN', 'ERROR') { $minLevel = 'INFO' }
 Initialize-Logging -LogFilePath $logFile -RichTextBox $c['rtbLog'] -MinLevel $minLevel -MaxGuiLines ([int]$script:Settings.ui.maxLogLines)
+Write-HULogInfo "$($script:AppTitle) v$($script:Version) startet (PowerShell $($PSVersionTable.PSVersion), Benutzer $($script:UserName)) ..."
 # Tagesprotokolle aelter als logging.retentionDays (Standard 30) beim Start loeschen
 try {
     $keep = 30; try { if ([int]$script:Settings.logging.retentionDays -gt 0) { $keep = [int]$script:Settings.logging.retentionDays } } catch { }
@@ -236,7 +238,33 @@ $c['btnSupport'].Add_Click($soon)
 $c['btnHelp'].Add_Click($soon)
 $c['btnUpdate'].Add_Click($soon)
 $c['btnOpenLogFolder'].Add_Click({ Open-HUPath $script:LogDir })
+# Protokoll unten: Hoehe per Ziehgriff (gemerkt), nie hoeher als das Fenster minus Platz fuer die Reiter
+try { $h = [double](Get-HUStateValue 'logHeight' 170); if ($h -ge 80 -and $h -le 900) { $c['pnlLog'].Height = $h } } catch { }
+$c['thbLog'].Add_DragDelta({
+        param($s, $e)
+        $max = [Math]::Max(80.0, $script:Window.ActualHeight - 260)
+        $h = $script:Controls['pnlLog'].Height - $e.VerticalChange
+        $script:Controls['pnlLog'].Height = [Math]::Max(80.0, [Math]::Min($max, $h))
+    })
+$c['thbLog'].Add_DragCompleted({ Set-HUStateValue 'logHeight' ([int]$script:Controls['pnlLog'].Height); Save-HUUIState })
 try { Set-HUOutputTools $script:Window } catch { }
+
+# ============================================================================
+# MODULE: je Modul ein Reiter (Funktionen per Dot-Source in den Programm-Bereich, dann Reiter einbauen und starten)
+# ============================================================================
+Set-HUSplashStatus 'Module werden eingebaut ...'
+foreach ($__a in @(Get-HUAddonStartList)) {
+    try {
+        . (Join-Path $__a.Dir $__a.Script)
+        Add-HUAddonTab $__a
+        & $__a.Init
+        $script:LoadedAddons += $__a
+        Write-HULogOK "Modul geladen: $($__a.Title) $($__a.Version)$(if ($__a.Source -ne 'Programm') { " ($($__a.Source))" })"
+    } catch { Write-HULogWarn "Modul $($__a.Id) nicht geladen: $($_.Exception.Message)" }
+}
+Remove-Variable __a -ErrorAction SilentlyContinue
+# Dateien ins Fenster ziehen: gehen an das Modul im aktiven Reiter
+Register-HUFileDrop
 
 # Tastatur: F1 Hilfe, Strg+0 Groesse 100 %
 $script:Window.Add_PreviewKeyDown({
@@ -272,6 +300,18 @@ $script:Window.Add_ContentRendered({
                 $steps += 'Titel'
                 if (-not ('HUTaskbar' -as [type])) { throw 'Taskleiste' }
                 $steps += 'Taskleiste'
+                $tabs = @($script:Controls['tabMain'].Items).Count
+                if ($tabs -ne [Math]::Max(1, @($script:LoadedAddons).Count)) { throw "Reiter: $tabs, Module: $(@($script:LoadedAddons).Count)" }
+                $steps += "Module=$(@($script:LoadedAddons).Count)"
+                # Hineinziehen: jede Endung eines Moduls muss bei diesem Modul ankommen (Ziel ohne echtes Ziehen bestimmen)
+                foreach ($a in @($script:LoadedAddons | Where-Object { Test-HUAddonCanDrop $_ })) {
+                    foreach ($x in @($a.Drop)) {
+                        $tg = Resolve-HUDropTarget @("C:\Test\Datei$x")
+                        if (-not $tg -or $tg.Info.Id -ne $a.Id) { throw "Hineinziehen: $x kommt nicht bei $($a.Id) an" }
+                    }
+                    $steps += "Ziehen-$($a.Id)"
+                }
+                if (Resolve-HUDropTarget @('C:\Test\Datei.unbekannt')) { throw 'Hineinziehen: unbekannte Endung angenommen' }
                 Save-HUWindowState
                 if (-not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))) { throw 'Fensterzustand nicht gespeichert' }
                 $steps += 'Fensterzustand'
@@ -303,13 +343,13 @@ $script:Window.Add_Closing({
     # nach dem Wiederherstellen einer Sicherung nichts aus dem Speicher zurueckschreiben
     if (-not $script:AbRestored) { Save-HUWindowState }
     try { Close-HUToasts } catch { }
+    try { Stop-HUAddons } catch { }
     Write-HULog -Message "=== $($script:AppTitle) beendet ===" -Level 'INFO'
 })
 
 # ============================================================================
 # 5. START
 # ============================================================================
-Write-HULogInfo "$($script:AppTitle) v$($script:Version) startet (PowerShell $($PSVersionTable.PSVersion), Benutzer $($script:UserName)) ..."
 Update-VersionDisplay
 Restore-HUWindowState
 Select-HUStartTab

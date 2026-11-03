@@ -8,6 +8,13 @@
 - **Startbildschirm:** erscheint sofort beim Start und verabschiedet sich mit dem Saugroboter.
 - **Fenster merkt sich Größe und Position**, je Windows-Benutzer.
 - **Strg + Mausrad** vergrößert oder verkleinert die Oberfläche, Strg + 0 stellt zurück.
+- **Protokoll in der Höhe verstellbar:** am Griff über dem Protokoll ziehen, die Höhe bleibt gemerkt.
+
+### 🧩 Module
+- **Ein Reiter je Modul:** Module kommen mit dem Programm, aus einem privaten Repository (nur signiert) oder zum Entwickeln aus `AddonsDev`.
+  - Die Reihenfolge der Reiter legt das Modul fest; Reiter lassen sich mit der Maus verschieben.
+- **Dateien ins Fenster ziehen:** Die Dateien gehen an den aktiven Reiter. Passt er nicht, aber genau ein anderer Reiter, wechselt die App dorthin.
+- **Daten je Modul** liegen gemeinsam für alle in `Data\<Modul>`.
 
 ### 🖥️ Start
 - **Desktop-Symbol:** Beim ersten Start fragt die App, ob ein Symbol auf den Desktop soll.
@@ -25,4 +32,4 @@
 - Einstellungen, Support, Hilfe und Update sind noch ohne Funktion.
 
 ### ✅ Qualität
-- 23 Tests.
+- 39 Tests.
