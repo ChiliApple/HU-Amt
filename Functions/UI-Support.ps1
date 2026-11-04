@@ -37,7 +37,9 @@ function ConvertTo-HURedacted([string]$Text, [object[]]$Map = @()) {
 }
 
 function Get-HUSupportInfo {
-    $os = ''; try { $o = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop; $os = "$($o.Caption) $($o.Version) (Build $($o.BuildNumber))" } catch { $os = [Environment]::OSVersion.VersionString }
+    # Windows-Version aus der Registry (kein WMI: Get-CimInstance kann im UI-Thread ohne Bildschirm haengen)
+    $os = [Environment]::OSVersion.VersionString
+    try { $cv = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction Stop; $os = "$($cv.ProductName) $($cv.DisplayVersion) (Build $($cv.CurrentBuild).$($cv.UBR))" } catch { }
     $lines = New-Object System.Collections.Generic.List[string]
     $lines.Add("$($script:AppTitle) v$($script:Version)")
     try { $cfg = Update-UpdateConfig; if ($cfg) { $lines.Add("Update-Kanal: $($cfg.Channel), Quelle: $($cfg.Owner)/$($cfg.Repo)$(if ($cfg.UseBranch) { ", Branch $($cfg.Branch)" })") } } catch { }
