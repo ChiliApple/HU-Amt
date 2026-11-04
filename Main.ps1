@@ -341,6 +341,7 @@ $script:OnContentRendered = {
                     [void](Show-HUAbPasswordDialog -New); $script:SmokeSteps += 'Fenster-Kennwort'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                     Show-HUAbout; $script:SmokeSteps += 'Fenster-Info'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                     Open-HUSettings; $script:SmokeSteps += 'Fenster-Einstellungen'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
+                    Show-HUAddonDialog; $script:SmokeSteps += 'Fenster-Module'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                     if (-not (Get-HUHelpPage $null)) { throw 'Grundhilfe fehlt' }
                     $script:SmokeSteps += 'Hilfe'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 } finally { $closer.Stop() }
@@ -365,12 +366,16 @@ $script:OnContentRendered = {
     # Starter HU-Amt.exe (eigenes Logo, ohne Konsolenfenster) bereitstellen, falls er fehlt
     try { [void](New-HULauncher) } catch { }
     if ($script:FirstRun) {
-        # neuer Benutzer: einmal fragen, ob ein Symbol auf den Desktop soll
+        # neuer Benutzer: einmal fragen, ob ein Symbol auf den Desktop soll, und zeigen, wie die App an die Taskleiste kommt
         $asked = $false; try { $asked = [bool](Get-HUStateValue 'shortcutAsked' $false) } catch { }
-        if (-not $asked -and -not (Test-HUShortcut)) {
+        if (-not $asked) {
             try { Set-HUStateValue 'shortcutAsked' $true; Save-HUUIState } catch { }
-            if (Confirm-HU "Ein Symbol für $($script:AppTitle) auf den Desktop legen?`n`nDamit startest du die App künftig mit Doppelklick.") {
+            if (-not (Test-HUShortcut) -and (Confirm-HU "Ein Symbol für $($script:AppTitle) auf den Desktop legen?`n`nDamit startest du die App künftig mit Doppelklick.")) {
                 try { $l = New-HUShortcut -Location Desktop; Write-HULogOK "Verknüpfung erstellt: $l" } catch { Show-HUMessage "Verknüpfung fehlgeschlagen:`n$($_.Exception.Message)" -Icon Warning }
+            }
+            $pinned = $true; try { $pinned = Test-HUTaskbarPinned } catch { }
+            if (-not $pinned -and (Confirm-HU "$($script:AppTitle) auch an die Taskleiste anheften?`n`nWindows lässt das Anheften nur durch dich selbst zu. Bei Ja zeige ich dir, wie es geht.")) {
+                Show-HUMessage "So heftest du $($script:AppTitle) an:`n`n1. Unten in der Taskleiste das Symbol von $($script:AppTitle) mit der rechten Maustaste anklicken.`n2. „An Taskleiste anheften“ wählen.`n`nDanach startest du die App mit einem Klick auf das Symbol." -Icon Info -Title 'Taskleiste'
             }
         }
     }

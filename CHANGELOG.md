@@ -1,6 +1,23 @@
 ﻿# Changelog
 
-## v0.0.1 (in Arbeit)
+## v0.0.2 (in Arbeit)
+
+### 🧩 Module
+- **Module per Datei eintragen:** Eine Modul-Datei (`*.humodule`) mit Repositories und Nur-Lese-Token ins Fenster ziehen, und alle Module sind auf einmal hinterlegt.
+  - Nur für Verwalter; vorher kommt eine Rückfrage mit der Liste der Repositories.
+  - Jeder Token wird vor dem Speichern geprüft, das Ergebnis erscheint je Repository.
+  - Sind alle Einträge gespeichert, wird die Datei gelöscht. Sonst bleibt sie, und die Meldung nennt, was fehlt.
+  - Geht jederzeit, auch später mit einer Datei nur für ein neues Modul.
+  - Alternativ im Fenster „Module“ über „Datei einlesen …“.
+
+### 🪟 Hauptfenster
+- **Erster Start:** Die App fragt nach einem Symbol auf dem Desktop und zeigt auf Wunsch, wie sie an die Taskleiste kommt.
+
+### 🚧 Grenzen
+- **Taskleiste:** Windows erlaubt Programmen nicht, sich selbst anzuheften. Das Anheften macht der Anwender mit Rechtsklick auf das Symbol.
+- **Token je Windows-Benutzer:** Jeder Verwalter, der Module aktualisiert, zieht die Modul-Datei selbst ein.
+
+## v0.0.1
 
 ### 🪟 Hauptfenster
 - **Grundgerüst:** Kopfzeile mit Logo, Name und Version, Reiterleiste und Protokoll im dunklen Farbschema.
