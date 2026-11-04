@@ -60,7 +60,7 @@ jobs:
       - name: Starttest (Main.ps1 -SmokeTest mit Beispielmodul)
         if: always()
         shell: pwsh
-        timeout-minutes: 5
+        timeout-minutes: 6
         run: |
           $f = Join-Path $env:RUNNER_TEMP 'smoke.txt'
           New-Item -ItemType Directory -Path .\AddonsDev -Force | Out-Null
@@ -68,7 +68,13 @@ jobs:
           $a = @('-NoProfile')
           if ($env:HU_STA) { $a += $env:HU_STA }
           $a += @('-ExecutionPolicy', 'Bypass', '-File', "`"$((Resolve-Path .\Main.ps1).Path)`"", '-ShowConsole', '-SmokeTest', "`"$f`"")
-          $p = Start-Process $env:HU_EXE -ArgumentList $a -PassThru -Wait
+          # nicht -Wait (wartet auch auf Kindprozesse); eigene Frist, die App hat einen Waechter nach 150 s
+          $p = Start-Process $env:HU_EXE -ArgumentList $a -PassThru
+          if (-not $p.WaitForExit(240000)) {
+            Get-Process -Id $p.Id -ErrorAction SilentlyContinue | Format-List Id, MainWindowTitle, Responding | Out-String | Write-Host
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            throw "Starttest: keine Antwort nach 240 s$(if (Test-Path $f) { ' - ' + (Get-Content $f -Raw) })"
+          }
           if (-not (Test-Path $f)) { throw "Starttest: kein Ergebnis (Exitcode $($p.ExitCode))" }
           $r = Get-Content $f -Raw
           "Starttest: $r"

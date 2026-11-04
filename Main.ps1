@@ -37,7 +37,7 @@ $script:AppRoot = $PSScriptRoot
 # Zustandsvariablen (StrictMode: vor dem ersten Lesen setzen)
 $script:Window = $null; $script:Controls = @{}; $script:AppIcon = $null; $script:UiScale = 1.0
 $script:StartupDone = $false; $script:AbRestored = $false; $script:LastDialog = $null
-$script:SmokeTestFile = $SmokeTest; $script:SmokeTimer = $null
+$script:SmokeTestFile = $SmokeTest; $script:SmokeTimer = $null; $script:SmokeSteps = @(); $script:SmokeWatch = $null; $script:OnContentRendered = $null
 $script:Settings = $null; $script:App = $null; $script:Paths = $null; $script:RunLock = $null
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
@@ -286,7 +286,7 @@ $script:Window.Add_PreviewMouseWheel({
     $e.Handled = $true
 })
 
-$script:Window.Add_ContentRendered({
+$script:OnContentRendered = {
     if ($script:StartupDone) { return }
     $script:StartupDone = $true
     Close-HUSplash -Animate
@@ -298,56 +298,56 @@ $script:Window.Add_ContentRendered({
         $script:SmokeTimer.Add_Tick({
             $script:SmokeTimer.Stop()
             try {
-                $steps = @()
+                $script:SmokeSteps = @()
                 if ($script:Controls['tabMain'].Items.Count -lt 1) { throw 'keine Reiter' }
-                $steps += 'Reiter'
+                $script:SmokeSteps += 'Reiter'
                 if ("$($script:Controls['txtAppTitle'].Text)" -ne $script:AppTitle) { throw 'Titel nicht aus app.json' }
-                $steps += 'Titel'
+                $script:SmokeSteps += 'Titel'
                 if (-not ('HUTaskbar' -as [type])) { throw 'Taskleiste' }
-                $steps += 'Taskleiste'
+                $script:SmokeSteps += 'Taskleiste'
                 $tabs = @($script:Controls['tabMain'].Items).Count
                 if ($tabs -ne [Math]::Max(1, @($script:LoadedAddons).Count)) { throw "Reiter: $tabs, Module: $(@($script:LoadedAddons).Count)" }
-                $steps += "Module=$(@($script:LoadedAddons).Count)"
+                $script:SmokeSteps += "Module=$(@($script:LoadedAddons).Count)"
                 # Hineinziehen: jede Endung eines Moduls muss bei diesem Modul ankommen (Ziel ohne echtes Ziehen bestimmen)
                 foreach ($a in @($script:LoadedAddons | Where-Object { Test-HUAddonCanDrop $_ })) {
                     foreach ($x in @($a.Drop)) {
                         $tg = Resolve-HUDropTarget @("C:\Test\Datei$x")
                         if (-not $tg -or $tg.Info.Id -ne $a.Id) { throw "Hineinziehen: $x kommt nicht bei $($a.Id) an" }
                     }
-                    $steps += "Ziehen-$($a.Id)"
+                    $script:SmokeSteps += "Ziehen-$($a.Id)"
                 }
                 if (Resolve-HUDropTarget @('C:\Test\Datei.unbekannt')) { throw 'Hineinziehen: unbekannte Endung angenommen' }
                 # Sicherung: Quellen nur aus Data, ohne Logs, Token, Sperren
                 $src = @(Get-HUAppBackupSources -DataRoot $script:DataRoot)
                 if (@($src | Where-Object { $_.Name -match '/(Logs|Token)/|^data/(Laufend|Docs)/|\.lock$' }).Count) { throw 'Sicherung: verbotene Dateien in der Liste' }
-                $steps += "Sicherung=$($src.Count)"
+                $script:SmokeSteps += "Sicherung=$($src.Count)"
                 # Support: Info ohne Benutzername, ZIP entsteht
                 if ((ConvertTo-HURedacted ((Get-HUSupportInfo) -join "`n") (Get-HURedactMap)) -match [regex]::Escape($env:USERNAME)) { throw 'Support: Benutzername in info.txt' }
                 $zf = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtSmoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
                 $z = New-HUSupportZip -Include @{ Logs = $true; Settings = $true } -Folder $zf
                 if (-not (Test-Path -LiteralPath $z)) { throw 'Support-ZIP fehlt' }
                 Remove-Item -LiteralPath $zf -Recurse -Force
-                $steps += 'Support'
+                $script:SmokeSteps += 'Support'
                 # Fenster wirklich aufbauen: ein zweiter Timer schliesst das jeweils offene Fenster nach kurzer Zeit
                 $closer = [System.Windows.Threading.DispatcherTimer]::new()
                 $closer.Interval = [TimeSpan]::FromMilliseconds(1200)
                 $closer.Add_Tick({ if ($script:LastDialog -and $script:LastDialog.IsVisible) { $script:LastDialog.Close() } })
                 $closer.Start()
                 try {
-                    Show-HUSupport; $steps += 'Fenster-Support'
-                    Open-HUSettings -Tab 'Sicherung'; $steps += 'Fenster-Sicherung'
-                    [void](Show-HUAbPasswordDialog -New); $steps += 'Fenster-Kennwort'
-                    Show-HUAbout; $steps += 'Fenster-Info'
-                    Open-HUSettings; $steps += 'Fenster-Einstellungen'
+                    Show-HUSupport; $script:SmokeSteps += 'Fenster-Support'
+                    Open-HUSettings -Tab 'Sicherung'; $script:SmokeSteps += 'Fenster-Sicherung'
+                    [void](Show-HUAbPasswordDialog -New); $script:SmokeSteps += 'Fenster-Kennwort'
+                    Show-HUAbout; $script:SmokeSteps += 'Fenster-Info'
+                    Open-HUSettings; $script:SmokeSteps += 'Fenster-Einstellungen'
                     if (-not (Get-HUHelpPage $null)) { throw 'Grundhilfe fehlt' }
-                    $steps += 'Hilfe'
+                    $script:SmokeSteps += 'Hilfe'
                 } finally { $closer.Stop() }
                 Save-HUWindowState
                 if (-not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))) { throw 'Fensterzustand nicht gespeichert' }
-                $steps += 'Fensterzustand'
-                "OK Version=$($script:Version) App=$($script:App.id) PS=$($PSVersionTable.PSVersion) Schritte=$($steps -join ',')" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
+                $script:SmokeSteps += 'Fensterzustand'
+                "OK Version=$($script:Version) App=$($script:App.id) PS=$($PSVersionTable.PSVersion) Schritte=$($script:SmokeSteps -join ',')" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
             } catch {
-                "FEHLER nach [$($steps -join ',')]: $($_.Exception.Message)" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
+                "FEHLER nach [$($script:SmokeSteps -join ',')]: $($_.Exception.Message)" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
             }
             $script:Window.Close()
         })
@@ -370,7 +370,8 @@ $script:Window.Add_ContentRendered({
             }
         }
     }
-})
+}
+$script:Window.Add_ContentRendered($script:OnContentRendered)
 
 $script:Window.Add_Closing({
     param($s, $e)
@@ -398,6 +399,29 @@ try {
 } catch { }
 if (-not $SmokeTest -and -not $script:RunLock) { Write-HULogWarn 'Anmeldung in Data\Laufend nicht möglich - ein Update erkennt diese Sitzung nicht.' }
 Write-HULogOK 'Bereit.'
+
+if ($SmokeTest) {
+    # Starttest ohne sichtbaren Bildschirm (CI): kommt ContentRendered nicht, nach Loaded trotzdem starten
+    $script:Window.Add_Loaded({
+            $fb = [System.Windows.Threading.DispatcherTimer]::new()
+            $fb.Interval = [TimeSpan]::FromSeconds(5)
+            $fb.Add_Tick({
+                    $this.Stop()
+                    if (-not $script:StartupDone) { Write-HULogWarn 'Starttest: ContentRendered kam nicht - Start über Loaded.'; & $script:OnContentRendered }
+                })
+            $fb.Start()
+        })
+    # Waechter: haengt der Test (z. B. an einem offenen Fenster), Ergebnis mit dem letzten Schritt schreiben und beenden
+    $script:SmokeWatch = [System.Windows.Threading.DispatcherTimer]::new()
+    $script:SmokeWatch.Interval = [TimeSpan]::FromSeconds(150)
+    $script:SmokeWatch.Add_Tick({
+            $this.Stop()
+            $open = ''; try { if ($script:LastDialog -and $script:LastDialog.IsVisible) { $open = " offenes Fenster: $($script:LastDialog.Title)" } } catch { }
+            "FEHLER Zeitüberschreitung nach [$($script:SmokeSteps -join ',')] Start=$($script:StartupDone)$open" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
+            [Environment]::Exit(2)
+        })
+    $script:SmokeWatch.Start()
+}
 
 try { [void]$script:Window.ShowDialog() }
 finally {
