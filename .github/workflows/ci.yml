@@ -35,31 +35,32 @@ jobs:
       matrix:
         include:
           - name: Windows PowerShell 5.1
-            shell: powershell
             exe: powershell.exe
             sta: ''
           - name: PowerShell 7
-            shell: pwsh
             exe: pwsh.exe
             sta: '-STA'
+    # shell: erlaubt keine Matrix-Werte - die Schritte laufen in pwsh und starten darin die PowerShell der Matrix
+    env:
+      HU_EXE: ${{ matrix.exe }}
+      HU_STA: ${{ matrix.sta }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
       - name: PowerShell-Version
-        shell: ${{ matrix.shell }}
-        run: $PSVersionTable | Out-String
+        shell: pwsh
+        run: '& $env:HU_EXE -NoProfile -Command ''$PSVersionTable | Out-String'''
       - name: Pruefungen
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         timeout-minutes: 15
-        run: .\.github\tests\Invoke-CITests.ps1
+        run: |
+          & $env:HU_EXE -NoProfile -ExecutionPolicy Bypass -File .\.github\tests\Invoke-CITests.ps1
+          exit $LASTEXITCODE
       - name: Starttest (Main.ps1 -SmokeTest mit Beispielmodul)
         if: always()
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         timeout-minutes: 5
-        env:
-          HU_EXE: ${{ matrix.exe }}
-          HU_STA: ${{ matrix.sta }}
         run: |
           $f = Join-Path $env:RUNNER_TEMP 'smoke.txt'
           New-Item -ItemType Directory -Path .\AddonsDev -Force | Out-Null
@@ -75,7 +76,7 @@ jobs:
           if ($r -notmatch '^OK') { throw "Starttest fehlgeschlagen: $r" }
       - name: Protokoll bei Fehler
         if: failure()
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         run: Get-ChildItem .\Data\Benutzer -Recurse -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_.FullName -Tail 80 }
 
   release:
