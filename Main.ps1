@@ -37,7 +37,7 @@ $script:AppRoot = $PSScriptRoot
 # Zustandsvariablen (StrictMode: vor dem ersten Lesen setzen)
 $script:Window = $null; $script:Controls = @{}; $script:AppIcon = $null; $script:UiScale = 1.0
 $script:StartupDone = $false; $script:AbRestored = $false; $script:LastDialog = $null
-$script:SmokeTestFile = $SmokeTest; $script:SmokeTimer = $null; $script:SmokeSteps = @(); $script:SmokeWatch = $null; $script:OnContentRendered = $null; $script:SmokeState = $null
+$script:SmokeTestFile = $SmokeTest; $script:SmokeTimer = $null; $script:SmokeSteps = @(); $script:SmokeWatch = $null; $script:OnContentRendered = $null; $script:SmokeState = $null; $script:SmokeRun = $null; $script:SmokeRan = $false
 $script:Settings = $null; $script:App = $null; $script:Paths = $null; $script:RunLock = $null
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
@@ -295,9 +295,10 @@ $script:OnContentRendered = {
         # automatischer Test (CI): Fenster laeuft, Ergebnis schreiben, beenden
         $script:SmokeTimer = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
         $script:SmokeTimer.Interval = [TimeSpan]::FromSeconds(1)
-        $script:SmokeTimer.Add_Tick({
-            $script:SmokeTimer.Stop()
-            $script:SmokeState.Steps = '(Zeitgeber lief)'
+        $script:SmokeTimer.Add_Tick({ $script:SmokeTimer.Stop(); $script:SmokeState.Steps = '(Zeitgeber lief)'; & $script:SmokeRun })
+        $script:SmokeRun = {
+            if ($script:SmokeRan) { return }
+            $script:SmokeRan = $true
             try {
                 $script:SmokeSteps = @()
                 if ($script:Controls['tabMain'].Items.Count -lt 1) { throw 'keine Reiter' }
@@ -346,12 +347,13 @@ $script:OnContentRendered = {
                 Save-HUWindowState
                 if (-not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))) { throw 'Fensterzustand nicht gespeichert' }
                 $script:SmokeSteps += 'Fensterzustand'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
-                "OK Version=$($script:Version) App=$($script:App.id) PS=$($PSVersionTable.PSVersion) Schritte=$($script:SmokeSteps -join ',')" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
+                $how = if ($script:SmokeState.Kicked) { " Start=Dispatcher(Zeitgeber kam nicht, Thread=$($script:SmokeState.ThreadState))" } else { '' }
+                "OK Version=$($script:Version) App=$($script:App.id) PS=$($PSVersionTable.PSVersion) Schritte=$($script:SmokeSteps -join ',')$how" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
             } catch {
                 "FEHLER nach [$($script:SmokeSteps -join ',')]: $($_.Exception.Message)" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
             }
             $script:Window.Close()
-        })
+        }
         $script:SmokeTimer.Start()
         $script:SmokeState.Steps = '(Zeitgeber gestartet)'
         return
@@ -405,7 +407,10 @@ Write-HULogOK 'Bereit.'
 if ($SmokeTest) {
     # Starttest ohne sichtbaren Bildschirm (CI): kommt ContentRendered nicht, nach 10 s trotzdem starten.
     # Zeitgeber mit Prioritaet Normal: ohne Bildschirm kommen Zeitgeber mit der Vorgabe Background u. U. nie dran.
-    $script:SmokeState = [hashtable]::Synchronized(@{ Loaded = $false; Rendered = $false; Fallback = $false; Steps = ''; File = $script:SmokeTestFile; Log = "$(Get-CurrentLogFile)" })
+    $script:SmokeState = [hashtable]::Synchronized(@{ Loaded = $false; Rendered = $false; Fallback = $false; Steps = ''; File = $script:SmokeTestFile; Log = "$(Get-CurrentLogFile)"; Kicked = $false; ThreadState = '' })
+    # Ausweg, falls Zeitgeber ohne Bildschirm nie feuern: der Waechter-Thread stoesst den Test direkt ueber den Dispatcher an
+    $script:SmokeState.Disp = $script:Window.Dispatcher
+    $script:SmokeState.Kick = [Action]{ if (-not $script:SmokeRan) { $script:SmokeState.Kicked = $true; if ($script:SmokeTimer) { $script:SmokeTimer.Stop() }; & $script:SmokeRun } }
     $script:Window.Add_Loaded({ $script:SmokeState.Loaded = $true })
     $script:Window.Add_ContentRendered({ $script:SmokeState.Rendered = $true })
     $fb = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
@@ -420,11 +425,17 @@ if ($SmokeTest) {
     $wp = [powershell]::Create(); $wp.Runspace = $wr
     [void]$wp.AddScript({
             param($St)
-            Start-Sleep -Seconds 200
+            Start-Sleep -Seconds 40
+            if ($St.Steps -like '(Zeitgeber gestartet)*' -and -not (Test-Path -LiteralPath $St.File)) {
+                # Testzeitgeber hat nach 40 s nicht gefeuert: Zustand des UI-Threads merken, Test ueber den Dispatcher anstossen
+                try { $St.ThreadState = "$($St.Disp.Thread.ThreadState)" } catch { $St.ThreadState = '?' }
+                try { [void]$St.Disp.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Normal, $St.Kick) } catch { $St.ThreadState += " Anstoss: $($_.Exception.Message)" }
+            }
+            Start-Sleep -Seconds 160
             if (-not (Test-Path -LiteralPath $St.File)) {
                 # letzte Protokollzeilen dazu: zeigen, was die Oberflaeche zuletzt getan hat
                 $tail = ''; try { if ($St.Log -and (Test-Path -LiteralPath $St.Log)) { $tail = (Get-Content -LiteralPath $St.Log -Tail 15 -Encoding UTF8) -join ' | ' } } catch { }
-                "FEHLER Oberfläche blockiert (kein Zeitgeber lief): Loaded=$($St.Loaded) ContentRendered=$($St.Rendered) Ausweichstart=$($St.Fallback) fertig bis: [$($St.Steps)] Protokoll: $tail" | Set-Content -LiteralPath $St.File -Encoding UTF8
+                "FEHLER Oberfläche blockiert (kein Zeitgeber lief): Loaded=$($St.Loaded) ContentRendered=$($St.Rendered) Ausweichstart=$($St.Fallback) Anstoss=$($St.Kicked) Thread=$($St.ThreadState) fertig bis: [$($St.Steps)] Protokoll: $tail" | Set-Content -LiteralPath $St.File -Encoding UTF8
                 [Environment]::Exit(3)
             }
         }).AddArgument($script:SmokeState)
@@ -435,7 +446,7 @@ if ($SmokeTest) {
     $script:SmokeWatch.Add_Tick({
             $this.Stop()
             $open = ''; try { if ($script:LastDialog -and $script:LastDialog.IsVisible) { $open = " offenes Fenster: $($script:LastDialog.Title)" } } catch { }
-            "FEHLER Zeitüberschreitung nach [$($script:SmokeSteps -join ',')] Start=$($script:StartupDone)$open" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
+            "FEHLER Zeitüberschreitung nach [$($script:SmokeSteps -join ',')] Start=$($script:StartupDone) Anstoss=$($script:SmokeState.Kicked) Thread=$($script:SmokeState.ThreadState) Stand=$($script:SmokeState.Steps)$open" | Set-Content -LiteralPath $script:SmokeTestFile -Encoding UTF8
             [Environment]::Exit(2)
         })
     $script:SmokeWatch.Start()
