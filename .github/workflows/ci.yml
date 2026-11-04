@@ -1,0 +1,224 @@
+# Automatische Tests und Releases (Aufbau wie in allen HU-Tools).
+# - bei jedem Push/Pull-Request: Pruefungen (Syntax, BOM, XAML, Steuerelemente, Update-Bibliothek, PSScriptAnalyzer, Pester)
+#   + Starttest (Main.ps1 -SmokeTest mit Beispielmodul) - unter Windows PowerShell 5.1 UND PowerShell 7, beide blockierend
+# - Push auf main mit neuer Version (Config/version.json, Tag existiert noch nicht):
+#   Vorab-Release v<Version> (Kanal Test) automatisch anlegen, Text aus CHANGELOG.md, <id>-files.sha256 anhaengen
+# - von Hand veroeffentlichtes Release: <id>-files.sha256 anhaengen
+# - danach jeweils den Update-Weg testen (Pull.ps1 laedt genau dieses Release und prueft alle Pruefsummen)
+# - Signatur + Freigabe macht der Herausgeber in der App (Rechtsklick auf Update > Release signieren / Release freigeben),
+#   erst dann wird das Release den Installationen angeboten
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# neuer Push bricht einen noch laufenden Lauf desselben Branches ab
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Pruefungen (${{ matrix.name }})
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows PowerShell 5.1
+            exe: powershell.exe
+            sta: ''
+          - name: PowerShell 7
+            exe: pwsh.exe
+            sta: '-STA'
+    # shell: erlaubt keine Matrix-Werte - die Schritte laufen in pwsh und starten darin die PowerShell der Matrix
+    env:
+      HU_EXE: ${{ matrix.exe }}
+      HU_STA: ${{ matrix.sta }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
+      - name: PowerShell-Version
+        shell: pwsh
+        run: '& $env:HU_EXE -NoProfile -Command ''$PSVersionTable | Out-String'''
+      - name: Pruefungen
+        shell: pwsh
+        timeout-minutes: 15
+        run: |
+          & $env:HU_EXE -NoProfile -ExecutionPolicy Bypass -File .\.github\tests\Invoke-CITests.ps1
+          exit $LASTEXITCODE
+      - name: Starttest (Main.ps1 -SmokeTest mit Beispielmodul)
+        if: always()
+        shell: pwsh
+        timeout-minutes: 6
+        run: |
+          $f = Join-Path $env:RUNNER_TEMP 'smoke.txt'
+          New-Item -ItemType Directory -Path .\AddonsDev -Force | Out-Null
+          Copy-Item .\.github\tests\Beispiel .\AddonsDev\Beispiel -Recurse -Force
+          $a = @('-NoProfile')
+          if ($env:HU_STA) { $a += $env:HU_STA }
+          $a += @('-ExecutionPolicy', 'Bypass', '-File', "`"$((Resolve-Path .\Main.ps1).Path)`"", '-ShowConsole', '-SmokeTest', "`"$f`"")
+          # nicht -Wait (wartet auch auf Kindprozesse); eigene Frist, die App hat einen Waechter nach 150 s
+          $p = Start-Process $env:HU_EXE -ArgumentList $a -PassThru
+          if (-not $p.WaitForExit(240000)) {
+            Get-Process -Id $p.Id -ErrorAction SilentlyContinue | Format-List Id, MainWindowTitle, Responding | Out-String | Write-Host
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            throw "Starttest: keine Antwort nach 240 s$(if (Test-Path $f) { ' - ' + (Get-Content $f -Raw) })"
+          }
+          if (-not (Test-Path $f)) { throw "Starttest: kein Ergebnis (Exitcode $($p.ExitCode))" }
+          $r = Get-Content $f -Raw
+          "Starttest: $r"
+          "### Starttest ${{ matrix.name }}: $r" | Add-Content $env:GITHUB_STEP_SUMMARY
+          if ($r -notmatch '^OK') { throw "Starttest fehlgeschlagen: $r" }
+      - name: Protokoll bei Fehler
+        if: failure()
+        shell: pwsh
+        run: Get-ChildItem .\Data\Benutzer -Recurse -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_.FullName -Tail 80 }
+
+  release:
+    name: Release + Pruefsummen-Datei
+    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.rel.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+      - name: Release bestimmen bzw. als Vorab-Release anlegen
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          V=$(python3 -c "import json;print(json.load(open('Config/version.json',encoding='utf-8-sig'))['version'])")
+          if [ -z "$V" ]; then echo "Version in Config/version.json nicht gefunden"; exit 1; fi
+          T="v$V"
+          if gh release view "$T" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $T gibt es schon - nichts anzulegen"; echo "tag=" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Abschnitt "## v<Version>" aus CHANGELOG.md als Release-Text
+          python3 - "$V" > notes.md <<'PY'
+          import re, sys
+          v = sys.argv[1]
+          t = open('CHANGELOG.md', encoding='utf-8-sig').read()
+          m = re.search(r'^## v' + re.escape(v) + r'\b[^\n]*\n(.*?)(?=^## v|\Z)', t, re.S | re.M)
+          print(m.group(1).strip() if m else 'Version ' + v)
+          PY
+          gh release create "$T" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "$T" --notes-file notes.md
+          echo "Vorab-Release $T angelegt" >> "$GITHUB_STEP_SUMMARY"
+          echo "tag=$T" >> "$GITHUB_OUTPUT"
+      - name: Pruefsummen-Datei erstellen und anhaengen
+        if: steps.rel.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: |
+          M=$(python3 -c "import json;print(json.load(open('Config/app.json',encoding='utf-8-sig'))['id'] + '-files.sha256')")
+          python3 .github/scripts/manifest.py "$M"
+          gh release upload "$TAG" "$M" --clobber --repo "$GITHUB_REPOSITORY"
+      - name: Alte Releases entfernen (nur die letzten 10 behalten)
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEP: 10
+        run: |
+          # neueste zuerst; die aktuelle stabile Version (Latest) bleibt immer erhalten
+          LATEST=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" -q .tag_name 2>/dev/null || true)
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate -q '.[] | "\(.created_at) \(.tag_name)"' | sort -r | awk '{print $2}' > all.txt
+          n=0
+          while read -r T; do
+            n=$((n+1))
+            [ "$n" -le "$KEEP" ] && continue
+            [ "$T" = "$LATEST" ] && { echo "behalte $T (Latest)"; continue; }
+            gh release delete "$T" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag && echo "- geloescht: $T" >> "$GITHUB_STEP_SUMMARY"
+          done < all.txt
+
+  pull:
+    name: Update-Weg testen (Pull.ps1)
+    needs: release
+    if: needs.release.outputs.tag != ''
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - name: Pull.ps1 laedt das Release, prueft alle Pruefsummen und respektiert Data und offene Sitzungen
+        shell: powershell
+        env:
+          HU_GITHUB_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          $t = Join-Path $env:RUNNER_TEMP 'HU-App'
+          $v = $env:TAG -replace '^v', ''
+          $repo = ($env:GITHUB_REPOSITORY -split '/')[1]
+          $pull = { param($extra) $o = powershell -NoProfile -ExecutionPolicy Bypass -File .\Pull.ps1 -Target $t -Version $v -NoStart -NonInteractive -Owner $env:GITHUB_REPOSITORY_OWNER -Repo $repo 2>&1 | Out-String; @{ Out = $o; Code = $LASTEXITCODE } }
+          # Die Signatur haengt der Herausgeber erst nach diesem Test an - hier wird der Weg mit Pruefsumme getestet
+          New-Item -ItemType Directory -Path (Join-Path $t 'Config') -Force | Out-Null
+          '{ "AllowUnsigned": true }' | Set-Content -LiteralPath (Join-Path $t 'Config\update.json') -Encoding UTF8
+          $r = & $pull; $r.Out
+          if ($r.Code -ne 0) { throw "Pull.ps1 Exitcode $($r.Code)" }
+          $i = Get-Content (Join-Path $t 'Config\installed.json') -Raw | ConvertFrom-Json
+          if ("$($i.Version)" -ne $v) { throw "installiert: $($i.Version), erwartet $v" }
+          if ("$($i.Check)" -notlike 'Pruefsumme*') { throw "nicht geprueft: $($i.Check)" }
+          "Pull OK: $($i.Version) - $($i.Check) - $($i.Files) Dateien"
+
+          # offene Sitzung (Data\Laufend\*.lock offen gehalten): Pull muss abbrechen und darf nichts aendern
+          $run = Join-Path $t 'Data\Laufend'; New-Item -ItemType Directory -Path $run -Force | Out-Null
+          $lp = Join-Path $run 'anna_PC-1.lock'
+          $fs = [IO.File]::Open($lp, 'CreateNew', 'ReadWrite', 'Read')
+          $b = [Text.Encoding]::UTF8.GetBytes('anna|PC-1|2026-01-01T08:00:00|1'); $fs.Write($b, 0, $b.Length); $fs.Flush()
+          $main = Join-Path $t 'Main.ps1'; $h0 = (Get-FileHash -LiteralPath $main).Hash
+          try { $r = & $pull } finally { $fs.Dispose() }
+          if ($r.Code -eq 0) { throw 'Pull lief trotz offener Sitzung' }
+          if ($r.Out -notmatch 'anna am PC PC-1') { throw "offene Sitzung nicht genannt: $($r.Out)" }
+          if ((Get-FileHash -LiteralPath $main).Hash -ne $h0) { throw 'Main.ps1 wurde trotz offener Sitzung veraendert' }
+          Remove-Item -LiteralPath $lp -Force
+          "Sperre OK: Pull bricht bei offener Sitzung ab und aendert nichts"
+
+          # zweiter Lauf = Update ueber bestehende Installation:
+          #   veraltete Programmdatei muss weg, Config, Data und eigene Dateien bleiben, Pfade ausserhalb werden ignoriert,
+          #   ein abgebrochenes Update (Journal mit ZWEI Dateien) wird zuerst zurueckgestellt, danach keine Reste
+          $old = Join-Path $t 'Core\Alt-Entfernt.ps1'; 'alt' | Set-Content -LiteralPath $old -Encoding UTF8
+          $keep = Join-Path $t 'Config\behalten.txt'; 'bleibt' | Set-Content -LiteralPath $keep -Encoding UTF8
+          $data = Join-Path $t 'Data\Beispiel\liste.txt'; New-Item -ItemType Directory -Path (Split-Path $data) -Force | Out-Null; 'daten' | Set-Content -LiteralPath $data -Encoding UTF8
+          $own = Join-Path $t 'Core\Eigene.ps1'; 'eigen' | Set-Content -LiteralPath $own -Encoding UTF8
+          $outside = Join-Path $env:RUNNER_TEMP 'ausserhalb.txt'; 'aussen' | Set-Content -LiteralPath $outside -Encoding UTF8
+          $i.FileList = @($i.FileList) + @('Core/Alt-Entfernt.ps1', 'Config/behalten.txt', 'Data/Beispiel/liste.txt', '../ausserhalb.txt')
+          $i | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $t 'Config\installed.json') -Encoding UTF8
+          $lib = Join-Path $t 'Functions\Core-Update.ps1'
+          Move-Item -LiteralPath $main -Destination "$main.pullold"; 'kaputt' | Set-Content -LiteralPath $main -Encoding UTF8
+          $libHash = (Get-FileHash -LiteralPath $lib -Algorithm SHA256).Hash
+          Move-Item -LiteralPath $lib -Destination "$lib.pullold"
+          ConvertTo-Json -InputObject @("$main", "$lib") | Set-Content -LiteralPath (Join-Path $t 'Config\pull-journal.json') -Encoding UTF8
+          $r = & $pull; $r.Out
+          if ($r.Code -ne 0) { throw "Pull.ps1 (Update) Exitcode $($r.Code)" }
+          if ($r.Out -notmatch 'abgebrochen') { throw 'Journal wurde nicht ausgewertet' }
+          if ($r.Out -notmatch [regex]::Escape("zurueckgestellt: $lib")) { throw 'Journal: Core-Update.ps1 nicht zurueckgestellt (Array-Auswertung PS 5.1?)' }
+          if ((Get-Content -LiteralPath $main -Raw) -match 'kaputt') { throw 'Main.ps1 nicht erneuert' }
+          if (-not (Test-Path -LiteralPath $lib) -or (Get-FileHash -LiteralPath $lib -Algorithm SHA256).Hash -ne $libHash) { throw 'Core-Update.ps1 fehlt oder falsch' }
+          if (Test-Path -LiteralPath $old) { throw 'veraltete Datei nicht entfernt' }
+          if (-not (Test-Path -LiteralPath $keep)) { throw 'Datei in Config wurde entfernt' }
+          if (-not (Test-Path -LiteralPath $data)) { throw 'Datei in Data wurde entfernt' }
+          if (-not (Test-Path -LiteralPath $own)) { throw 'eigene Datei wurde entfernt' }
+          if (-not (Test-Path -LiteralPath $outside)) { throw 'Datei ausserhalb wurde entfernt' }
+          $rest = @(Get-ChildItem -LiteralPath $t -Recurse -File -Force | Where-Object { $_.Name -match '\.(pullold|pulltmp)$' -or $_.Name -eq 'pull-journal.json' })
+          if ($rest.Count) { throw "Reste: $(($rest | ForEach-Object Name) -join ', ')" }
+          $i = Get-Content (Join-Path $t 'Config\installed.json') -Raw | ConvertFrom-Json
+          if ("$($i.Version)" -ne $v -or -not @($i.FileList).Count) { throw "installed.json nach Update falsch: $($i.Version)" }
+          "Update OK: Journal zurueckgestellt, veraltete Datei entfernt, Config/Data/eigene Dateien unberuehrt, keine Reste"

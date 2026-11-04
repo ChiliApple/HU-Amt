@@ -1,0 +1,207 @@
+﻿<!--
+    Einstellungen wie in der Vorlage: Allgemein | Sicherung | Update, dazu Module | Verwalter.
+    Persoenliches in Data\Benutzer\<Name>\settings.json, Installation in Config\update.json und Config\powershell-host.txt,
+    Sicherung in Data\sicherung.json, Verwalter in Data\Verwalter.txt.
+    Sicherung, Module und Verwalter sehen nur Verwalter; im Reiter Update stellen nur Verwalter Kanal und Signatur ein.
+-->
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Einstellungen"
+    Width="940" Height="680" MinWidth="760" MinHeight="520"
+    WindowStartupLocation="CenterOwner"
+    Background="#1E1E1E"
+    UseLayoutRounding="True"
+    ShowInTaskbar="False"
+    ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <!--HU:THEME-->
+    </Window.Resources>
+
+    <DockPanel Margin="12">
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+            <TextBlock x:Name="txtSettingsInfo" Foreground="#858585" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="btnSave" Content="Speichern" Width="110" Background="#4CAF50" Style="{StaticResource DarkButton}" Margin="0,0,8,0"
+                        ToolTip="Einstellungen speichern und schlie&#xDF;en"/>
+                <Button x:Name="btnCancel" Content="Abbrechen" Width="110" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True"
+                        ToolTip="Schlie&#xDF;en, ohne zu speichern"/>
+            </StackPanel>
+        </DockPanel>
+
+        <TabControl x:Name="tabSettings" Style="{StaticResource DarkTabControl}">
+
+            <!-- ================= ALLGEMEIN ================= -->
+            <TabItem Header="Allgemein" x:Name="tabGeneral" Style="{StaticResource DarkTabItem}" ToolTip="Verkn&#xFC;pfung, Start und Darstellung">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="4,12,4,4">
+                        <TextBlock Text="Verkn&#xFC;pfung" Style="{StaticResource SectionTitle}"/>
+                        <TextBlock x:Name="txtShortcutHint" Style="{StaticResource HintText}" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                        <WrapPanel Margin="0,0,0,4">
+                            <Button x:Name="btnShortcutDesktop" Content="&#x1F5A5; Desktop-Verkn&#xFC;pfung" Background="#1976D2" Style="{StaticResource DarkButton}" Margin="0,0,8,6"
+                                    ToolTip="Symbol auf den eigenen Desktop legen"/>
+                            <Button x:Name="btnShortcutStart" Content="&#x2630; Startmen&#xFC;-Eintrag" Background="#1976D2" Style="{StaticResource DarkButton}" Margin="0,0,8,6"
+                                    ToolTip="Eintrag im eigenen Startmen&#xFC; anlegen"/>
+                            <Button x:Name="btnShortcutAll" Content="Desktop f&#xFC;r alle Benutzer" Style="{StaticResource ToolButton}" Margin="0,0,8,6"
+                                    ToolTip="&#xD6;ffentlicher Desktop - braucht Administratorrechte"/>
+                            <Button x:Name="btnLauncher" Content="Starter neu erstellen" Style="{StaticResource ToolButton}" Margin="0,0,8,6"
+                                    ToolTip="Starter im Programmordner neu anlegen (eigenes Logo, kein Konsolenfenster)"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="txtShortcutInfo" Style="{StaticResource HintText}" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                        <StackPanel x:Name="pnlPsHost">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="PowerShell beim Start" Style="{StaticResource FieldLabel}" Width="230"/>
+                                <ComboBox x:Name="cmbPsHost" Width="320" Style="{StaticResource DarkComboBox}" FontSize="12" Margin="0,3"
+                                          ToolTip="Gilt f&#xFC;r Starter, Verkn&#xFC;pfung, Neustart und Update - f&#xFC;r alle, die diesen Programmordner nutzen. Wirkt beim n&#xE4;chsten Start.">
+                                    <ComboBoxItem Content="Automatisch (PowerShell 7, wenn installiert)" Tag="auto"/>
+                                    <ComboBoxItem Content="Windows PowerShell 5.1" Tag="5"/>
+                                    <ComboBoxItem Content="PowerShell 7" Tag="7"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <TextBlock x:Name="txtPsHostInfo" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Start und Darstellung" Style="{StaticResource SectionTitle}"/>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="230"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Reiter beim Start" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbStartTab" Width="260" HorizontalAlignment="Left" Style="{StaticResource DarkComboBox}" FontSize="12" Margin="0,3"
+                                      ToolTip="Dieser Reiter ist nach dem Start offen"/>
+                            <TextBlock Grid.Row="1" Text="Oberfl&#xE4;chengr&#xF6;&#xDF;e" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbScale" Width="260" HorizontalAlignment="Left" Style="{StaticResource DarkComboBox}" FontSize="12" Margin="0,3"
+                                      ToolTip="Auch im Hauptfenster: Strg + Mausrad, Strg + 0 = 100 %"/>
+                            <TextBlock Grid.Row="2" x:Name="lblLogLevel" Text="Protokoll-Stufe" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbLogLevel" Width="260" HorizontalAlignment="Left" Style="{StaticResource DarkComboBox}" FontSize="12" Margin="0,3"
+                                      ToolTip="Wie ausf&#xFC;hrlich das Protokoll schreibt. Wirkt beim n&#xE4;chsten Start.">
+                                <ComboBoxItem Content="Debug (alles)" Tag="Debug"/>
+                                <ComboBoxItem Content="Info (Standard)" Tag="Info"/>
+                                <ComboBoxItem Content="Warnungen und Fehler" Tag="Warn"/>
+                            </ComboBox>
+                            <TextBlock Grid.Row="3" Text="Startanimation" Style="{StaticResource FieldLabel}"/>
+                            <CheckBox Grid.Row="3" Grid.Column="1" x:Name="chkSplashAnim" Content="Saugroboter r&#xE4;umt den Startbildschirm weg (Klick darauf &#xFC;berspringt)" Style="{StaticResource DarkCheckBox}" VerticalAlignment="Center" Margin="0,5"
+                                      ToolTip="Aus: der Startbildschirm schlie&#xDF;t ohne Animation"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ================= SICHERUNG ================= -->
+            <TabItem Header="Sicherung" x:Name="tabAppBackup" Style="{StaticResource DarkTabItem}" ToolTip="Verschl&#xFC;sselte Sicherung der Daten">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="4,12,4,4">
+                        <TextBlock Text="App-Sicherung" Style="{StaticResource SectionTitle}"/>
+                        <TextBlock Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"
+                                   Text="Sichert den Datenordner der App: gemeinsame Listen und Einstellungen, die Daten der Module, die pers&#xF6;nlichen Einstellungen und den Fensterzustand jedes Benutzers sowie die Verwalter-Liste (welche Module installiert sind, wird vermerkt - installiert werden sie danach neu). Immer mit Kennwort verschl&#xFC;sselt (AES-256). Nicht enthalten: Protokolle, Zugangsdaten der Module (an den Benutzer gebunden) und das gespeicherte Kennwort der Sicherung."/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Sicherungsordner" Style="{StaticResource FieldLabel}"/>
+                            <DockPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,6">
+                                <Button x:Name="btnAbBrowse" DockPanel.Dock="Right" Content="..." Style="{StaticResource ToolButton}" Width="34" Margin="6,0,0,0" ToolTip="Ordner w&#xE4;hlen"/>
+                                <TextBox x:Name="txtAbPath" Style="{StaticResource DarkTextBox}" FontSize="12" ToolTip="Auch eine Netzwerkfreigabe oder ein USB-Laufwerk. Am besten nicht auf demselben Laufwerk wie die App, nie im Programmordner."/>
+                            </DockPanel>
+                            <TextBlock Grid.Row="1" Text="Kennwort" Style="{StaticResource FieldLabel}"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,6">
+                                <Button x:Name="btnAbPw" Content="Kennwort festlegen ..." Style="{StaticResource ToolButton}" Margin="0,0,10,0" ToolTip="Kennwort der Sicherung festlegen bzw. &#xE4;ndern"/>
+                                <TextBlock x:Name="txtAbPwInfo" Foreground="#AAAAAA" VerticalAlignment="Center" FontSize="12"/>
+                            </StackPanel>
+                            <TextBlock Grid.Row="2" Text="Automatisch" Style="{StaticResource FieldLabel}"/>
+                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,6">
+                                <ComboBox x:Name="cmbAbMode" Width="140" Style="{StaticResource DarkComboBox}" FontSize="12"
+                                          ToolTip="L&#xE4;uft beim Start bzw. solange die App offen ist. Braucht ein gespeichertes Kennwort. Im Netzordner sichert der Erste, dem es f&#xE4;llig wird.">
+                                    <ComboBoxItem Content="aus" Tag="aus"/>
+                                    <ComboBoxItem Content="t&#xE4;glich" Tag="taeglich"/>
+                                    <ComboBoxItem Content="w&#xF6;chentlich" Tag="woechentlich"/>
+                                </ComboBox>
+                                <TextBlock Text="aufbewahren" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="14,0,6,0"/>
+                                <TextBox x:Name="txtAbKeep" Width="50" Style="{StaticResource DarkTextBox}" FontSize="12" ToolTip="Anzahl Sicherungen im Ordner je PC (die &#xE4;ltesten werden gel&#xF6;scht)"/>
+                                <TextBlock Text="Sicherungen" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Grid.Row="3" Text="Letzte Sicherung" Style="{StaticResource FieldLabel}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtAbLast" Foreground="#AAAAAA" VerticalAlignment="Center" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                        </Grid>
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button x:Name="btnAbNow" Content="Jetzt sichern" Background="#1976D2" Style="{StaticResource DarkButton}" Margin="0,0,8,6" ToolTip="Ordner und Automatik speichern und sofort sichern"/>
+                            <Button x:Name="btnAbCheck" Content="Sicherung pr&#xFC;fen ..." Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Sicherung &#xF6;ffnen und pr&#xFC;fen, ohne etwas zu schreiben"/>
+                            <Button x:Name="btnAbRestore" Content="Wiederherstellen ..." Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Bereiche aus einer Sicherung zur&#xFC;ckschreiben (erst, wenn niemand sonst die App offen hat)"/>
+                            <Button x:Name="btnAbOpen" Content="Ordner &#xF6;ffnen" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Sicherungsordner im Explorer &#xF6;ffnen"/>
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
+                                   Text="Ordner und Automatik gelten nach &#x201E;Speichern&#x201C; oder &#x201E;Jetzt sichern&#x201C; f&#xFC;r die ganze Installation. Ein ge&#xE4;ndertes Kennwort gilt nur f&#xFC;r neue Sicherungen - alte bleiben mit dem alten Kennwort lesbar. Ohne Kennwort ist eine Sicherung nicht zu &#xF6;ffnen."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ================= UPDATE ================= -->
+            <TabItem Header="Update" x:Name="tabUpdate" Style="{StaticResource DarkTabItem}" ToolTip="Update-Kanal und Pr&#xFC;fung">
+                <StackPanel Margin="4,12,4,4">
+                    <TextBlock Text="Update-Kanal" Style="{StaticResource SectionTitle}"/>
+                    <ComboBox x:Name="cmbChannel" Width="300" HorizontalAlignment="Left" Style="{StaticResource DarkComboBox}" FontSize="12" Margin="0,0,0,6"
+                              ToolTip="Gilt f&#xFC;r diese Installation (im Netzordner f&#xFC;r alle). Stellt ein Verwalter ein.">
+                        <ComboBoxItem Content="Stabil (freigegebene Versionen)" Tag="Stable"/>
+                        <ComboBoxItem Content="Test (auch Vorab-Versionen)" Tag="Test"/>
+                    </ComboBox>
+                    <CheckBox x:Name="chkRequireSig" Content="Nur signierte Updates installieren (empfohlen)" Style="{StaticResource DarkCheckBox}"
+                              ToolTip="Aus nur zum Testen: dann wird auch eine Version ohne Signatur angenommen. Stellt ein Verwalter ein."/>
+                    <CheckBox x:Name="chkCheckOnStart" Content="Beim Start nach Updates suchen" Style="{StaticResource DarkCheckBox}"
+                              ToolTip="Ist eine neue Version da, wird der Knopf Update gold"/>
+                    <TextBlock x:Name="txtUpdateInfo" Style="{StaticResource HintText}" FontSize="11" Margin="0,12,0,12" TextWrapping="Wrap"/>
+                    <WrapPanel>
+                        <Button x:Name="btnCheckNow" Content="Jetzt pr&#xFC;fen" Background="#1976D2" Style="{StaticResource DarkButton}" Margin="0,0,8,6" ToolTip="Sofort nach einer neuen Version suchen"/>
+                        <Button x:Name="btnOtherVersion" Content="Andere Version / Vorversion ..." Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Eine bestimmte Version installieren (Verwalter)"/>
+                    </WrapPanel>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ================= MODULE (nur HU-Amt) ================= -->
+            <TabItem Header="Module" x:Name="tabModules" Style="{StaticResource DarkTabItem}" ToolTip="Geladene Module">
+                <DockPanel Margin="4,12,4,4">
+                    <TextBlock DockPanel.Dock="Top" Text="Geladene Module" Style="{StaticResource SectionTitle}"/>
+                    <WrapPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                        <Button x:Name="btnAddonRepos" Content="Private Module hinterlegen ..." Background="#1976D2" Style="{StaticResource DarkButton}" Margin="0,0,8,6"
+                                ToolTip="Repository und Nur-Lese-Token eines privaten Moduls hinterlegen"/>
+                        <Button x:Name="btnAddonUpdate" Content="Module jetzt aktualisieren" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Neueste signierte Fassung der privaten Module laden"/>
+                        <Button x:Name="btnAddonDev" Content="Ordner AddonsDev &#xF6;ffnen" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Module in Entwicklung (ohne Signatur)"/>
+                    </WrapPanel>
+                    <DataGrid x:Name="gridModules" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                              ToolTip="Module, die gerade geladen sind">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Reiter" Binding="{Binding Reiter}"/>
+                            <DataGridTextColumn Header="Kennung" Binding="{Binding Id}"/>
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}"/>
+                            <DataGridTextColumn Header="Herkunft" Binding="{Binding Herkunft}"/>
+                            <DataGridTextColumn Header="Dateien hineinziehen" Binding="{Binding Ziehen}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ================= VERWALTER (nur HU-Amt) ================= -->
+            <TabItem Header="Verwalter" x:Name="tabAdmins" Style="{StaticResource DarkTabItem}" ToolTip="Wer die Verwaltung sieht">
+                <DockPanel Margin="4,12,4,4">
+                    <TextBlock DockPanel.Dock="Top" Text="Verwalter" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Text="Verwalter sehen Protokoll, Sicherung, Update-Einstellungen und Module. Alle anderen bekommen eine aufger&#xE4;umte Oberfl&#xE4;che; das Update per goldenem Knopf geht f&#xFC;r alle. Eingetragen wird der Windows-Benutzername."/>
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBox x:Name="txtAdminName" Width="220" Style="{StaticResource DarkTextBox}" ToolTip="Windows-Benutzername (ohne Dom&#xE4;ne oder als DOM&#xC4;NE\Name)"/>
+                        <Button x:Name="btnAdminAdd" Content="Hinzuf&#xFC;gen" Background="#388E3C" Style="{StaticResource DarkButton}" Margin="8,0,0,0" ToolTip="Namen in die Liste aufnehmen"/>
+                        <Button x:Name="btnAdminMe" Content="Mich hinzuf&#xFC;gen" Style="{StaticResource ToolButton}" Margin="8,0,0,0" ToolTip="Den eigenen Windows-Benutzer aufnehmen"/>
+                        <Button x:Name="btnAdminDel" Content="Markierten entfernen" Background="#C62828" Style="{StaticResource DarkButton}" Margin="24,0,0,0" ToolTip="Markierten Namen aus der Liste nehmen (mit R&#xFC;ckfrage)"/>
+                    </StackPanel>
+                    <TextBlock x:Name="txtAdminInfo" DockPanel.Dock="Bottom" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    <ListBox x:Name="lstAdmins" Style="{StaticResource DarkListBox}" MinHeight="120" ToolTip="Eingetragene Verwalter"/>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

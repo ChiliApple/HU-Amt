@@ -1,0 +1,125 @@
+﻿#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Hintergrund-Auftraege: eigener Runspace, optional Live-Protokoll in eine RichTextBox (wie in der Vorlage).
+.DESCRIPTION
+    Start-HUJob -Name 'AppBackup' -Code { ... } -Vars @{ ... } -Output $rtb -OnDone { param($Result, $Errors) ... }
+    Im Auftrag stehen bereit: HU.Logging, HU.Paths, HU.AppBackup, HU.Exchange, $AppRoot, $Settings und alle -Vars.
+    Write-HULog im Auftrag erscheint sofort in -Output (Datei wird alle 0,4 s nachgelesen).
+.NOTES
+    Dot-Source aus Main.ps1. Zielmaschine: der PC, auf dem die App laeuft.
+#>
+
+$script:HUJobs = @{}
+
+function Add-HURtbLine($Rtb, [string]$Text, [string]$Color = '#CCCCCC') {
+    if (-not $Rtb) { return }
+    $p = New-Object System.Windows.Documents.Paragraph
+    $r = New-Object System.Windows.Documents.Run($Text)
+    $r.Foreground = Get-HUBrush $Color
+    [void]$p.Inlines.Add($r)
+    $p.Margin = [System.Windows.Thickness]::new(0)
+    Add-HUOutputBlock $Rtb $p 1500
+}
+
+function Get-HULogLineColor([string]$Line) {
+    if ($Line -match '\[ERROR\]') { return '#FF5252' }
+    if ($Line -match '\[WARN\]') { return '#FFB74D' }
+    if ($Line -match '\[OK\]') { return '#81C784' }
+    if ($Line -match '\[DEBUG\]') { return '#777777' }
+    return '#90CAF9'
+}
+
+function Test-HUJobRunning([string]$Name) {
+    $j = $script:HUJobs[$Name]
+    # laeuft, bis das Ergebnis abgeholt ist (sonst koennte ein zweiter Auftrag gleichen Namens den ersten ueberholen)
+    return ($j -and -not $j.Done)
+}
+
+function Start-HUJob {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][scriptblock]$Code,
+        [hashtable]$Vars = @{},
+        $Output = $null,
+        [scriptblock]$OnDone = $null,
+        [switch]$Quiet
+    )
+    if (Test-HUJobRunning $Name) { Show-HUMessage 'Es läuft bereits ein Auftrag - bitte warten.' -Icon Warning; return $false }
+    $log = Join-Path ([IO.Path]::GetTempPath()) ("hu-job-{0}-{1}.log" -f $Name, [guid]::NewGuid().ToString('N').Substring(0, 8))
+    $rs = [runspacefactory]::CreateRunspace()
+    $rs.ApartmentState = 'STA'
+    $rs.Open()
+    $rs.SessionStateProxy.SetVariable('AppRoot', $script:AppRoot)
+    $rs.SessionStateProxy.SetVariable('Settings', $script:Settings)
+    $rs.SessionStateProxy.SetVariable('__JobLog', $log)
+    $rs.SessionStateProxy.SetVariable('__JobCode', $Code.ToString())
+    # GetEnumerator statt .Keys: ein Eintrag namens 'Keys' wuerde sonst die Schluesselliste verdecken
+    foreach ($e in $Vars.GetEnumerator()) { $rs.SessionStateProxy.SetVariable([string]$e.Key, $e.Value) }
+    $ps = [powershell]::Create()
+    $ps.Runspace = $rs
+    [void]$ps.AddScript({
+            foreach ($m in 'HU.Logging', 'HU.Paths', 'HU.AppBackup', 'HU.Exchange') {
+                Import-Module (Join-Path $AppRoot "Core\$m.psm1") -Force -DisableNameChecking -ErrorAction Stop
+            }
+            Initialize-Logging -LogFilePath $__JobLog -MinLevel 'INFO'
+            & ([scriptblock]::Create($__JobCode))
+        })
+    $state = @{ Name = $Name; PS = $ps; RS = $rs; Log = $log; Pos = 0L; Output = $Output; OnDone = $OnDone; Started = Get-Date; Timer = $null; Handle = $null; Quiet = [bool]$Quiet; Done = $false }
+    $state.Handle = $ps.BeginInvoke()
+    $script:HUJobs[$Name] = $state
+    $t = [System.Windows.Threading.DispatcherTimer]::new()
+    $t.Interval = [TimeSpan]::FromMilliseconds(400)
+    # der Timer kennt seinen eigenen Auftrag (nicht nur den Namen) - so stoppt er sicher sich selbst
+    $t.Tag = $state
+    $t.Add_Tick({ Update-HUJob $this.Tag })
+    $state.Timer = $t
+    $t.Start()
+    return $true
+}
+
+function Read-HUJobLog($State) {
+    if (-not (Test-Path -LiteralPath $State.Log)) { return }
+    try {
+        $fs = [IO.File]::Open($State.Log, 'Open', 'Read', 'ReadWrite')
+        try {
+            if ($fs.Length -le $State.Pos) { return }
+            [void]$fs.Seek($State.Pos, 'Begin')
+            $sr = New-Object IO.StreamReader($fs, [Text.Encoding]::UTF8)
+            $txt = $sr.ReadToEnd()
+            $State.Pos = $fs.Length
+        } finally { $fs.Dispose() }
+        foreach ($ln in ($txt -split "`r?`n")) { if ($ln.Trim()) { Add-HURtbLine $State.Output $ln (Get-HULogLineColor $ln) } }
+    } catch { }
+}
+
+function Update-HUJob($State) {
+    $s = $State
+    if (-not $s) { return }
+    if ($s.Done) { $s.Timer.Stop(); return }
+    Read-HUJobLog $s
+    if (-not $s.Handle.IsCompleted) { return }
+    $s.Timer.Stop()
+    $s.Done = $true
+    # Auftraege mit eindeutigem Namen nicht ansammeln
+    if ($script:HUJobs[$s.Name] -eq $s -and $s.Name -match '-\d+-') { $script:HUJobs.Remove($s.Name) }
+    $result = $null; $errs = @()
+    try { $result = $s.PS.EndInvoke($s.Handle) } catch { $errs += $_.Exception.InnerException.Message; if (-not $errs[-1]) { $errs[-1] = $_.Exception.Message } }
+    $errs += @($s.PS.Streams.Error | ForEach-Object { "$($_.Exception.Message)" })
+    Read-HUJobLog $s
+    foreach ($e in $errs) { if ($e) { Add-HURtbLine $s.Output "[FEHLER] $e" '#FF5252' } }
+    try { $s.PS.Dispose(); $s.RS.Dispose() } catch { }
+    Remove-Item -LiteralPath $s.Log -Force -ErrorAction SilentlyContinue
+    $secs = [Math]::Round(((Get-Date) - $s.Started).TotalSeconds, 1)
+    if (-not $s.Quiet) { Add-HURtbLine $s.Output "--- fertig ($secs s) ---" '#666666' }
+    if ($s.OnDone) { try { & $s.OnDone @($result) @($errs | Where-Object { $_ }) } catch { Add-HURtbLine $s.Output "[FEHLER] $($_.Exception.Message)" '#FF5252' } }
+}
+
+# Scriptblock nach ein paar Sekunden im UI-Thread ausfuehren
+function Invoke-HUDelayed([int]$Seconds, [scriptblock]$Do) {
+    $t = [System.Windows.Threading.DispatcherTimer]::new()
+    $t.Interval = [TimeSpan]::FromSeconds([Math]::Max(1, $Seconds))
+    $t.Tag = $Do
+    $t.Add_Tick({ $this.Stop(); try { & $this.Tag } catch { Write-HULogError "Verzögerte Aktion: $($_.Exception.Message)" } })
+    $t.Start()
+}

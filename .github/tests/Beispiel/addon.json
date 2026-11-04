@@ -1,0 +1,14 @@
+﻿{
+  "id": "Beispiel",
+  "title": "Beispiel",
+  "version": "0.0.1",
+  "minApp": "0.0.1",
+  "order": 90,
+  "tab": {
+    "header": "Beispiel",
+    "xaml": "Tab.xaml",
+    "script": "Addon.ps1",
+    "init": "Initialize-HUAddonBeispiel"
+  },
+  "drop": [".pdf", ".xlsx", ".txt"]
+}

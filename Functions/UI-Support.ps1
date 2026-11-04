@@ -1,0 +1,209 @@
+﻿#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Support wie in der Vorlage: sammelt Protokolle und Einstellungen (anonymisiert) in ein ZIP und oeffnet eine E-Mail
+    oder ein GitHub-Issue.
+.DESCRIPTION
+    Anonymisiert werden: E-Mail-Adressen, GUIDs, IP-Adressen, Tokens, Windows-Benutzer-, Computer- und Domaenenname,
+    der Programmordner (-> <Programmordner>, z. B. ein Netzordner mit dem Namen der Dienststelle).
+    Nie enthalten: Daten der Module (Data\<Id>\), Zugangsdaten der Module, Kennwoerter, Sicherungen, Fensterzustand anderer Benutzer.
+    Der Inhalt kann vor dem Senden angesehen werden ("ZIP erstellen und ansehen").
+    Abweichungen von der Vorlage: ohne Testinstallationen, App-Bibliothek und Wartungsskripte (gibt es hier nicht);
+    das GitHub-Issue sehen nur Verwalter (alle anderen schicken das ZIP an den Verwalter).
+.NOTES
+    Dot-Source aus Main.ps1. Zielmaschine: der PC, auf dem die App laeuft.
+#>
+
+# Ersetzungsliste (Programmordner, Benutzer, PC, Domaene)
+function Get-HURedactMap {
+    $map = New-Object System.Collections.Generic.List[object]
+    try { if ("$($script:AppRoot)".Length -ge 3) { $map.Add(@{ From = "$($script:AppRoot)".TrimEnd('\'); To = '<Programmordner>' }) } } catch { }
+    foreach ($v in @($env:USERNAME, $env:COMPUTERNAME, $env:USERDOMAIN) | Where-Object { $_ -and $_.Length -ge 3 }) { $map.Add(@{ From = $v; To = '<anonym>' }) }
+    return $map.ToArray()
+}
+
+# Text anonymisieren (Reihenfolge: bekannte Namen, dann Muster)
+function ConvertTo-HURedacted([string]$Text, [object[]]$Map = @()) {
+    if (-not $Text) { return $Text }
+    $t = $Text
+    $t = [regex]::Replace($t, 'eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]*', '<token>')
+    $t = [regex]::Replace($t, '(?i)\b(gh[pousr]_[A-Za-z0-9]{20,}|github[_]pat_[A-Za-z0-9_]{20,})', '<token>')
+    $t = [regex]::Replace($t, '(?i)(sig|secret|password|passwort|kennwort|token|key)=([^&\s"]+)', '$1=<entfernt>')
+    $t = [regex]::Replace($t, '[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}', '<mail>')
+    foreach ($m in @($Map | Sort-Object { "$($_.From)".Length } -Descending)) { $t = [regex]::Replace($t, [regex]::Escape("$($m.From)"), "$($m.To)", 'IgnoreCase') }
+    $t = [regex]::Replace($t, '(?i)\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b', '$1-****')
+    $t = [regex]::Replace($t, '\b(?:\d{1,3}\.){3}\d{1,3}\b', '<ip>')
+    return $t
+}
+
+function Get-HUSupportInfo {
+    # Windows-Version aus der Registry (kein WMI: Get-CimInstance kann im UI-Thread ohne Bildschirm haengen)
+    $os = [Environment]::OSVersion.VersionString
+    try { $cv = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction Stop; $os = "$($cv.ProductName) $($cv.DisplayVersion) (Build $($cv.CurrentBuild).$($cv.UBR))" } catch { }
+    $lines = New-Object System.Collections.Generic.List[string]
+    $lines.Add("$($script:AppTitle) v$($script:Version)")
+    try { $cfg = Update-UpdateConfig; if ($cfg) { $lines.Add("Update-Kanal: $($cfg.Channel), Quelle: $($cfg.Owner)/$($cfg.Repo)$(if ($cfg.UseBranch) { ", Branch $($cfg.Branch)" })") } } catch { }
+    $lines.Add("Windows: $os, $(if ([Environment]::Is64BitOperatingSystem) { '64' } else { '32' }) Bit")
+    $lines.Add("PowerShell: $($PSVersionTable.PSVersion), .NET CLR $($PSVersionTable.CLRVersion), Sprache $([Globalization.CultureInfo]::CurrentUICulture.Name)")
+    $adm = $false; try { $adm = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) } catch { }
+    $lines.Add("Administrator: $adm, Oberflächengröße: $($script:UiScale), Verwalter: $(try { Test-HUVerwalter } catch { '?' })")
+    $lines.Add("Programmordner: $(if ("$($script:AppRoot)" -match '^(\\\\|//)') { 'Netzordner (UNC)' } else { 'lokal' })")
+    $wv = ''
+    foreach ($k in 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'HKCU:\Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}') {
+        try { $v = (Get-ItemProperty -LiteralPath $k -ErrorAction Stop).pv; if ($v) { $wv = "$v"; break } } catch { }
+    }
+    $lines.Add("WebView2-Runtime: $(if ($wv) { $wv } else { 'nicht gefunden' })")
+    $lines.Add("Module: $(if (@($script:LoadedAddons).Count) { (@($script:LoadedAddons) | ForEach-Object { "$($_.Id) $($_.Version) ($($_.Source))" }) -join ', ' } else { '(keine)' })")
+    try { $o = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock); $lines.Add("Weitere offene Sitzungen: $($o.Count)") } catch { }
+    return $lines.ToArray()
+}
+
+# Ordner mit den Supportdateien bauen und zippen; liefert den ZIP-Pfad (Standard: Desktop)
+function New-HUSupportZip {
+    param([string]$Description = '', [hashtable]$Include = @{}, [switch]$NoAnonymize, [string]$Folder = '')
+    $map = if ($NoAnonymize) { @() } else { Get-HURedactMap }
+    $stamp = Get-Date -Format 'yyyy-MM-dd_HHmm'
+    $root = Join-Path ([IO.Path]::GetTempPath()) "HU-Support_$stamp"
+    if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+    New-Item -ItemType Directory -Path $root -Force | Out-Null
+    $utf8 = New-Object System.Text.UTF8Encoding $true
+    $put = {
+        param([string]$Name, [string]$Text)
+        $f = Join-Path $root $Name
+        $d = Split-Path $f -Parent; if (-not (Test-Path -LiteralPath $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
+        [IO.File]::WriteAllText($f, (ConvertTo-HURedacted $Text $map), $utf8)
+    }
+    $tail = { param([string]$Path, [int]$MaxBytes = 2MB)
+        $fs = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite')
+        try {
+            if ($fs.Length -le $MaxBytes) { return (New-Object IO.StreamReader($fs, [Text.Encoding]::UTF8)).ReadToEnd() }
+            [void]$fs.Seek(-$MaxBytes, 'End'); $b = New-Object byte[] $MaxBytes; [void]$fs.Read($b, 0, $MaxBytes)
+        } finally { $fs.Dispose() }
+        return "... (gekürzt)`r`n" + [Text.Encoding]::UTF8.GetString($b)
+    }
+    $readme = @("$($script:AppTitle) Support-Paket $stamp", '', 'Beschreibung:', $Description, '', '--- System ---') + @(Get-HUSupportInfo)
+    & $put 'info.txt' ($readme -join "`r`n")
+
+    if ($Include.Logs) {
+        if ($script:LogDir -and (Test-Path -LiteralPath $script:LogDir)) {
+            foreach ($f in @(Get-ChildItem -LiteralPath $script:LogDir -Filter "$($script:App.id)_*.log" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 3)) {
+                try { & $put "Logs\$($f.Name)" (& $tail $f.FullName) } catch { }
+            }
+        }
+        $r = $script:Controls['rtbLog']
+        if ($r) { try { & $put 'Ausgabe\rtbLog.txt' ((New-Object System.Windows.Documents.TextRange($r.Document.ContentStart, $r.Document.ContentEnd)).Text) } catch { } }
+    }
+    if ($Include.Settings) {
+        $f = $script:SettingsPath
+        if ($f -and (Test-Path -LiteralPath $f)) { & $put 'Konfiguration\settings.json' ([IO.File]::ReadAllText($f)) }
+        foreach ($n in 'version.json', 'update.json', 'installed.json', 'app.json') {
+            $f = Join-Path $script:AppRoot "Config\$n"
+            if (Test-Path -LiteralPath $f) { & $put "Konfiguration\$n" ((Get-Content -LiteralPath $f -Raw -Encoding UTF8) -replace '(?i)"[^"]*token[^"]*"\s*:\s*"[^"]*"', '"token": "<entfernt>"') }
+        }
+    }
+    if (-not $Folder) { $Folder = [Environment]::GetFolderPath('Desktop') }
+    if (-not (Test-Path -LiteralPath $Folder)) { New-Item -ItemType Directory -Path $Folder -Force | Out-Null }
+    $zip = Join-Path $Folder "$($script:App.id)-Support_$stamp.zip"
+    if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($root, $zip)
+    Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+    return $zip
+}
+
+function Send-HUSupportMail([string]$To, [string]$Subject, [string]$Body, [string]$Zip) {
+    # klassisches Outlook: Entwurf mit Anhang; sonst Standard-Mailprogramm ohne Anhang + Explorer mit ZIP
+    try {
+        $o = New-Object -ComObject Outlook.Application -ErrorAction Stop
+        $m = $o.CreateItem(0)
+        if ($To) { $m.To = $To }
+        $m.Subject = $Subject; $m.Body = $Body
+        [void]$m.Attachments.Add($Zip)
+        $m.Display()
+        return 'outlook'
+    } catch { }
+    $u = "mailto:$([uri]::EscapeDataString($To))?subject=$([uri]::EscapeDataString($Subject))&body=$([uri]::EscapeDataString($Body + "`r`n`r`n(Bitte die ZIP-Datei vom Desktop anhängen: $(Split-Path $Zip -Leaf))"))"
+    Open-HUUrl $u
+    try { Start-Process explorer.exe -ArgumentList "/select,`"$Zip`"" } catch { }
+    return 'mailto'
+}
+
+function Show-HUSupport {
+    $x = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Support" Width="640" MinWidth="640" SizeToContent="Height" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" Background="#1E1E1E" ShowInTaskbar="False">
+    <Window.Resources>
+        <!--HU:THEME-->
+    </Window.Resources>
+    <StackPanel Margin="18">
+        <TextBlock Text="&#x1F6DF; Support anfragen" Foreground="#4FC3F7" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
+        <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,0,10"
+                   Text="Packt Protokolle und Einstellungen in ein ZIP auf dem Desktop. E-Mail-Adressen, IDs, IP-Adressen, der Programmordner und dein Windows-Benutzer werden ersetzt. Nie enthalten: Daten der Module, Kennw&#xF6;rter, Tokens, Sicherungen."/>
+        <TextBlock TextWrapping="Wrap" Text="Was ist passiert? (Schritte, Fehlermeldung, erwartetes Ergebnis)" Style="{StaticResource FieldLabel}" Margin="0,0,0,3"/>
+        <TextBox x:Name="txtDesc" Style="{StaticResource DarkTextBox}" AcceptsReturn="True" TextWrapping="Wrap" Height="90" VerticalScrollBarVisibility="Auto"
+                 ToolTip="Kurz beschreiben, was du gemacht hast und was passiert ist"/>
+        <TextBlock Text="Mitsenden" Style="{StaticResource SectionTitle}" Margin="0,10,0,4"/>
+        <WrapPanel>
+            <CheckBox x:Name="chkLogs" Content="Protokolle (3 Tage) und Ausgaben" IsChecked="True" Style="{StaticResource DarkCheckBox}" Margin="0,2,16,2"
+                      ToolTip="Die letzten drei Tagesprotokolle und das Protokoll im Fenster"/>
+            <CheckBox x:Name="chkSettings" Content="Einstellungen (ohne Kennw&#xF6;rter)" IsChecked="True" Style="{StaticResource DarkCheckBox}" Margin="0,2,16,2"
+                      ToolTip="Pers&#xF6;nliche Einstellungen sowie Version, Update und Installation"/>
+        </WrapPanel>
+        <CheckBox x:Name="chkAnon" Content="Anonymisieren (empfohlen)" IsChecked="True" Style="{StaticResource DarkCheckBox}" Margin="0,8,0,0"
+                  ToolTip="Namen, Adressen und IDs vor dem Packen ersetzen"/>
+        <DockPanel Margin="0,10,0,0">
+            <TextBlock Text="E-Mail an" Style="{StaticResource FieldLabel}" Width="80"/>
+            <TextBox x:Name="txtTo" Style="{StaticResource DarkTextBox}" ToolTip="Adresse des Verwalters (wird gemerkt)"/>
+        </DockPanel>
+        <TextBlock x:Name="lblState" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+        <WrapPanel HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="btnView" Content="ZIP erstellen und ansehen" Style="{StaticResource ToolButton}" Margin="0,0,8,0"
+                    ToolTip="ZIP auf dem Desktop erstellen und im Explorer zeigen"/>
+            <Button x:Name="btnIssue" Content="GitHub-Issue ..." Background="#3E3E42" Style="{StaticResource DarkButton}" Margin="0,0,8,0"
+                    ToolTip="&#xD6;ffnet ein neues Issue im Browser (mit deinem GitHub-Konto) - mit Beschreibung und Systeminfo, ohne Protokolle"/>
+            <Button x:Name="btnMail" Content="Per E-Mail senden" Background="#1976D2" Style="{StaticResource DarkButton}" IsDefault="True" Margin="0,0,8,0"
+                    ToolTip="ZIP erstellen und eine E-Mail damit vorbereiten"/>
+            <Button x:Name="btnCancel" Content="Schlie&#xDF;en" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True" ToolTip="Fenster schlie&#xDF;en"/>
+        </WrapPanel>
+    </StackPanel>
+</Window>
+'@
+    $d = New-HUWindow -XamlText (Get-HUThemedXaml $x)
+    $w = $d.Window; $c = $d.C
+    $c.txtTo.Text = "$(Get-HUStateValue 'supportMail' '')"
+    if (-not (Test-HUVerwalter)) { $c.btnIssue.Visibility = 'Collapsed' }
+    $state = @{ Zip = '' }
+    $build = {
+        $old = $w.Cursor; $w.Cursor = [System.Windows.Input.Cursors]::Wait
+        try {
+            $inc = @{ Logs = [bool]$c.chkLogs.IsChecked; Settings = [bool]$c.chkSettings.IsChecked }
+            $state.Zip = New-HUSupportZip -Description $c.txtDesc.Text.Trim() -Include $inc -NoAnonymize:(-not $c.chkAnon.IsChecked)
+            $c.lblState.Text = "Erstellt: $($state.Zip) ($([Math]::Round((Get-Item -LiteralPath $state.Zip).Length / 1KB)) KB)"
+            Write-HULogOK "Support-ZIP erstellt: $($state.Zip)"
+            return $true
+        } catch { Show-HUMessage "ZIP konnte nicht erstellt werden:`n$($_.Exception.Message)" -Icon Error -Owner $w; return $false }
+        finally { $w.Cursor = $old }
+    }
+    $c.btnView.Add_Click({ if (& $build) { try { Start-Process explorer.exe -ArgumentList "/select,`"$($state.Zip)`"" } catch { } } })
+    $c.btnMail.Add_Click({
+            if (-not $c.txtDesc.Text.Trim()) { Show-HUMessage 'Bitte kurz beschreiben, was passiert ist.' -Icon Warning -Owner $w; return }
+            if (-not (& $build)) { return }
+            Set-HUStateValue 'supportMail' $c.txtTo.Text.Trim()
+            $how = Send-HUSupportMail -To $c.txtTo.Text.Trim() -Subject "$($script:AppTitle) v$($script:Version) - Support" -Body ($c.txtDesc.Text.Trim() + "`r`n`r`n--`r`n$($script:AppTitle) v$($script:Version)") -Zip $state.Zip
+            $c.lblState.Text = $(if ($how -eq 'outlook') { 'Outlook-Entwurf mit Anhang geöffnet.' } else { "E-Mail geöffnet - bitte die ZIP-Datei vom Desktop anhängen ($(Split-Path $state.Zip -Leaf))." })
+        })
+    $c.btnIssue.Add_Click({
+            if (-not $c.txtDesc.Text.Trim()) { Show-HUMessage 'Bitte kurz beschreiben, was passiert ist.' -Icon Warning -Owner $w; return }
+            $cfg = $null; try { $cfg = Update-UpdateConfig } catch { }
+            $owner = if ($cfg -and $cfg.Owner) { $cfg.Owner } else { "$($script:App.repo.owner)" }; $repo = if ($cfg -and $cfg.Repo) { $cfg.Repo } else { "$($script:App.repo.name)" }
+            $map = Get-HURedactMap
+            $body = (ConvertTo-HURedacted $c.txtDesc.Text.Trim() $map) + "`n`n### System`n``````n" + ((Get-HUSupportInfo | ForEach-Object { ConvertTo-HURedacted $_ $map }) -join "`n") + "`n``````"
+            if ($body.Length -gt 6000) { $body = $body.Substring(0, 6000) }
+            $first = ($c.txtDesc.Text.Trim() -split "`r?`n")[0]; if ($first.Length -gt 70) { $first = $first.Substring(0, 70) + ' ...' }
+            if (-not (Confirm-HU "Issues sind öffentlich sichtbar.`n`nIm Browser wird ein neues Issue mit deiner Beschreibung und der (anonymisierten) Systeminfo vorbereitet - ohne Protokolle. Das ZIP nur anhängen, wenn du den Inhalt vorher angesehen hast.`n`nWeiter?" -Owner $w)) { return }
+            Open-HUUrl "https://github.com/$owner/$repo/issues/new?title=$([uri]::EscapeDataString("[v$($script:Version)] " + (ConvertTo-HURedacted $first $map)))&body=$([uri]::EscapeDataString($body))"
+        })
+    $c.btnCancel.Add_Click({ $w.Close() })
+    $w.Add_ContentRendered({ $c.txtDesc.Focus() | Out-Null })
+    [void]$w.ShowDialog()
+}

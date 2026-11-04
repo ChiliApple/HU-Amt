@@ -1,0 +1,269 @@
+﻿#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Module in der Oberflaeche: Reiter einbauen, Dateien hineinziehen, beim Beenden stoppen, Neustart.
+    Dazu gemeinsame Bausteine fuer Module (pulsierender gruener Punkt beim Laden).
+.NOTES
+    Dot-Source aus Main.ps1 (nach Core-Addons.ps1). Zielmaschine: der PC, auf dem die App laeuft.
+#>
+
+$script:LoadedAddons = @()
+$script:AddonByTab = @{}
+
+# Reiter eines (bereits gepruefen) Moduls in das Hauptfenster einbauen und die benannten Elemente registrieren
+function Add-HUAddonTab($Info) {
+    $x = [IO.File]::ReadAllText((Join-Path $Info.Dir $Info.Xaml), [Text.Encoding]::UTF8)
+    $theme = Get-HUXaml 'Theme'
+    $mt = [regex]::Match($theme, '(?s)<ResourceDictionary[^>]*>(.*)</ResourceDictionary>')
+    $x = $x.Replace('<!--HU:THEME-->', $mt.Groups[1].Value)
+    $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]::new($x))
+    try { $tab = [System.Windows.Markup.XamlReader]::Load($reader) } finally { $reader.Close() }
+    if (-not ($tab -is [System.Windows.Controls.TabItem])) { throw 'Tab.xaml: Wurzel muss <TabItem> sein' }
+    $names = @{}
+    foreach ($m in [regex]::Matches($x, 'x:Name="([A-Za-z0-9_]+)"')) {
+        $n = $m.Groups[1].Value
+        if ($names.ContainsKey($n)) { continue }
+        if ($script:Controls.ContainsKey($n)) { throw "Tab.xaml: Name '$n' gibt es im Programm schon" }
+        $el = $tab.FindName($n); if ($el) { $names[$n] = $el }
+    }
+    foreach ($n in $names.Keys) { $script:Controls[$n] = $names[$n] }
+    if (-not $tab.Name) { $tab.Name = "tabAddon$($Info.Id)" }
+    if ($Info.Header -and -not $tab.Header) { $tab.Header = $Info.Header }
+    if (-not $tab.Style) { try { $tab.Style = $script:Window.FindResource('DarkTabItem') } catch { } }
+    $tab.Tag = 'addon'
+    try { Set-HUButtonFit $tab } catch { }   # Knoepfe wachsen mit ihrer Beschriftung (global)
+    try { Set-HUOutputTools $tab } catch { }  # Ausgaben: Umkehren/Loeschen, neuestes oben (global)
+    $script:Controls[$tab.Name] = $tab
+    $script:AddonByTab[$tab.Name] = $Info
+    # Platzhalter "Start" weg, sobald ein Modul da ist
+    $tc = $script:Controls['tabMain']
+    if ($script:Controls['tabStart'] -and $tc.Items.Contains($script:Controls['tabStart'])) { $tc.Items.Remove($script:Controls['tabStart']) }
+    [void]$tc.Items.Add($tab)
+}
+
+# Beim Start: wartende Fassungen uebernehmen und die Module sammeln, in Reiter-Reihenfolge.
+# Main.ps1 laedt die Skripte selbst per Dot-Source, damit ihre Funktionen im Programm-Bereich liegen.
+function Get-HUAddonStartList {
+    $dir = Get-HUAddonsDir
+    try { Use-HUAddonPending $dir } catch { Write-HULogWarn "Module: Uebernahme fehlgeschlagen: $($_.Exception.Message)" }
+    $tp = "$($script:App.signer)"
+    $ver = [Version]$script:Version
+    # mitgelieferte Module gelten wie Functions\ (ohne eigene Signatur); Abschalten je Modul: settings.json "modulesOff"
+    $off = @(); try { if ($script:Settings -and $script:Settings.PSObject.Properties['modulesOff']) { $off = @($script:Settings.modulesOff | ForEach-Object { "$_" }) } } catch { }
+    $lists = @()
+    foreach ($i in @(Get-HUAddonsInDir (Join-Path $script:AppRoot 'Modules') $ver 'Programm')) {
+        if ($i.Error) { Write-HULogWarn "Modul $(Split-Path $i.Dir -Leaf) (mitgeliefert) nicht geladen: $($i.Error)"; continue }
+        if ($off -contains $i.Id) { Write-HULogInfo "Modul $($i.Id) abgeschaltet (Einstellung modulesOff)"; continue }
+        $lists += $i
+    }
+    foreach ($i in @(Get-HUAddonsInDir $dir $ver 'Privat' -Signed -Thumbprint $tp)) {
+        if ($i.Error) { Write-HULogWarn "Modul $(if ($i.Id) { $i.Id } else { Split-Path $i.Dir -Leaf }) nicht geladen: $($i.Error)"; continue }
+        $lists += $i
+    }
+    # Entwicklung: AddonsDev\<Id>\ OHNE Signatur, ersetzt ein Modul gleicher Kennung. Ordner mit _ oder . am Anfang = abgeschaltet.
+    # Kein zusaetzliches Risiko: wer in den Programmordner schreiben kann, kann auch Main.ps1 aendern.
+    foreach ($i in @(Get-HUAddonsInDir (Join-Path $script:AppRoot 'AddonsDev') $ver 'Entwicklung' -SkipDisabled)) {
+        if ($i.Error) { Write-HULogWarn "Modul $(Split-Path $i.Dir -Leaf) (Entwicklung) nicht geladen: $($i.Error)"; continue }
+        Write-HULogWarn "Modul $($i.Id) $($i.Version) aus AddonsDev geladen - Entwicklung, ohne Signaturpruefung"
+        $lists += $i
+    }
+    return @(Merge-HUAddonList $lists)
+}
+
+# Beim Beenden: Module mit Hintergrundarbeit stoppen (Stop-HUAddon<Id>, optional)
+function Stop-HUAddons {
+    foreach ($a in @($script:LoadedAddons)) {
+        $fn = "Stop-HUAddon$($a.Id)"
+        if (Get-Command $fn -CommandType Function -ErrorAction SilentlyContinue) {
+            try { & $fn } catch { try { Write-HULogWarn "Modul $($a.Id) beim Beenden: $($_.Exception.Message)" } catch { } }
+        }
+    }
+}
+
+# ============================================================================
+# Dateien hineinziehen: das Hauptfenster nimmt Dateien an und gibt sie an das Modul im aktiven Reiter
+# (Invoke-HUAddonDrop<Id> -Paths). Passt der aktive Reiter nicht, aber genau ein anderes Modul, wechselt die App dorthin.
+# ============================================================================
+function Get-HUDropFiles($e) {
+    try {
+        if (-not $e.Data.GetDataPresent([System.Windows.DataFormats]::FileDrop)) { return @() }
+        return @($e.Data.GetData([System.Windows.DataFormats]::FileDrop) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
+    } catch { return @() }
+}
+function Test-HUAddonCanDrop($Info) {
+    return ($Info -and @($Info.Drop).Count -and (Get-Command "Invoke-HUAddonDrop$($Info.Id)" -CommandType Function -ErrorAction SilentlyContinue))
+}
+# Ziel fuer die Dateien bestimmen: @{ Info; Files; Switch } oder $null
+function Resolve-HUDropTarget([string[]]$Files) {
+    if (-not @($Files).Count) { return $null }
+    $sel = $script:Controls['tabMain'].SelectedItem
+    $cur = $(if ($sel -and $script:AddonByTab.ContainsKey("$($sel.Name)")) { $script:AddonByTab["$($sel.Name)"] } else { $null })
+    if (Test-HUAddonCanDrop $cur) {
+        $f = @($Files | Where-Object { Test-HUAddonDropMatch $cur $_ })
+        if ($f.Count) { return @{ Info = $cur; Files = $f; Switch = $false } }
+    }
+    $cands = @()
+    foreach ($a in @($script:LoadedAddons)) {
+        if ((Test-HUAddonCanDrop $a) -and @($Files | Where-Object { Test-HUAddonDropMatch $a $_ }).Count) { $cands += $a }
+    }
+    if ($cands.Count -eq 1) { return @{ Info = $cands[0]; Files = @($Files | Where-Object { Test-HUAddonDropMatch $cands[0] $_ }); Switch = $true } }
+    return $null
+}
+function Register-HUFileDrop {
+    $w = $script:Window
+    $w.AllowDrop = $true
+    $over = {
+        param($s, $e)
+        $t = Resolve-HUDropTarget (Get-HUDropFiles $e)
+        $e.Effects = $(if ($t) { [System.Windows.DragDropEffects]::Copy } else { [System.Windows.DragDropEffects]::None })
+        $e.Handled = $true
+    }
+    $w.Add_PreviewDragEnter($over)
+    $w.Add_PreviewDragOver($over)
+    $w.Add_PreviewDrop({
+            param($s, $e)
+            $files = @(Get-HUDropFiles $e)
+            if (-not $files.Count) { return }
+            $e.Handled = $true
+            $t = Resolve-HUDropTarget $files
+            if (-not $t) {
+                $ext = @($files | ForEach-Object { [IO.Path]::GetExtension($_).ToLowerInvariant() } | Sort-Object -Unique) -join ', '
+                Show-HUMessage "Diese Dateien ($ext) kann hier kein Reiter verarbeiten.`n`nBitte den passenden Reiter wählen und die Dateien dort hineinziehen." -Icon Info
+                return
+            }
+            if ($t.Switch) {
+                $tab = @($script:Controls['tabMain'].Items | Where-Object { $script:AddonByTab["$($_.Name)"] -eq $t.Info })[0]
+                if ($tab) { $script:Controls['tabMain'].SelectedItem = $tab }
+            }
+            $skip = $files.Count - @($t.Files).Count
+            if ($skip -gt 0) { Write-HULogWarn "$skip Datei(en) passen nicht zu $($t.Info.Title) und wurden übergangen." }
+            try { & "Invoke-HUAddonDrop$($t.Info.Id)" -Paths @($t.Files) }
+            catch { Write-HULogError "$($t.Info.Title): Dateien nicht übernommen: $($_.Exception.Message)" }
+        })
+}
+
+# ============================================================================
+# Gemeinsame Bausteine fuer Module
+# ============================================================================
+# Gruener Punkt pulsiert, solange etwas laedt (HU-Standard). $Dot: Ellipse aus dem Tab.xaml des Moduls.
+function Set-HUBusyDot($Dot, [bool]$On) {
+    if (-not $Dot) { return }
+    if ($On) {
+        if ($Dot.Visibility -eq 'Visible') { return }
+        $an = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $an.From = 1.0; $an.To = 0.2; $an.Duration = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(700))
+        $an.AutoReverse = $true; $an.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+        $Dot.Visibility = 'Visible'
+        $Dot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $an)
+    } else {
+        $Dot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+        $Dot.Opacity = 1.0; $Dot.Visibility = 'Collapsed'
+    }
+}
+
+# ============================================================================
+# Private Module: im Hintergrund die neueste signierte Fassung holen (wirkt nach dem Neustart)
+# ============================================================================
+function Start-HUAddonUpdate([switch]$Loud) {
+    $src = @(Get-HUAddonSources)
+    if (-not $src.Count) { if ($Loud) { Write-HULogInfo 'Module: kein privates Modul hinterlegt' }; return }
+    $cfg = $null; try { $cfg = Update-UpdateConfig } catch { }
+    $tp = if ($cfg -and $cfg.SignerThumbprint) { $cfg.SignerThumbprint } else { "$($script:App.signer)" }
+    $chan = if ($cfg) { "$($cfg.Channel)" } else { 'Stable' }
+    $script:AddonUpdateLoud = [bool]$Loud
+    Invoke-AsyncCommand -ScriptBlock {
+        param($lib, $addonLib, $pathsMod, $sources, $dir, $ver, $chan, $tp)
+        Import-Module $pathsMod -DisableNameChecking
+        . $lib; . $addonLib
+        try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+        $out = @()
+        foreach ($s in @($sources)) {
+            $r = Install-HUAddon -Owner $s.Owner -Repo $s.Repo -Token $s.Token -AddonsDir $dir -AppVersion ([Version]$ver) -Channel $chan -Thumbprint $tp
+            $out += "$($r.Status)|$($s.Owner)/$($s.Repo)|$($r.Text)"
+        }
+        return ($out -join "`n")
+    } -ArgumentList @($script:UpdateLib, (Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src, (Get-HUAddonsDir), "$($script:Version)", $chan, $tp) -TimeoutSec 300 -OnComplete {
+        param($result)
+        $neu = @()
+        foreach ($ln in @("$result" -split "`n" | Where-Object { $_ })) {
+            $p = $ln -split '\|', 3
+            switch ($p[0]) {
+                'Neu' { Write-HULogOK "Modul: $($p[2])"; $neu += ($p[2] -replace ' geladen - .*$', '') }
+                'Aktuell' { if ($script:AddonUpdateLoud) { Write-HULogInfo "Modul: $($p[2])" } }
+                default { Write-HULogWarn "Modul $($p[1]): $($p[2])" }
+            }
+        }
+        if ($neu.Count) { Show-HUAddonRestartPrompt $neu }
+    }
+}
+
+# Fenster (nur Verwalter): privates Modul hinterlegen (Repository + Nur-Lese-Token) oder entfernen
+function Show-HUAddonDialog {
+    $x = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Module" Width="560" MinWidth="560" SizeToContent="Height" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" Background="#1E1E1E" ShowInTaskbar="False">
+    <Window.Resources>
+        <!--HU:THEME-->
+    </Window.Resources>
+    <StackPanel Margin="16">
+        <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,0,10"
+                   Text="Private Module liegen in privaten Repositories. Mit dem Nur-Lese-Token, das du vom Herausgeber bekommst, lädt die App das Modul und hält es aktuell. Geladen wird nur, was mit dem Zertifikat des Herausgebers signiert ist. Der Token wird verschlüsselt nur für deinen Windows-Benutzer gespeichert."/>
+        <TextBlock Text="Hinterlegt" Foreground="#AAAAAA" FontSize="11"/>
+        <ListBox x:Name="lstSrc" Height="80" Margin="0,2,0,10" Background="#252526" Foreground="#CCCCCC" BorderBrush="#3E3E42" ToolTip="Hinterlegte Repositories"/>
+        <TextBlock Text="Repository (Besitzer/Name)" Foreground="#AAAAAA" FontSize="11"/>
+        <TextBox x:Name="txtRepo" Style="{StaticResource DarkTextBox}" Margin="0,2,0,8" ToolTip="z. B. Besitzer/Modulname"/>
+        <TextBlock Text="Nur-Lese-Token" Foreground="#AAAAAA" FontSize="11"/>
+        <PasswordBox x:Name="pwdTok" Margin="0,2,0,12" Background="#2D2D30" Foreground="White" BorderBrush="#3E3E42" Padding="4,3" ToolTip="Token vom Herausgeber (wird verschlüsselt gespeichert)"/>
+        <WrapPanel HorizontalAlignment="Right">
+            <Button x:Name="btnDel" Content="Markiertes entfernen" Width="160" Background="#C62828" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Token des markierten Repositories löschen"/>
+            <Button x:Name="btnAdd" Content="Hinterlegen und laden" Width="170" Background="#388E3C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Token speichern und das Modul laden"/>
+            <Button x:Name="btnClose" Content="Schließen" Width="100" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True" ToolTip="Fenster schließen"/>
+        </WrapPanel>
+    </StackPanel>
+</Window>
+'@
+    $d = New-HUWindow -XamlText (Get-HUThemedXaml $x)
+    $w = $d.Window; $c = $d.C
+    $fill = {
+        $c.lstSrc.Items.Clear()
+        $loaded = @($script:LoadedAddons | ForEach-Object { "$($_.Title) $($_.Version)" })
+        foreach ($s in @(Get-HUAddonSources)) { [void]$c.lstSrc.Items.Add("$($s.Owner)/$($s.Repo)") }
+        if ($loaded.Count) { $w.Title = "Module - geladen: $($loaded -join ', ')" }
+    }
+    & $fill
+    $c.btnAdd.Add_Click({
+            $parts = "$($c.txtRepo.Text)".Trim() -split '/', 2
+            if ($parts.Count -ne 2 -or -not (Test-HUAddonRepoName $parts[0] $parts[1])) { Show-HUMessage 'Repository bitte als Besitzer/Name eingeben.' -Icon Info -Owner $w; return }
+            if (-not $c.pwdTok.SecurePassword.Length) { Show-HUMessage 'Bitte den Token eingeben.' -Icon Info -Owner $w; return }
+            try { Save-HUAddonToken $parts[0] $parts[1] $c.pwdTok.SecurePassword } catch { Show-HUMessage "Nicht gespeichert: $($_.Exception.Message)" -Icon Warning -Owner $w; return }
+            $c.pwdTok.Clear(); $c.txtRepo.Text = ''
+            & $fill
+            Write-HULogInfo "Modul $($parts[0])/$($parts[1]) hinterlegt - wird geladen ..."
+            Start-HUAddonUpdate -Loud
+        })
+    $c.btnDel.Add_Click({
+            $sel = "$($c.lstSrc.SelectedItem)"
+            if (-not $sel) { return }
+            if (-not (Confirm-HU -Warning "Token für $sel entfernen? Das Modul wird dann nicht mehr aktualisiert; der Ordner unter Addons bleibt, bis du ihn löschst." 'Module')) { return }
+            $p = $sel -split '/', 2; Remove-HUAddonToken $p[0] $p[1]; & $fill
+        })
+    [void]$w.ShowDialog()
+}
+
+# Hinweis nach dem Laden einer neuen Fassung: jetzt neu starten?
+function Show-HUAddonRestartPrompt([string[]]$Names) {
+    $txt = "Modul geladen:`n`n  $($Names -join "`n  ")`n`nEs wird nach einem Neustart von $($script:AppTitle) aktiv. Jetzt neu starten?"
+    if (-not (Confirm-HU $txt 'Module')) { Write-HULogInfo 'Modul wird beim nächsten Start geladen.'; return }
+    Restart-HUApp
+}
+
+# App beenden und neu starten: die neue Instanz startet sofort, zeigt "wird neu gestartet" und wartet,
+# bis diese beendet ist (Main.ps1 -WaitForPid).
+function Restart-HUApp {
+    try {
+        $si = Get-HUAppStartInfo "-WaitForPid $PID"
+        Start-Process -FilePath $si.Exe -WorkingDirectory $script:AppRoot -WindowStyle Hidden -ArgumentList $si.Args | Out-Null
+        Write-HULogOK "$($script:AppTitle) wird neu gestartet ..."
+        $script:Window.Close()
+    } catch { Write-HULogError "Neustart fehlgeschlagen: $($_.Exception.Message)" }
+}
