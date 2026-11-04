@@ -189,11 +189,12 @@ function Initialize-HUTabDrag {
     }
 }
 
-# Start-Reiter: zuletzt benutzter Reiter, sonst der erste
+# Start-Reiter (Einstellungen > Allgemein): fester Reiter oder zuletzt benutzter, sonst der erste
 function Select-HUStartTab {
     $tc = $script:Controls['tabMain']
     if (-not $tc -or -not $tc.Items.Count) { return }
-    $last = "$(Get-HUStateValue 'LastTab' '')"
+    $want = 'Last'; try { if ("$($script:Settings.ui.startTab)") { $want = "$($script:Settings.ui.startTab)" } } catch { }
+    $last = $(if ($want -eq 'Last') { "$(Get-HUStateValue 'LastTab' '')" } else { $want })
     $t = $null
     if ($last) { $t = @($tc.Items | Where-Object { $_ -is [System.Windows.Controls.TabItem] -and "$($_.Name)" -eq $last })[0] }
     if (-not $t) { $t = @($tc.Items | Where-Object { $_ -is [System.Windows.Controls.TabItem] })[0] }

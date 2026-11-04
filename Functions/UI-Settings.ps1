@@ -1,14 +1,27 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Einstellungen: Allgemein (alle), Sicherung, Update, Module, Verwalter (nur Verwalter). Verwalter-Ansicht im Hauptfenster.
+    Einstellungen wie in der Vorlage: Allgemein (Verknuepfungen, Start und Darstellung), Sicherung, Update.
+    Dazu (nur HU-Amt) Module und Verwalter. Verwalter-Ansicht im Hauptfenster.
 .DESCRIPTION
-    Persoenlich:  Data\Benutzer\<Name>\settings.json (ui.splashAnimation, ui.checkUpdatesOnStart, ui.maxLogLines)
+    Persoenlich:  Data\Benutzer\<Name>\settings.json (ui.startTab, ui.splashAnimation, ui.checkUpdatesOnStart, logging.logLevel)
+                  Data\Benutzer\<Name>\ui-state.json (Oberflaechengroesse)
     Installation: Config\update.json (Kanal, Signaturpflicht), Config\powershell-host.txt (auto | 5 | 7)
+    Sicherung:    Data\sicherung.json (UI-AppBackup.ps1)
     Verwalter:    Data\Verwalter.txt (ein Windows-Benutzername je Zeile; mit Listen-Sperre gespeichert)
+    Nur Verwalter: Reiter Sicherung, Module, Verwalter, PowerShell beim Start, Protokoll-Stufe, im Reiter Update Kanal,
+    Signatur und Vorversion (gelten fuer die ganze Installation bzw. betreffen das Protokoll, das nur Verwalter sehen).
 .NOTES
     Dot-Source aus Main.ps1. Zielmaschine: der PC, auf dem die App laeuft.
 #>
+
+function Set-HUProp($Object, [string]$Name, $Value) {
+    if ($Object.PSObject.Properties[$Name]) { $Object.$Name = $Value } else { $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value }
+}
+function Get-HUProp($Object, [string]$Name, $Default = $null) {
+    if ($Object -and $Object.PSObject.Properties[$Name] -and $null -ne $Object.$Name) { return $Object.$Name }
+    return $Default
+}
 
 function Save-HUUserSettings {
     Write-HUJsonFile -Path $script:SettingsPath -Object $script:Settings -Depth 5
@@ -32,59 +45,100 @@ function Update-HUAdminView {
     $adm = Test-HUVerwalter
     $v = $(if ($adm) { 'Visible' } else { 'Collapsed' })
     foreach ($n in 'pnlLog', 'thbLog') { if ($script:Controls[$n]) { $script:Controls[$n].Visibility = $v } }
-    try { Update-HUAbStatus } catch { }
+    try { Update-HUAbMainStatus } catch { }
 }
 
 function Open-HUSettings([string]$Tab = '') {
+    [void](Show-HUSettingsDialog -Tab $Tab)
+}
+
+function Show-HUSettingsDialog {
+    param([string]$Tab = '')
     $adm = Test-HUVerwalter
     $d = New-HUWindow 'SettingsWindow'
     $w = $d.Window; $c = $d.C
-    Restore-HUDialogState $w 'dlgSettings'
-    # nur Verwalter: Reiter und PowerShell-Auswahl
-    foreach ($n in 'tabBackup', 'tabUpdate', 'tabModules', 'tabAdmins') { $c[$n].Visibility = $(if ($adm) { 'Visible' } else { 'Collapsed' }) }
-    $c.pnlPsHost.Visibility = $(if ($adm) { 'Visible' } else { 'Collapsed' })
-    $c.txtSettingsInfo.Text = $(if ($adm) { "Angemeldet als Verwalter ($($script:UserName))." } else { "Persönliche Einstellungen von $($script:UserName)." })
+    Restore-HUDialogState $w 'SettingsWindow'
+    $S = $script:Settings
+    $st = @{ Saved = $false; Names = (New-Object System.Collections.ArrayList); Changed = $false }
 
-    # --- Allgemein
-    $c.chkSplash.IsChecked = ($script:Settings.ui.splashAnimation -ne $false)
-    $c.chkCheckOnStart.IsChecked = ($script:Settings.ui.checkUpdatesOnStart -ne $false)
-    $c.txtMaxLog.Text = "$($script:Settings.ui.maxLogLines)"
-    $c.txtShortcutInfo.Text = $(if (Test-HUShortcut) { 'Eine Verknüpfung ist schon vorhanden.' } else { 'Noch keine Verknüpfung.' })
-    $c.btnShortcutDesktop.Add_Click({ try { $l = New-HUShortcut -Location Desktop; Write-HULogOK "Verknüpfung erstellt: $l"; $c.txtShortcutInfo.Text = "Erstellt: $l" } catch { Show-HUMessage "Verknüpfung fehlgeschlagen:`n$($_.Exception.Message)" -Icon Warning -Owner $w } })
-    $c.btnShortcutStart.Add_Click({ try { $l = New-HUShortcut -Location StartMenu; Write-HULogOK "Startmenü-Eintrag erstellt: $l"; $c.txtShortcutInfo.Text = "Erstellt: $l" } catch { Show-HUMessage "Startmenü-Eintrag fehlgeschlagen:`n$($_.Exception.Message)" -Icon Warning -Owner $w } })
-    $ph = Get-HUPsHostSetting
-    foreach ($it in $c.cmbPsHost.Items) { if ("$($it.Tag)" -eq $ph) { $c.cmbPsHost.SelectedItem = $it } }
-    $c.txtPsHostInfo.Text = Get-HUPsHostInfoText
+    # nur Verwalter: Reiter und Einstellungen, die fuer die ganze Installation gelten
+    foreach ($n in 'tabAppBackup', 'tabModules', 'tabAdmins') { $c[$n].Visibility = $(if ($adm) { 'Visible' } else { 'Collapsed' }) }
+    foreach ($n in 'pnlPsHost', 'lblLogLevel', 'cmbLogLevel') { $c[$n].Visibility = $(if ($adm) { 'Visible' } else { 'Collapsed' }) }
+    foreach ($n in 'cmbChannel', 'chkRequireSig', 'btnOtherVersion') { $c[$n].IsEnabled = $adm }
 
-    # --- Sicherung
-    $abSum = {
-        $s = Get-HUAbSettings
-        $last = ''; try { if ("$($s.Last)") { $last = ([datetime]::Parse("$($s.Last)", [Globalization.CultureInfo]::InvariantCulture)).ToString('dd.MM.yyyy HH:mm') } } catch { }
-        $mode = switch ("$($s.Mode)") { 'taeglich' { 'täglich' } 'woechentlich' { 'wöchentlich' } default { 'aus' } }
-        $c.txtAbSummary.Text = "Ordner: $(if ($s.Folder) { $s.Folder } else { '(noch keiner)' })`nAutomatisch: $mode, behalten: $($s.Keep) je PC`nZuletzt: $(if ($last) { "$last$(if ($s.LastBy) { " von $($s.LastBy)" })" } else { 'noch keine Sicherung' })`nKennwort für die Automatik: $(if (Get-HUAppBackupPassword -DataRoot $script:UserRoot) { 'gespeichert' } else { 'nicht gespeichert' })"
+    # ---------------- Allgemein ----------------
+    $selTag = {
+        param($cmb, [string]$tag)
+        foreach ($i in $cmb.Items) { if ("$($i.Tag)" -eq $tag) { $cmb.SelectedItem = $i; return } }
+        if ($cmb.Items.Count) { $cmb.SelectedIndex = 0 }
     }
-    if ($adm) { & $abSum }
-    $c.btnAbOpenDlg.Add_Click({ Show-HUAppBackupDialog; & $abSum })
+    # Reiter beim Start: alle Reiter des Hauptfensters, dazu "Zuletzt verwendeter Reiter"
+    foreach ($ti in @($script:Controls['tabMain'].Items | Where-Object { $_ -is [System.Windows.Controls.TabItem] -and $_.Visibility -eq 'Visible' })) {
+        $it = New-Object System.Windows.Controls.ComboBoxItem; $it.Content = "$($ti.Header)"; $it.Tag = "$($ti.Name)"; [void]$c.cmbStartTab.Items.Add($it)
+    }
+    $it = New-Object System.Windows.Controls.ComboBoxItem; $it.Content = 'Zuletzt verwendeter Reiter'; $it.Tag = 'Last'; [void]$c.cmbStartTab.Items.Add($it)
+    & $selTag $c.cmbStartTab (Get-HUProp $S.ui 'startTab' 'Last')
+    $c.chkSplashAnim.IsChecked = [bool](Get-HUProp $S.ui 'splashAnimation' $true)
+    foreach ($p in @(80, 90, 100, 110, 120, 130, 140, 150)) {
+        $it = New-Object System.Windows.Controls.ComboBoxItem; $it.Content = "$p %"; $it.Tag = "$($p / 100)"; [void]$c.cmbScale.Items.Add($it)
+    }
+    $curScale = [Math]::Round([double]$(if ($script:UiScale) { $script:UiScale } else { 1.0 }), 1)
+    foreach ($i in $c.cmbScale.Items) { if ([Math]::Abs([double]::Parse("$($i.Tag)", [Globalization.CultureInfo]::InvariantCulture) - $curScale) -lt 0.01) { $c.cmbScale.SelectedItem = $i } }
+    if (-not $c.cmbScale.SelectedItem) { $c.cmbScale.SelectedIndex = 2 }
+    $ll = "$(Get-HUProp $S.logging 'logLevel' 'INFO')"
+    & $selTag $c.cmbLogLevel $(if ($ll -match '^debug') { 'Debug' } elseif ($ll -match '^warn') { 'Warn' } else { 'Info' })
 
-    # --- Update
-    $cfg = Update-UpdateConfig
-    foreach ($it in $c.cmbChannel.Items) { if ($cfg -and "$($it.Tag)" -eq "$($cfg.Channel)") { $c.cmbChannel.SelectedItem = $it } }
-    if (-not $c.cmbChannel.SelectedItem) { $c.cmbChannel.SelectedIndex = 0 }
-    $c.chkRequireSig.IsChecked = -not ($cfg -and $cfg.AllowUnsigned)
-    $c.txtUpdateInfo.Text = "Quelle: $(if ($cfg) { "$($cfg.Owner)/$($cfg.Repo)" })  |  installiert: v$($script:Version)$(if ($cfg -and $cfg.SignerThumbprint) { "  |  Zertifikat: $($cfg.SignerThumbprint.Substring(0, 8))..." })"
-    $c.btnCheckNow.Add_Click({ Invoke-UpdateCheck })
-    $c.btnOtherVersion.Add_Click({ Show-HUVersionPicker })
+    $c.txtShortcutHint.Text = "Legt $($script:LauncherName) im Programmordner an (eigenes Logo, kein Konsolenfenster, an die Taskleiste anheftbar) und eine Verknüpfung darauf."
+    $updShortcutInfo = {
+        $exe = Join-Path $script:AppRoot $script:LauncherName
+        $c.txtShortcutInfo.Text = "Starter: $(if (Test-Path -LiteralPath $exe) { $exe } else { 'noch nicht erstellt' })  |  Verknüpfung vorhanden: $(if (Test-HUShortcut) { 'ja' } else { 'nein' })"
+    }
+    & $updShortcutInfo
+    # PowerShell beim Start (Config\powershell-host.txt)
+    & $selTag $c.cmbPsHost (Get-HUPsHostSetting)
+    $c.txtPsHostInfo.Text = "$(Get-HUPsHostInfoText) Änderung wirkt beim nächsten Start."
+    $mkLink = {
+        param([string]$Loc, [bool]$All)
+        try {
+            $l = New-HUShortcut -Location $Loc -AllUsers:$All
+            Write-HULogOK "Verknüpfung erstellt: $l"
+            Show-HUMessage "Verknüpfung erstellt:`n$l" -Owner $w
+        } catch { Show-HUMessage "Verknüpfung fehlgeschlagen:`n$($_.Exception.Message)$(if ($All) { "`n`nFür alle Benutzer sind Administratorrechte nötig." })" -Icon Error -Owner $w }
+        & $updShortcutInfo
+    }
+    $c.btnShortcutDesktop.Add_Click({ & $mkLink 'Desktop' $false })
+    $c.btnShortcutStart.Add_Click({ & $mkLink 'StartMenu' $false })
+    $c.btnShortcutAll.Add_Click({ & $mkLink 'Desktop' $true })
+    $c.btnLauncher.Add_Click({
+            if (New-HULauncher -Force) { Show-HUMessage "Starter bereit:`n$(Join-Path $script:AppRoot $script:LauncherName)" -Owner $w } else { Show-HUMessage 'Starter konnte nicht erstellt werden (Protokoll).' -Icon Error -Owner $w }
+            & $updShortcutInfo
+        })
 
-    # --- Module
-    $c.gridModules.ItemsSource = @($script:LoadedAddons | ForEach-Object {
-            [pscustomobject]@{ Reiter = "$($_.Title)"; Id = $_.Id; Version = "$($_.Version)"; Herkunft = "$($_.Source)"; Ziehen = $(if (@($_.Drop).Count) { @($_.Drop) -join ' ' } else { '-' }) } })
+    # ---------------- Sicherung ----------------
+    if ($adm) { Initialize-HUAbSettingsTab $c $w }
+
+    # ---------------- Update ----------------
+    $ucfg = Update-UpdateConfig
+    $uRaw = Read-HUJsonFile (Join-Path $script:ConfigDir 'update.json')
+    & $selTag $c.cmbChannel $(if ($ucfg) { "$($ucfg.Channel)" } else { 'Stable' })
+    $c.chkRequireSig.IsChecked = -not ($uRaw -and $uRaw.PSObject.Properties['AllowUnsigned'] -and $uRaw.AllowUnsigned -eq $true)
+    $c.chkCheckOnStart.IsChecked = [bool](Get-HUProp $S.ui 'checkUpdatesOnStart' $true)
+    $inst = Get-HUInstalledInfo
+    $c.txtUpdateInfo.Text = "Installiert: v$($script:Version)$(if ($inst -and $inst.PSObject.Properties['Date']) { " (geladen $($inst.Date), $(Get-HUProp $inst 'Check' ''))" } else { ' (nicht über Pull.ps1 installiert)' })`nQuelle: github.com/$(if ($ucfg) { "$($ucfg.Owner)/$($ucfg.Repo)" })`nSignierte Releases werden mit dem Zertifikat des Herausgebers geprüft (Fingerabdruck im Programm). Eigene Quelle: Config\update.json (Owner, Repo, SignerThumbprint).$(if (-not $adm) { "`nKanal und Signatur stellt ein Verwalter ein." })"
+    $c.btnCheckNow.Add_Click({ Invoke-UpdateCheck; Show-HUMessage 'Die Prüfung läuft im Hintergrund - bei neuer Version wird der Knopf Update gold.' -Owner $w })
+    $c.btnOtherVersion.Add_Click({ $w.Close(); Show-HUVersionPicker })
+
+    # ---------------- Module ----------------
+    if ($adm) {
+        $c.gridModules.ItemsSource = @($script:LoadedAddons | ForEach-Object {
+                [pscustomobject]@{ Reiter = "$($_.Title)"; Id = $_.Id; Version = "$($_.Version)"; Herkunft = "$($_.Source)"; Ziehen = $(if (@($_.Drop).Count) { @($_.Drop) -join ' ' } else { '-' }) } })
+    }
     $c.btnAddonRepos.Add_Click({ Show-HUAddonDialog })
     $c.btnAddonUpdate.Add_Click({ Start-HUAddonUpdate -Loud })
     $c.btnAddonDev.Add_Click({ $p = Join-Path $script:AppRoot 'AddonsDev'; if (-not (Test-Path -LiteralPath $p)) { [void](New-Item -ItemType Directory -Path $p -Force) }; Open-HUPath $p })
 
-    # --- Verwalter
+    # ---------------- Verwalter ----------------
     $list = Get-HUVerwalterList
-    $st = @{ Names = (New-Object System.Collections.ArrayList); Changed = $false }
     if ($list) { foreach ($n in $list) { [void]$st.Names.Add($n) } }
     $fillAdm = {
         $c.lstAdmins.Items.Clear(); foreach ($n in $st.Names) { [void]$c.lstAdmins.Items.Add($n) }
@@ -102,26 +156,32 @@ function Open-HUSettings([string]$Tab = '') {
             $st.Names.Remove($sel); $st.Changed = $true; & $fillAdm
         })
 
-    if ($Tab -and $c["tab$Tab"] -and $c["tab$Tab"].Visibility -eq 'Visible') { $c.tabSettings.SelectedItem = $c["tab$Tab"] }
-
+    # ---------------- Speichern ----------------
     $c.btnSave.Add_Click({
+            if ($adm) {
+                $abErr = Save-HUAbSettingsFromForm $c
+                if ($abErr) { $c.tabSettings.SelectedItem = $c.tabAppBackup; Show-HUMessage $abErr -Icon Warning -Owner $w; return }
+                if (-not [bool]$c.chkRequireSig.IsChecked -and -not ($ucfg -and $ucfg.AllowUnsigned) -and -not (Confirm-HU -Warning "Auch Updates ohne Signatur annehmen?`n`nDas ist nur zum Testen gedacht." 'Update' -Owner $w)) { $c.tabSettings.SelectedItem = $c.tabUpdate; return }
+            }
             # persoenlich
-            $n = 1000; if (-not [int]::TryParse("$($c.txtMaxLog.Text)", [ref]$n) -or $n -lt 100 -or $n -gt 10000) { Show-HUMessage 'Zeilen im Protokoll: bitte eine Zahl von 100 bis 10000.' -Icon Info -Owner $w; return }
-            $script:Settings.ui.splashAnimation = [bool]$c.chkSplash.IsChecked
-            $script:Settings.ui.checkUpdatesOnStart = [bool]$c.chkCheckOnStart.IsChecked
-            $script:Settings.ui.maxLogLines = $n
+            Set-HUProp $S.ui 'startTab' "$($c.cmbStartTab.SelectedItem.Tag)"
+            Set-HUProp $S.ui 'splashAnimation' ([bool]$c.chkSplashAnim.IsChecked)
+            Set-HUProp $S.ui 'checkUpdatesOnStart' ([bool]$c.chkCheckOnStart.IsChecked)
+            if ($adm -and $c.cmbLogLevel.SelectedItem) { Set-HUProp $S.logging 'logLevel' "$($c.cmbLogLevel.SelectedItem.Tag)".ToUpper() }
             try { Save-HUUserSettings } catch { Show-HUMessage "Einstellungen nicht gespeichert:`n$($_.Exception.Message)" -Icon Error -Owner $w; return }
+            if ($c.cmbScale.SelectedItem) { Set-HUUiScale ([double]::Parse("$($c.cmbScale.SelectedItem.Tag)", [Globalization.CultureInfo]::InvariantCulture)) }
             if ($adm) {
                 # Installation
-                try { Set-HUPsHostSetting "$($c.cmbPsHost.SelectedItem.Tag)" } catch { Write-HULogWarn "PowerShell-Auswahl: $($_.Exception.Message)" }
-                $uf = Join-Path $script:ConfigDir 'update.json'
-                $u = Read-HUJsonFile $uf; if (-not $u) { $u = [pscustomobject]@{} }
-                foreach ($kv in @(@('Channel', "$($c.cmbChannel.SelectedItem.Tag)"), @('AllowUnsigned', (-not [bool]$c.chkRequireSig.IsChecked)))) {
-                    if ($u.PSObject.Properties[$kv[0]]) { $u.($kv[0]) = $kv[1] } else { $u | Add-Member -NotePropertyName $kv[0] -NotePropertyValue $kv[1] }
-                }
-                if (-not [bool]$c.chkRequireSig.IsChecked -and -not ($cfg -and $cfg.AllowUnsigned) -and -not (Confirm-HU -Warning "Auch Updates ohne Signatur annehmen?`n`nDas ist nur zum Testen gedacht." 'Update' -Owner $w)) { return }
-                try { Write-HUJsonFile -Path $uf -Object $u -Depth 5 } catch { Show-HUMessage "Update-Einstellungen nicht gespeichert:`n$($_.Exception.Message)" -Icon Error -Owner $w; return }
-                [void](Update-UpdateConfig); Update-VersionDisplay
+                try { if ($c.cmbPsHost.SelectedItem) { Set-HUPsHostSetting "$($c.cmbPsHost.SelectedItem.Tag)" } } catch { Write-HULogWarn "PowerShell beim Start nicht gespeichert: $($_.Exception.Message)" }
+                # update.json (andere Schluessel bleiben)
+                try {
+                    $u = if ($uRaw) { $uRaw } else { [pscustomobject]@{} }
+                    Set-HUProp $u 'Channel' "$($c.cmbChannel.SelectedItem.Tag)"
+                    if ($c.chkRequireSig.IsChecked) { if ($u.PSObject.Properties['AllowUnsigned']) { $u.PSObject.Properties.Remove('AllowUnsigned') } } else { Set-HUProp $u 'AllowUnsigned' $true }
+                    Write-HUJsonFile -Path (Join-Path $script:ConfigDir 'update.json') -Object $u -Depth 5
+                } catch { Write-HULogWarn "update.json: $($_.Exception.Message)" }
+                # Kanal in der Kopfzeile sofort nachziehen
+                try { [void](Update-UpdateConfig); Update-VersionDisplay } catch { }
                 if ($st.Changed) {
                     $why = Save-HUVerwalterList @($st.Names)
                     if ($why) { Show-HUMessage "Verwalter nicht gespeichert:`n$why" -Icon Warning -Owner $w; return }
@@ -129,10 +189,16 @@ function Open-HUSettings([string]$Tab = '') {
                     Write-HULogOK "Verwalter gespeichert: $(@($st.Names) -join ', ')"
                 }
             }
+            $st.Saved = $true
             Write-HULogOK 'Einstellungen gespeichert.'
             Update-HUAdminView
             $w.Close()
         })
-    $w.Add_Closing({ Save-HUDialogState $w 'dlgSettings' })
+    $c.btnCancel.Add_Click({ $w.Close() })
+    $w.Add_Closing({ Save-HUDialogState $w 'SettingsWindow'; $script:AbDlg = $null })
+
+    switch ($Tab) { 'Update' { $c.tabSettings.SelectedItem = $c.tabUpdate } 'Sicherung' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabAppBackup } } 'Module' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabModules } } 'Verwalter' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabAdmins } } default { } }
+    $c.txtSettingsInfo.Text = "Programmordner: $($script:AppRoot)$(if ($adm) { "  |  Verwalter: $($script:UserName)" })"
     [void]$w.ShowDialog()
+    return $st.Saved
 }

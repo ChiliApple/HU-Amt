@@ -150,7 +150,7 @@ foreach ($mod in @('HU.Logging', 'HU.AppBackup')) {
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'UI-Common', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'UI-Common', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -163,7 +163,7 @@ Set-HUSplashStatus 'Einstellungen ...'
 $script:SettingsPath = Join-Path $script:UserRoot 'settings.json'
 $script:FirstRun = -not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))
 $script:Settings = [pscustomobject]@{
-    ui      = [pscustomobject]@{ splashAnimation = $true; maxLogLines = 1000; checkUpdatesOnStart = $true }
+    ui      = [pscustomobject]@{ startTab = 'Last'; splashAnimation = $true; maxLogLines = 1000; checkUpdatesOnStart = $true }
     logging = [pscustomobject]@{ logLevel = 'INFO'; retentionDays = 30 }
 }
 $saved = Read-HUJsonFile $script:SettingsPath
@@ -203,7 +203,6 @@ if ($script:AppIcon) { $script:Window.Icon = $script:AppIcon; $c['imgLogo'].Sour
 try { $big = Get-HUSplashIcon $script:AppRoot; if ($big) { $c['imgStartLogo'].Source = $big } elseif ($script:AppIcon) { $c['imgStartLogo'].Source = $script:AppIcon } } catch { }
 $script:Window.Add_SourceInitialized({ Set-HUWindowTaskbar $script:Window })
 $c['txtAppTitle'].Text = $script:AppTitle
-$c['txtAppSubtitle'].Text = "$($script:App.subtitle)"
 $c['txtStartTitle'].Text = "Willkommen bei $($script:AppTitle)"
 
 $script:LogDir = Join-Path $script:UserRoot 'Logs'
@@ -240,7 +239,7 @@ function Update-VersionDisplay {
 # ============================================================================
 $c['btnSettings'].Add_Click({ Open-HUSettings })
 $c['btnSupport'].Add_Click({ Show-HUSupport })
-$c['txtBackupStatus'].Add_MouseLeftButtonUp({ Show-HUAppBackupDialog })
+Register-HUAbMainStatus
 Register-HUHelpHandlers
 Register-HUUpdateHandlers
 $c['btnOpenLogFolder'].Add_Click({ Open-HUPath $script:LogDir })
@@ -323,9 +322,9 @@ $script:Window.Add_ContentRendered({
                 if (@($src | Where-Object { $_.Name -match '/(Logs|Token)/|^data/(Laufend|Docs)/|\.lock$' }).Count) { throw 'Sicherung: verbotene Dateien in der Liste' }
                 $steps += "Sicherung=$($src.Count)"
                 # Support: Info ohne Benutzername, ZIP entsteht
-                if ((Get-HUSupportInfo) -match [regex]::Escape($env:USERNAME)) { throw 'Support: Benutzername in info.txt' }
+                if ((ConvertTo-HURedacted ((Get-HUSupportInfo) -join "`n") (Get-HURedactMap)) -match [regex]::Escape($env:USERNAME)) { throw 'Support: Benutzername in info.txt' }
                 $zf = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtSmoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-                $z = New-HUSupportZip -Logs -Folder $zf
+                $z = New-HUSupportZip -Include @{ Logs = $true; Settings = $true } -Folder $zf
                 if (-not (Test-Path -LiteralPath $z)) { throw 'Support-ZIP fehlt' }
                 Remove-Item -LiteralPath $zf -Recurse -Force
                 $steps += 'Support'
@@ -336,7 +335,8 @@ $script:Window.Add_ContentRendered({
                 $closer.Start()
                 try {
                     Show-HUSupport; $steps += 'Fenster-Support'
-                    Show-HUAppBackupDialog; $steps += 'Fenster-Sicherung'
+                    Open-HUSettings -Tab 'Sicherung'; $steps += 'Fenster-Sicherung'
+                    [void](Show-HUAbPasswordDialog -New); $steps += 'Fenster-Kennwort'
                     Show-HUAbout; $steps += 'Fenster-Info'
                     Open-HUSettings; $steps += 'Fenster-Einstellungen'
                     if (-not (Get-HUHelpPage $null)) { throw 'Grundhilfe fehlt' }
@@ -355,7 +355,7 @@ $script:Window.Add_ContentRendered({
         return
     }
     # Sicherung: Stand in der Kopfzeile, Automatik (beim Start und stuendlich, wenn faellig)
-    try { Update-HUAbStatus; Start-HUAppBackupScheduler } catch { Write-HULogWarn "Sicherung: $($_.Exception.Message)" }
+    try { Update-HUAbMainStatus; Start-HUAppBackupScheduler } catch { Write-HULogWarn "Sicherung: $($_.Exception.Message)" }
     # Update-Pruefung im Hintergrund (Knopf wird gold), Module im Hintergrund aktualisieren
     if ($script:Settings.ui.checkUpdatesOnStart -ne $false) { try { Invoke-UpdateCheck -Quiet; Start-HUAddonUpdate } catch { Write-HULogWarn "Update-Prüfung: $($_.Exception.Message)" } }
     # Starter HU-Amt.exe (eigenes Logo, ohne Konsolenfenster) bereitstellen, falls er fehlt

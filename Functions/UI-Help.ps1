@@ -37,15 +37,16 @@ function Show-HUHelp([switch]$Overview) {
     Open-HUUrl $p
 }
 
+# Knopf ? wie in der Vorlage: Klick = Anleitung, Rechtsklick = Menue mit den Seiten (Info steht im Menue des Update-Knopfs).
+# Abweichung: die Anleitung gilt dem aktuellen Reiter (jedes Modul hat seine eigene Hilfe), dazu die Uebersicht.
 function Register-HUHelpHandlers {
     $b = $script:Controls['btnHelp']
     $b.Add_Click({ Show-HUHelp })
-    $b.ToolTip = "Hilfe zum aktuellen Reiter (F1)`nRechtsklick: Übersicht, Info"
     $cm = New-Object System.Windows.Controls.ContextMenu
-    foreach ($p in @(@('Hilfe zum aktuellen Reiter (F1)', 'tab'), @('Übersicht', 'all'), @('Info ...', 'info'))) {
-        $mi = New-Object System.Windows.Controls.MenuItem; $mi.Header = $p[0]; $mi.Tag = $p[1]
-        $mi.Add_Click({ param($s, $e) switch ("$($s.Tag)") { 'tab' { Show-HUHelp } 'all' { Show-HUHelp -Overview } default { Show-HUAbout } } })
-        [void]$cm.Items.Add($mi)
+    foreach ($p in @(@('Anleitung (F1)', 'tab', 'Hilfe zum aktuellen Reiter'), @('Übersicht', 'all', 'Was die App kann und welche Module es gibt'))) {
+        $mi = New-Object System.Windows.Controls.MenuItem; $mi.Header = $p[0]; $mi.Tag = $p[1]; $mi.ToolTip = $p[2]
+        $mi.Add_Click({ param($s, $e) if ("$($s.Tag)" -eq 'all') { Show-HUHelp -Overview } else { Show-HUHelp } }); [void]$cm.Items.Add($mi)
     }
     $b.ContextMenu = $cm
+    $b.ToolTip = "Anleitung (F1)`nRechtsklick: Übersicht"
 }

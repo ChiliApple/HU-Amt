@@ -28,9 +28,8 @@
                     <StackPanel VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="txtAppTitle" FontSize="17" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtAppSubtitle" FontSize="11" Foreground="#858585" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                            <!-- Stand der Sicherung (nur Verwalter, Klick: Sicherung einstellen) -->
-                            <TextBlock x:Name="txtBackupStatus" FontSize="10" Foreground="#858585" Margin="40,0,0,0" VerticalAlignment="Center" Cursor="Hand" Visibility="Collapsed"/>
+                            <!-- App-Sicherung wie in der Vorlage (Klick: Einstellungen > Sicherung), nur fuer Verwalter sichtbar -->
+                            <TextBlock x:Name="txtAppBackupStatus" FontSize="10" Foreground="#858585" Margin="12,0,0,0" VerticalAlignment="Center" Cursor="Hand" Visibility="Collapsed"/>
                         </StackPanel>
                         <TextBlock x:Name="txtVersion" FontSize="10" Foreground="#4CAF50"/>
                     </StackPanel>
@@ -41,7 +40,7 @@
                     <Button x:Name="btnSupport" Content="&#x1F6DF; Support" Style="{StaticResource ToolButton}" Margin="0,0,6,0"
                             ToolTip="Protokolle als ZIP packen, um Hilfe anzufragen"/>
                     <Button x:Name="btnHelp" Content="?" Style="{StaticResource ToolButton}" Width="32" Margin="0,0,6,0"
-                            ToolTip="Hilfe zum aktuellen Reiter (F1)"/>
+                            ToolTip="Anleitung (F1)"/>
                     <Button x:Name="btnUpdate" Content="Update" Style="{StaticResource ToolButton}"
                             ToolTip="Nach einer neuen Version suchen und installieren"/>
                 </StackPanel>

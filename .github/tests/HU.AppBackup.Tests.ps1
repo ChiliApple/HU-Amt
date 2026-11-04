@@ -121,11 +121,14 @@ Describe 'Support' {
         $script:AppRoot = 'C:\Tools\HU-Amt'
         . (Join-Path $script:Root 'Functions\UI-Support.ps1')
     }
-    It 'macht Programmordner, Profil, Benutzer und PC unkenntlich' {
-        $t = Protect-HUSupportText "C:\Tools\HU-Amt\Main.ps1 C:\Users\$env:USERNAME\Downloads $env:USERNAME $env:COMPUTERNAME"
+    It 'macht Programmordner, Benutzer, PC, Adressen und IDs unkenntlich' {
+        $t = ConvertTo-HURedacted "C:\Tools\HU-Amt\Main.ps1 C:\Users\$env:USERNAME\Downloads $env:USERNAME $env:COMPUTERNAME max@example.org 203.0.113.7 12345678-1234-1234-1234-123456789abc" (Get-HURedactMap)
         $t | Should -Not -Match ([regex]::Escape($env:USERNAME))
         $t | Should -Not -Match ([regex]::Escape($env:COMPUTERNAME))
         $t | Should -Match '<Programmordner>'
-        $t | Should -Match '<Profil>'
+        $t | Should -Match '<anonym>'
+        $t | Should -Match '<mail>'
+        $t | Should -Match '<ip>'
+        $t | Should -Not -Match '123456789abc'
     }
 }
