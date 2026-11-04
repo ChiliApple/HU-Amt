@@ -15,6 +15,9 @@
   - Die Reihenfolge der Reiter legt das Modul fest; Reiter lassen sich mit der Maus verschieben.
 - **Dateien ins Fenster ziehen:** Die Dateien gehen an den aktiven Reiter. Passt er nicht, aber genau ein anderer Reiter, wechselt die App dorthin.
 - **Daten je Modul** liegen gemeinsam für alle in `Data\<Modul>`.
+- **Austausch mit anderen Programmen:** Module geben Tabellen als CSV nach einem Profil aus (Trennzeichen, Kodierung auch Windows-1252, Dezimalzeichen, Datumsformat, Spalten).
+  - Ein neues Zielformat ist nur eine Profil-Datei in `Data\<Modul>\Profile`.
+  - Jedes Modul hat einen Übergabeordner (Standard `Data\<Modul>\Ausgang`, auch eine Freigabe). Dateien erscheinen erst fertig geschrieben, mit Zeitstempel im Namen und ohne zu überschreiben.
 
 ### ⚙️ Einstellungen
 - **Einstellungsfenster** mit den Reitern Allgemein, Sicherung, Update, Module und Verwalter.
@@ -65,4 +68,4 @@
 - **Klare Meldung**, wenn der Datenordner nicht beschreibbar ist.
 
 ### ✅ Qualität
-- 67 Tests.
+- 78 Tests.
