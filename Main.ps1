@@ -37,7 +37,7 @@ $script:AppRoot = $PSScriptRoot
 # Zustandsvariablen (StrictMode: vor dem ersten Lesen setzen)
 $script:Window = $null; $script:Controls = @{}; $script:AppIcon = $null; $script:UiScale = 1.0
 $script:StartupDone = $false; $script:AbRestored = $false; $script:LastDialog = $null
-$script:SmokeTestFile = $SmokeTest; $script:SmokeTimer = $null; $script:SmokeSteps = @(); $script:SmokeWatch = $null; $script:OnContentRendered = $null
+$script:SmokeTestFile = $SmokeTest; $script:SmokeTimer = $null; $script:SmokeSteps = @(); $script:SmokeWatch = $null; $script:OnContentRendered = $null; $script:SmokeState = $null
 $script:Settings = $null; $script:App = $null; $script:Paths = $null; $script:RunLock = $null
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
@@ -293,7 +293,7 @@ $script:OnContentRendered = {
     try { [void]$script:Window.Activate() } catch { }
     if ($script:SmokeTestFile) {
         # automatischer Test (CI): Fenster laeuft, Ergebnis schreiben, beenden
-        $script:SmokeTimer = [System.Windows.Threading.DispatcherTimer]::new()
+        $script:SmokeTimer = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
         $script:SmokeTimer.Interval = [TimeSpan]::FromSeconds(1)
         $script:SmokeTimer.Add_Tick({
             $script:SmokeTimer.Stop()
@@ -329,7 +329,7 @@ $script:OnContentRendered = {
                 Remove-Item -LiteralPath $zf -Recurse -Force
                 $script:SmokeSteps += 'Support'
                 # Fenster wirklich aufbauen: ein zweiter Timer schliesst das jeweils offene Fenster nach kurzer Zeit
-                $closer = [System.Windows.Threading.DispatcherTimer]::new()
+                $closer = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
                 $closer.Interval = [TimeSpan]::FromMilliseconds(1200)
                 $closer.Add_Tick({ if ($script:LastDialog -and $script:LastDialog.IsVisible) { $script:LastDialog.Close() } })
                 $closer.Start()
@@ -401,18 +401,32 @@ if (-not $SmokeTest -and -not $script:RunLock) { Write-HULogWarn 'Anmeldung in D
 Write-HULogOK 'Bereit.'
 
 if ($SmokeTest) {
-    # Starttest ohne sichtbaren Bildschirm (CI): kommt ContentRendered nicht, nach Loaded trotzdem starten
-    $script:Window.Add_Loaded({
-            $fb = [System.Windows.Threading.DispatcherTimer]::new()
-            $fb.Interval = [TimeSpan]::FromSeconds(5)
-            $fb.Add_Tick({
-                    $this.Stop()
-                    if (-not $script:StartupDone) { Write-HULogWarn 'Starttest: ContentRendered kam nicht - Start über Loaded.'; & $script:OnContentRendered }
-                })
-            $fb.Start()
+    # Starttest ohne sichtbaren Bildschirm (CI): kommt ContentRendered nicht, nach 10 s trotzdem starten.
+    # Zeitgeber mit Prioritaet Normal: ohne Bildschirm kommen Zeitgeber mit der Vorgabe Background u. U. nie dran.
+    $script:SmokeState = [hashtable]::Synchronized(@{ Loaded = $false; Rendered = $false; Fallback = $false; File = $script:SmokeTestFile })
+    $script:Window.Add_Loaded({ $script:SmokeState.Loaded = $true })
+    $script:Window.Add_ContentRendered({ $script:SmokeState.Rendered = $true })
+    $fb = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
+    $fb.Interval = [TimeSpan]::FromSeconds(10)
+    $fb.Add_Tick({
+            $this.Stop()
+            if (-not $script:StartupDone) { $script:SmokeState.Fallback = $true; Write-HULogWarn "Starttest: ContentRendered kam nicht (Loaded=$($script:SmokeState.Loaded)) - Start über Zeitgeber."; & $script:OnContentRendered }
         })
+    $fb.Start()
+    # zweiter Waechter in eigenem Thread: greift auch, wenn die Oberflaeche keine Zeitgeber mehr ausfuehrt
+    $wr = [runspacefactory]::CreateRunspace(); $wr.Open()
+    $wp = [powershell]::Create(); $wp.Runspace = $wr
+    [void]$wp.AddScript({
+            param($St)
+            Start-Sleep -Seconds 200
+            if (-not (Test-Path -LiteralPath $St.File)) {
+                "FEHLER Oberfläche blockiert (kein Zeitgeber lief): Loaded=$($St.Loaded) ContentRendered=$($St.Rendered) Ausweichstart=$($St.Fallback)" | Set-Content -LiteralPath $St.File -Encoding UTF8
+                [Environment]::Exit(3)
+            }
+        }).AddArgument($script:SmokeState)
+    [void]$wp.BeginInvoke()
     # Waechter: haengt der Test (z. B. an einem offenen Fenster), Ergebnis mit dem letzten Schritt schreiben und beenden
-    $script:SmokeWatch = [System.Windows.Threading.DispatcherTimer]::new()
+    $script:SmokeWatch = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
     $script:SmokeWatch.Interval = [TimeSpan]::FromSeconds(150)
     $script:SmokeWatch.Add_Tick({
             $this.Stop()
