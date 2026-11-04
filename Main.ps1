@@ -297,6 +297,7 @@ $script:OnContentRendered = {
         $script:SmokeTimer.Interval = [TimeSpan]::FromSeconds(1)
         $script:SmokeTimer.Add_Tick({
             $script:SmokeTimer.Stop()
+            $script:SmokeState.Steps = '(Zeitgeber lief)'
             try {
                 $script:SmokeSteps = @()
                 if ($script:Controls['tabMain'].Items.Count -lt 1) { throw 'keine Reiter' }
@@ -352,6 +353,7 @@ $script:OnContentRendered = {
             $script:Window.Close()
         })
         $script:SmokeTimer.Start()
+        $script:SmokeState.Steps = '(Zeitgeber gestartet)'
         return
     }
     # Sicherung: Stand in der Kopfzeile, Automatik (beim Start und stuendlich, wenn faellig)
@@ -403,7 +405,7 @@ Write-HULogOK 'Bereit.'
 if ($SmokeTest) {
     # Starttest ohne sichtbaren Bildschirm (CI): kommt ContentRendered nicht, nach 10 s trotzdem starten.
     # Zeitgeber mit Prioritaet Normal: ohne Bildschirm kommen Zeitgeber mit der Vorgabe Background u. U. nie dran.
-    $script:SmokeState = [hashtable]::Synchronized(@{ Loaded = $false; Rendered = $false; Fallback = $false; Steps = ''; File = $script:SmokeTestFile })
+    $script:SmokeState = [hashtable]::Synchronized(@{ Loaded = $false; Rendered = $false; Fallback = $false; Steps = ''; File = $script:SmokeTestFile; Log = "$(Get-CurrentLogFile)" })
     $script:Window.Add_Loaded({ $script:SmokeState.Loaded = $true })
     $script:Window.Add_ContentRendered({ $script:SmokeState.Rendered = $true })
     $fb = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
@@ -420,7 +422,9 @@ if ($SmokeTest) {
             param($St)
             Start-Sleep -Seconds 200
             if (-not (Test-Path -LiteralPath $St.File)) {
-                "FEHLER Oberfläche blockiert (kein Zeitgeber lief): Loaded=$($St.Loaded) ContentRendered=$($St.Rendered) Ausweichstart=$($St.Fallback) fertig bis: [$($St.Steps)]" | Set-Content -LiteralPath $St.File -Encoding UTF8
+                # letzte Protokollzeilen dazu: zeigen, was die Oberflaeche zuletzt getan hat
+                $tail = ''; try { if ($St.Log -and (Test-Path -LiteralPath $St.Log)) { $tail = (Get-Content -LiteralPath $St.Log -Tail 15 -Encoding UTF8) -join ' | ' } } catch { }
+                "FEHLER Oberfläche blockiert (kein Zeitgeber lief): Loaded=$($St.Loaded) ContentRendered=$($St.Rendered) Ausweichstart=$($St.Fallback) fertig bis: [$($St.Steps)] Protokoll: $tail" | Set-Content -LiteralPath $St.File -Encoding UTF8
                 [Environment]::Exit(3)
             }
         }).AddArgument($script:SmokeState)
