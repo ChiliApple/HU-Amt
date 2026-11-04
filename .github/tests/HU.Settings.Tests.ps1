@@ -10,7 +10,7 @@ BeforeAll {
     # erfundener Fingerabdruck: das echte Herausgeber-Zertifikat auf dem Test-PC darf nicht mitspielen
     [IO.File]::WriteAllText((Join-Path $script:AppRoot 'Config\update.json'), ('{ "SignerThumbprint": "' + ('A' * 40) + '" }'))
     $script:App = [pscustomobject]@{ id = 'HU-Amt'; title = 'HU-Amt'; signer = ('A' * 40); repo = [pscustomobject]@{ owner = 'x'; name = 'y' } }
-    $script:Paths = Initialize-HUDataPaths -AppRoot $script:AppRoot -UserName 'anna' -ComputerName 'PC-1'
+    $script:Paths = Initialize-HUDataPaths -AppRoot $script:AppRoot -UserName 'anna' -PcName 'PC-1'
     $script:DataRoot = $script:Paths.DataRoot; $script:UserRoot = $script:Paths.UserRoot; $script:UserName = 'anna'
     function Read-HUJsonFile([string]$Path) { if (Test-Path -LiteralPath $Path) { return ([IO.File]::ReadAllText($Path) | ConvertFrom-Json) } return $null }
     . (Join-Path $script:Root 'Functions\Core-Update.ps1')
@@ -46,7 +46,7 @@ Describe 'Verwalter' {
         @(Get-ChildItem -LiteralPath (Join-Path $script:DataRoot '_Kopien') -Filter 'Verwalter_*.txt').Count | Should -BeGreaterThan 0
     }
     It 'gesperrte Liste wird nicht ueberschrieben' {
-        $l = Lock-HUDataFile -Path (Get-HUVerwalterFile) -UserName 'bernd' -ComputerName 'PC-2'
+        $l = Lock-HUDataFile -Path (Get-HUVerwalterFile) -UserName 'bernd' -PcName 'PC-2'
         try { Save-HUVerwalterList @('anna') | Should -Match 'bernd' } finally { Unlock-HUDataFile $l }
     }
 }

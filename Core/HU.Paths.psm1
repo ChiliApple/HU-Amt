@@ -35,7 +35,7 @@ function Initialize-HUDataPaths {
     param(
         [Parameter(Mandatory)][string]$AppRoot,
         [string]$UserName = $env:USERNAME,
-        [string]$ComputerName = $env:COMPUTERNAME
+        [string]$PcName = $env:COMPUTERNAME
     )
     $data = Join-Path $AppRoot 'Data'
     $user = Join-Path (Join-Path $data 'Benutzer') (Get-HUSafeName $UserName)
@@ -49,7 +49,7 @@ function Initialize-HUDataPaths {
         RunDir       = $run
         DocsDir      = Join-Path $data 'Docs'
         UserName     = "$UserName"
-        ComputerName = "$ComputerName"
+        ComputerName = "$PcName"
     }
 }
 
@@ -81,8 +81,8 @@ function Get-HUModuleDataPath {
 }
 
 # Inhalt einer Sperrdatei: Name|PC|Zeit (ISO)|PID
-function ConvertTo-HULockText([string]$UserName, [string]$ComputerName) {
-    return ('{0}|{1}|{2}|{3}' -f $UserName, $ComputerName, (Get-Date).ToString('s'), $PID)
+function ConvertTo-HULockText([string]$UserName, [string]$PcName) {
+    return ('{0}|{1}|{2}|{3}' -f $UserName, $PcName, (Get-Date).ToString('s'), $PID)
 }
 function ConvertFrom-HULockText([string]$Text) {
     $p = @("$Text".Trim() -split '\|')
@@ -128,11 +128,11 @@ function Open-HURunLock {
     param(
         [Parameter(Mandatory)][string]$RunDir,
         [string]$UserName = $env:USERNAME,
-        [string]$ComputerName = $env:COMPUTERNAME
+        [string]$PcName = $env:COMPUTERNAME
     )
-    $path = Join-Path $RunDir ('{0}_{1}.lock' -f (Get-HUSafeName $UserName), (Get-HUSafeName $ComputerName))
+    $path = Join-Path $RunDir ('{0}_{1}.lock' -f (Get-HUSafeName $UserName), (Get-HUSafeName $PcName))
     if (-not (Remove-HUStaleLock $path)) { return $null }
-    $fs = New-HUHeldFile $path (ConvertTo-HULockText $UserName $ComputerName)
+    $fs = New-HUHeldFile $path (ConvertTo-HULockText $UserName $PcName)
     return [pscustomobject]@{ Path = $path; Stream = $fs }
 }
 
@@ -180,14 +180,14 @@ function Lock-HUDataFile {
     param(
         [Parameter(Mandatory)][string]$Path,
         [string]$UserName = $env:USERNAME,
-        [string]$ComputerName = $env:COMPUTERNAME
+        [string]$PcName = $env:COMPUTERNAME
     )
     $lp = "$Path.lock"
     for ($try = 0; $try -lt 2; $try++) {
         if (-not (Remove-HUStaleLock $lp)) { break }
         try {
-            $fs = New-HUHeldFile $lp (ConvertTo-HULockText $UserName $ComputerName)
-            return [pscustomobject]@{ Ok = $true; Path = $Path; LockPath = $lp; Stream = $fs; UserName = $UserName; ComputerName = $ComputerName; Since = Get-Date }
+            $fs = New-HUHeldFile $lp (ConvertTo-HULockText $UserName $PcName)
+            return [pscustomobject]@{ Ok = $true; Path = $Path; LockPath = $lp; Stream = $fs; UserName = $UserName; ComputerName = $PcName; Since = Get-Date }
         } catch [System.IO.IOException] {
             # ein anderer war gleichzeitig schneller: noch einmal pruefen
         }
