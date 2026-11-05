@@ -1,5 +1,17 @@
 ﻿# Changelog
 
+## v0.1.3
+
+### 📦 Installation
+- **Installation in den eigenen Ordner:** Liegt `Pull.ps1` allein in einem neuen Ordner, kommt HU-Amt genau dorthin, auch auf eine Netzfreigabe.
+  - Bisher landete die Erstinstallation immer in `Desktop\HU-Amt` des Benutzers.
+  - In Desktop, Downloads, Dokumente und auf der Laufwerkswurzel bleibt es bei `Desktop\HU-Amt`.
+- **Starten per Rechtsklick:** Rechtsklick auf `Pull.ps1` › „Mit PowerShell ausführen“ reicht, kein Befehl mehr nötig.
+  - Anleitung, Einstieg und README nennen diesen Weg. Der bisherige Befehl ohne vollen Pfad fand die Datei nicht.
+
+### ✅ Qualität
+- 108 Tests.
+
 ## v0.1.2
 
 ### 🧩 Module

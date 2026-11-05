@@ -7,7 +7,9 @@
       1. -Target angegeben                                 -> gewinnt immer
       2. Pull.ps1 liegt IN einer Installation              -> Update an Ort und Stelle
          (Main.ps1 oder Core\ daneben)
-      3. Pull.ps1 liegt allein (Erstinstallation)          -> $env:USERPROFILE\Desktop\HU-Amt
+      3. Pull.ps1 liegt allein in einem eigenen Ordner     -> Erstinstallation in diesen Ordner
+         (nicht in Desktop, Downloads, Dokumente oder Laufwerkswurzel)
+      4. sonst (Erstinstallation)                          -> $env:USERPROFILE\Desktop\HU-Amt
 
     Welche Version:
       -Version 2.0.1      -> genau diese Version (auch aelter = "Vorversion")
@@ -30,8 +32,10 @@
     Config\installed.json, Config\powershell-host.txt, HU-Amt.exe.
     Token (nur fuer private Repos): Umgebungsvariable HU_GITHUB_TOKEN oder Data\Benutzer\<Name>\Token\GitHub.xml (DPAPI).
 .NOTES
-    Erstinstallation: Pull.ps1 in einen leeren Ordner legen, dann
-        powershell -ExecutionPolicy Bypass -File Pull.ps1
+    Erstinstallation: Pull.ps1 allein in einen neuen Ordner legen (z. B. auf der Netzfreigabe), dann
+        Rechtsklick auf Pull.ps1 > "Mit PowerShell ausfuehren"
+    oder mit vollem Pfad:
+        powershell -ExecutionPolicy Bypass -File "\\Server\Freigabe\HU-Amt\Pull.ps1"
     Zielmaschine: der PC, auf dem HU-Amt laufen soll, oder der Netzordner (Windows PowerShell 5.1).
 #>
 param(
@@ -189,10 +193,23 @@ function Stop-HMPull([string]$Msg) {
     exit 1
 }
 
+# Liegt Pull.ps1 allein in einem Ordner, wird dorthin installiert (z. B. ein neuer Ordner auf der Netzfreigabe).
+# Nicht in Sammelordnern wie Desktop, Downloads oder Dokumente des Benutzers, dort bleibt es bei Desktop\HU-Amt.
+function Test-HMPullEmptyHome([string]$Dir, [string]$Self) {
+    $d = "$Dir".TrimEnd('\')
+    $sammel = @($env:USERPROFILE, (Join-Path $env:USERPROFILE 'Desktop'), (Join-Path $env:USERPROFILE 'Downloads'), (Join-Path $env:USERPROFILE 'Documents'))
+    try { $sammel += [Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('MyDocuments') } catch { }
+    foreach ($s in $sammel) { if ($s -and $d -ieq "$s".TrimEnd('\')) { return $false } }
+    if ($d -match '^[A-Za-z]:$') { return $false }
+    $rest = @(Get-ChildItem -LiteralPath $Dir -Force -ErrorAction SilentlyContinue | Where-Object { $_.FullName -ne $Self -and $_.Name -notin 'desktop.ini', 'Thumbs.db' })
+    return ($rest.Count -eq 0)
+}
+
 # --- Zielordner bestimmen ---
 if (-not $Target) {
     $here = $PSScriptRoot
     if ($here -and ((Test-Path (Join-Path $here 'Main.ps1')) -or (Test-Path (Join-Path $here 'Core')))) { $Target = $here; $mode = 'Update (an Ort und Stelle)' }
+    elseif ($here -and (Test-HMPullEmptyHome $here $PSCommandPath)) { $Target = $here; $mode = 'Erstinstallation (dieser Ordner)' }
     else { $Target = Join-Path $env:USERPROFILE 'Desktop\HU-Amt'; $mode = 'Erstinstallation (Desktop)' }
 } else { $mode = 'Ziel per -Target' }
 $Target = $Target.TrimEnd('\')

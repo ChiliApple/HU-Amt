@@ -157,8 +157,8 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     <div class="card" style="grid-column: 1 / -1">
       <div class="n">1</div>
       <h3>Herunterladen</h3>
-      <p><a href="https://github.com/ChiliApple/HU-Amt/raw/main/Pull.ps1"><code>Pull.ps1</code></a> herunterladen (Rechtsklick › <i>Link speichern unter …</i>), in einen <b>leeren</b> Ordner legen – z. B. auf der Freigabe – und starten:</p>
-      <pre>powershell.exe -NoProfile -ExecutionPolicy Bypass -File Pull.ps1</pre>
+      <p><a href="https://github.com/ChiliApple/HU-Amt/raw/main/Pull.ps1"><code>Pull.ps1</code></a> herunterladen (Rechtsklick › <i>Link speichern unter …</i>), allein in einen <b>neuen</b> Ordner legen – z. B. auf der Freigabe – und mit Rechtsklick › <i>Mit PowerShell ausführen</i> starten. HU-Amt kommt in genau diesen Ordner. Oder in PowerShell mit vollem Pfad:</p>
+      <pre>powershell.exe -NoProfile -ExecutionPolicy Bypass -File "\\Server\Freigabe\HU-Amt\Pull.ps1"</pre>
       <p style="font-size:14px;color:var(--muted)">Lädt die freigegebene Version, prüft jede Datei per SHA-256 und die Signatur des Releases. Updates kommen später über den Knopf <b>Update</b> im Programm – genauso geprüft.</p>
     </div>
     <div class="card">

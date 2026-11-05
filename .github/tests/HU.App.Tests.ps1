@@ -44,6 +44,39 @@ Describe 'Aufraeumen und Benutzerordner' {
     }
 }
 
+Describe 'Pull.ps1: Zielordner der Erstinstallation' {
+    BeforeAll {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $script:Root 'Pull.ps1'), [ref]$null, [ref]$null)
+        $fn = $ast.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Test-HMPullEmptyHome' }, $true)
+        . ([scriptblock]::Create($fn.Extent.Text))
+        $script:Base = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtPull-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:Base)
+    }
+    AfterAll { Remove-Item -LiteralPath $script:Base -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'Pull.ps1 allein im Ordner: dorthin installieren' {
+        $d = Join-Path $script:Base 'leer'; [void](New-Item -ItemType Directory -Path $d)
+        $p = Join-Path $d 'Pull.ps1'; Set-Content -LiteralPath $p -Value '#'
+        Set-Content -LiteralPath (Join-Path $d 'desktop.ini') -Value 'x'
+        Test-HMPullEmptyHome $d $p | Should -BeTrue
+    }
+    It 'weitere Dateien im Ordner: nicht dorthin' {
+        $d = Join-Path $script:Base 'voll'; [void](New-Item -ItemType Directory -Path $d)
+        $p = Join-Path $d 'Pull.ps1'; Set-Content -LiteralPath $p -Value '#'
+        Set-Content -LiteralPath (Join-Path $d 'Rechnung.pdf') -Value 'x'
+        Test-HMPullEmptyHome $d $p | Should -BeFalse
+    }
+    It 'Desktop, Downloads und Laufwerkswurzel: nie' {
+        Test-HMPullEmptyHome (Join-Path $env:USERPROFILE 'Downloads') 'x' | Should -BeFalse
+        Test-HMPullEmptyHome (Join-Path $env:USERPROFILE 'Desktop') 'x' | Should -BeFalse
+        Test-HMPullEmptyHome 'C:\' 'x' | Should -BeFalse
+    }
+    It 'kein Befehl mit relativem Pfad zu Pull.ps1 in Doku und Skripten' {
+        # .github ausgenommen: die CI laeuft im Repo-Ordner, dort ist der relative Pfad richtig
+        $hits = @($script:Files | Where-Object { $_.FullName -notmatch '\\\.github\\' } | Select-String -Pattern '-File\s+\.?\\?Pull\.ps1')
+        ($hits | ForEach-Object { "$($_.Filename):$($_.LineNumber)" }) -join ', ' | Should -BeNullOrEmpty
+    }
+}
+
 Describe 'Inhalte' {
     It 'der Name steht nur in app.json, nicht fest im Code (kein Name der Vorlage)' {
         # Muster zusammengesetzt, damit diese Datei sich nicht selbst findet
