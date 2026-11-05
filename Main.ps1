@@ -211,11 +211,11 @@ $minLevel = "$($script:Settings.logging.logLevel)".ToUpper()
 if ($minLevel -notin 'DEBUG', 'INFO', 'OK', 'WARN', 'ERROR') { $minLevel = 'INFO' }
 Initialize-Logging -LogFilePath $logFile -RichTextBox $c['rtbLog'] -MinLevel $minLevel -MaxGuiLines ([int]$script:Settings.ui.maxLogLines)
 Write-HULogInfo "$($script:AppTitle) v$($script:Version) startet (PowerShell $($PSVersionTable.PSVersion), Benutzer $($script:UserName)) ..."
-# Tagesprotokolle aelter als logging.retentionDays (Standard 30) beim Start loeschen
+# Protokolle aelter als logging.retentionDays (Standard 30) beim Start loeschen: die der App und die der Module (alle *.log in Logs)
 try {
     $keep = 30; try { if ([int]$script:Settings.logging.retentionDays -gt 0) { $keep = [int]$script:Settings.logging.retentionDays } } catch { }
     $limit = (Get-Date).AddDays(-$keep)
-    Get-ChildItem -LiteralPath $script:LogDir -Filter "$($script:App.id)_*.log" -File -ErrorAction SilentlyContinue |
+    Get-ChildItem -LiteralPath $script:LogDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -lt $limit } | Remove-Item -Force -ErrorAction SilentlyContinue
 } catch { }
 

@@ -24,12 +24,12 @@ Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe, fü
 </p>
 
 <p align="center">
-  <a href="Docs/screenshot-energiegemeinschaft.png"><img src="Docs/screenshot-energiegemeinschaft.png" width="380" alt="Energiegemeinschaft"/></a>
+  <a href="Docs/screenshot-kostenzuordnung.png"><img src="Docs/screenshot-kostenzuordnung.png" width="380" alt="Kostenzuordnung"/></a>
   <a href="Docs/screenshot-uebersicht.png"><img src="Docs/screenshot-uebersicht.png" width="380" alt="Übersicht"/></a>
   <br>
   <a href="Docs/screenshot-pdf-werkzeuge.png"><img src="Docs/screenshot-pdf-werkzeuge.png" width="380" alt="PDF-Werkzeuge"/></a>
   <a href="Docs/screenshot-ideen.png"><img src="Docs/screenshot-ideen.png" width="380" alt="Ideen und Wünsche"/></a>
-  <br><sub>Energiegemeinschaft · Übersicht · PDF-Werkzeuge · Ideen &amp; Wünsche – mit Testdaten, zum Vergrößern anklicken</sub>
+  <br><sub>Kostenzuordnung · Übersicht · PDF-Werkzeuge · Ideen &amp; Wünsche – mit Testdaten, zum Vergrößern anklicken</sub>
 </p>
 
 ---

@@ -189,5 +189,6 @@ Describe 'Postfach zwischen Modulen' {
         { Add-HUAddonInboxItem -DataRoot $script:Data -To 'Ziel' -Path (Join-Path $TestDrive 'fehlt.pdf') } | Should -Throw
         { Remove-HUAddonInboxEntry -DataRoot $script:Data -Item ([pscustomobject]@{ Key = '..'; Inbox = 'Ziel' }) } | Should -Throw
         Test-HUAddonId 'Postfach' | Should -BeFalse
+        Test-HUAddonId 'Wiederherstellung' | Should -BeFalse
     }
 }

@@ -236,7 +236,9 @@ $useBranch = [bool]$Branch -or ($cfg.UseBranch -and -not $Version)
 if (-not $Branch) { $Branch = $cfg.Branch }
 
 # --- Token (nur private Repos) ---
-$tokFile = Join-Path $Target ('Data\Benutzer\{0}\Token\GitHub.xml' -f ("$env:USERNAME" -replace '[^\p{L}\p{Nd}\.\-_]', '_'))
+# Benutzerordner wie Get-HUSafeName in Core\HU.Paths.psm1 (Pull laeuft ohne die Module der App)
+$tokUser = ("$env:USERNAME" -replace '[^\p{L}\p{Nd}\.\-_]', '_').Trim('.', ' '); if (-not $tokUser) { $tokUser = 'unbekannt' }
+$tokFile = Join-Path $Target ('Data\Benutzer\{0}\Token\GitHub.xml' -f $tokUser)
 $Token = "$env:HU_GITHUB_TOKEN".Trim()
 if (-not $Token -and (Test-Path -LiteralPath $tokFile)) {
     try { $c = Import-Clixml -Path $tokFile; if ($c -is [System.Management.Automation.PSCredential]) { $Token = $c.GetNetworkCredential().Password.Trim() } }

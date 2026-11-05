@@ -145,7 +145,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </nav>
   </div>
   <h1>Alles, was HU-Amt <em>kann</em> – auf einer Seite.</h1>
-  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen der Energiegemeinschaft verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
+  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen auf Kostenstellen verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
   <div class="promise">
     <span>Windows 10 / 11</span><span>PowerShell 5.1 und 7</span><span>Ohne Installation</span><span>Selbst-Update aus GitHub</span><span>Signierte Releases</span>
   </div>
@@ -163,8 +163,8 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <h2 id="t-top">Top 10</h2>
   <ol class="podium">
     <li style="--c: var(--yellow)">
-      <div class="head"><span class="rank">1</span><a class="area" href="#eg">Energiegemeinschaft</a></div>
-      <div class="body"><h3>Rechnungen auf Kostenstellen – automatisch</h3><p>PDF-Rechnungen hineinziehen, jede Position landet auf ihrer Kostenstelle, Excel-Liste mit einem Klick.</p></div>
+      <div class="head"><span class="rank">1</span><a class="area" href="#eg">Kostenzuordnung</a></div>
+      <div class="body"><h3>Rechnungen auf Kostenstellen – automatisch</h3><p>PDF-Rechnungen hineinziehen, jede Position landet auf ihrer Kostenstelle, Excel-Liste mit einem Klick. Kostenarten wie Strom und Telefon getrennt.</p></div>
     </li>
     <li style="--c: var(--blue)">
       <div class="head"><span class="rank">2</span><a class="area" href="#ocr">Texterkennung</a></div>
@@ -177,7 +177,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   </ol>
   <ol class="rest" start="4">
     <li style="--c: var(--red)"><span class="rank">4</span><div><h3>Sicher schwärzen</h3><p>Suchbegriffe, Muster oder mit der Maus – Text wird entfernt und vor dem Speichern geprüft.</p></div><a class="area" href="#pdf">PDF-Werkzeuge</a></li>
-    <li style="--c: var(--yellow)"><span class="rank">5</span><div><h3>Übersicht mit Vorjahresvergleich</h3><p>Netto, Spitzenverbraucher, Verlauf je Monat und Anteile je Kostenstelle – live und druckbar.</p></div><a class="area" href="#eg">Energiegemeinschaft</a></li>
+    <li style="--c: var(--yellow)"><span class="rank">5</span><div><h3>Übersicht je Kostenart</h3><p>Strom, Telefon … umschalten, nie vermischt: Netto, Vorjahresvergleich, Spitzenverbraucher, Verlauf und Anteile – live und druckbar.</p></div><a class="area" href="#eg">Kostenzuordnung</a></li>
     <li style="--c: var(--green)"><span class="rank">6</span><div><h3>Verschlüsselte App-Sicherung</h3><p>Alle Einstellungen und Daten aller Module, automatisch täglich oder wöchentlich, Wiederherstellen nach Bereichen.</p></div><a class="area" href="#sicherung">Sicherung</a></li>
     <li style="--c: var(--peach)"><span class="rank">7</span><div><h3>Signierte Updates per Knopf</h3><p>Programm und Module, jede Datei geprüft, nie halb aktualisiert. Auf der Freigabe erst, wenn alle geschlossen haben.</p></div><a class="area" href="#update">Update</a></li>
     <li style="--c: var(--blue)"><span class="rank">8</span><div><h3>Dateien zwischen Modulen weitergeben <span class="new">neu</span></h3><p>Postfach je Reiter, auch zwischen PCs. Die Zahl am Reiter zeigt, wie viele Dateien warten.</p></div><a class="area" href="#fenster">Hauptfenster</a></li>
@@ -191,7 +191,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <h2 id="t-cats">Nach Bereichen</h2>
   <p class="sub">Jede Kachel entspricht einem Reiter oder Knopf in HU-Amt.</p>
   <div class="jump" aria-label="Zu Bereich springen">
-    <a href="#eg" style="--c: var(--yellow)">Energiegemeinschaft</a>
+    <a href="#eg" style="--c: var(--yellow)">Kostenzuordnung</a>
     <a href="#ocr" style="--c: var(--blue)">Texterkennung</a>
     <a href="#pdf" style="--c: var(--teal)">PDF-Werkzeuge</a>
     <a href="#roadmap" style="--c: var(--mauve)">Ideen &amp; Wünsche</a>
@@ -206,11 +206,11 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <div class="cats">
     <div class="col">
     <article class="cat" id="eg" style="--c: var(--yellow)">
-      <div class="cat-head"><span class="chip">⚡ Energiegemeinschaft</span><h3>Energiegemeinschaft</h3><span class="count">Modul 0.1.0</span></div>
+      <div class="cat-head"><span class="chip">🧾 Kostenzuordnung</span><h3>Kostenzuordnung</h3><span class="count">Modul 0.1.1</span></div>
       <div class="cat-body">
         <div class="group"><h4>Rechnungen</h4>
           <ul>
-            <li>PDF-Rechnungen hineinziehen, zwei Formate (Zählpunkte, Anlagennummern)</li>
+            <li>PDF-Rechnungen hineinziehen, Strom in zwei Formaten (Zählpunkte, Anlagennummern); Telefonrechnungen folgen</li>
             <li>Kacheln je Rechnung: Positionen, Zugeordnet, Netto, Differenz</li>
             <li>Positionen ohne Kostenstelle orange als „Nicht zugeordnet“</li>
             <li>Excel-Export mit Zusammenfassung und je Rechnung einem Blatt, Dateiname mit Platzhaltern</li>
@@ -219,7 +219,8 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
         </div>
         <div class="group"><h4>Kostenstellen</h4>
           <ul>
-            <li>Zuordnungen und Kostenstellen mit Haushaltsstelle in einem Editor</li>
+            <li>Zuordnungen (Zählpunkt, Anlage, Rufnummer), Kostenstellen mit Haushaltsstelle und Kostenarten in einem Editor, Zeilen hinzufügen und löschen</li>
+            <li>Kostenarten Strom und Telefon vorgegeben, umbenennen oder neue anlegen</li>
             <li>Excel-Import mit Vorschau, was neu, geändert oder entfernt ist</li>
             <li>Speichern nur für Verwalter, mit Prüfung und Sicherung der alten Liste</li>
           </ul>
@@ -228,6 +229,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
           <ul>
             <li>Jede Rechnung im Archiv, Bestand aus Ordnern einlesen</li>
             <li>Lücken: fehlende Monate je Zählpunkt oder Anlage</li>
+            <li>Immer genau eine Kostenart ausgewertet, keine Summe über mehrere</li>
             <li>Seitenleiste live: Netto zum Vorjahr, Verlauf je Monat, Top 5</li>
             <li>Große Übersicht: Top 10, Vorjahresvergleich, Anteile, Rechnungen – druckbar</li>
           </ul>

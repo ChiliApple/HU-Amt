@@ -1,5 +1,24 @@
 ﻿# Changelog
 
+## v0.1.2
+
+### 🧩 Module
+- **Alte Protokolle der Module werden gelöscht:** Beim Start räumt die App die Protokolle der Module nach derselben Frist auf wie ihre eigenen, nach 30 Tagen.
+- **Reservierte Kennungen:** Ein Modul darf nicht `Postfach` oder `Wiederherstellung` heißen, weil die App diese Ordner selbst nutzt.
+
+### 💾 Daten
+- **Kopien vor dem Speichern:** Beim Aufräumen alter Kopien bleiben fremde Dateien im Ordner `_Kopien` stehen, auch wenn sie ähnlich heißen.
+
+### 🔄 Update
+- **Windows-Namen mit Punkt am Ende:** Das Update findet den gespeicherten Lese-Token jetzt auch bei solchen Benutzernamen.
+
+### 📖 Hilfe
+- **Neues Kapitel „Was passiert mit deinen Dateien“** in der Anleitung: wo was liegt, was mit Originalen passiert, wie lange etwas bleibt, was Löschen oder Umbenennen im Explorer bewirkt und was in der Sicherung ist.
+- **Modul Kostenzuordnung:** Anleitung, Einstieg und Funktionen beschreiben den neuen Namen und die Kostenarten.
+
+### ✅ Qualität
+- 104 Tests.
+
 ## v0.1.1
 
 ### 🔄 Update

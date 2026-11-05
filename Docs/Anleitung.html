@@ -98,7 +98,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <h1>HU-Amt</h1>
   <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Jeder Reiter ist ein Modul. Dazu Update per Knopf, verschlüsselte Sicherung, Hilfe mit F1 und dunkles Farbschema. Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe.</p>
   <div class="cards">
-    <div class="card g"><b>⚡ Energiegemeinschaft</b>PDF-Rechnungen auf Kostenstellen verteilen, Excel-Liste, Archiv und Übersicht.</div>
+    <div class="card g"><b>🧾 Kostenzuordnung</b>Rechnungen (Strom, Telefon …) auf Kostenstellen verteilen, Excel-Liste, Archiv und Übersicht je Kostenart.</div>
     <div class="card b"><b>🔍 Texterkennung</b>Gescannte PDFs durchsuchbar machen, sinnvoll benennen und ablegen.</div>
     <div class="card t"><b>📑 PDF-Werkzeuge</b>Zusammenfügen, teilen, Seiten, schwärzen, verkleinern, Bilder zu PDF, Stempel und Notiz.</div>
     <div class="card m"><b>💡 Ideen &amp; Wünsche</b>Was es gibt und was kommt, abstimmen und Wünsche melden.</div>
@@ -111,7 +111,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 
 <section id="einrichten">
   <h2><span class="n">1</span>Einrichten</h2>
-  <div class="note"><b class="h">Voraussetzung</b>Windows 10 oder 11. Windows PowerShell 5.1 ist dabei; ist PowerShell 7 installiert, nimmt HU-Amt es automatisch. Administratorrechte am PC sind nicht nötig. Das Modul Energiegemeinschaft braucht die WebView2-Runtime (in Windows 11 enthalten).</div>
+  <div class="note"><b class="h">Voraussetzung</b>Windows 10 oder 11. Windows PowerShell 5.1 ist dabei; ist PowerShell 7 installiert, nimmt HU-Amt es automatisch. Administratorrechte am PC sind nicht nötig. Das Modul Kostenzuordnung braucht die WebView2-Runtime (in Windows 11 enthalten).</div>
   <h3 id="installation">Installation</h3>
   <ol class="steps">
     <li><code>Pull.ps1</code> in einen <b>leeren</b> Ordner legen, z. B. <code>C:\Tools\HU-Amt</code> oder auf die Netzfreigabe, und ausführen: <code>powershell -ExecutionPolicy Bypass -File Pull.ps1</code>. Lädt die freigegebene Version und prüft jede Datei per Prüfsumme und Signatur.</li>
@@ -167,26 +167,26 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <ul>
     <li>Dateien aus dem Explorer ins Fenster ziehen: Sie gehen an den offenen Reiter.</li>
     <li>Passt die Datei nicht zu diesem Reiter, aber zu genau einem anderen, wechselt HU-Amt dorthin.</li>
-    <li>Reiter können Dateien an andere Reiter weitergeben, z. B. die Texterkennung an die Energiegemeinschaft. Die Datei kommt als Kopie ins Postfach des Ziels im gemeinsamen Datenordner – das klappt auch von einem anderen PC aus. Am Reiter steht die Zahl wartender Dateien, z. B. „Energiegemeinschaft (3)“; sie wird jede Minute neu gezählt.</li>
+    <li>Reiter können Dateien an andere Reiter weitergeben, z. B. die Texterkennung an die Kostenzuordnung. Die Datei kommt als Kopie ins Postfach des Ziels im gemeinsamen Datenordner – das klappt auch von einem anderen PC aus. Am Reiter steht die Zahl wartender Dateien, z. B. „Kostenzuordnung (3)“; sie wird jede Minute neu gezählt.</li>
     <li>Ob und wohin weitergegeben wird, legst du im Modul fest. Am Inhalt wird nichts erraten.</li>
     <li>Ergebnisse landen in einem festen Ordner; <span class="ui">Ordner öffnen</span> zeigt ihn. Für andere Programme schreibt jedes Modul in seinen Übergabeordner: Dateien erscheinen erst fertig geschrieben, mit Zeitstempel im Namen, nichts wird überschrieben.</li>
   </ul>
 </section>
 
 <section id="eg">
-  <h2><span class="n">4</span>Energiegemeinschaft</h2>
-  <p>Reiter <span class="ui">⚡ Energiegemeinschaft</span>: PDF-Rechnungen hineinziehen, verarbeiten und als Excel exportieren.</p>
-  <figure><a href="screenshot-energiegemeinschaft.png"><img src="screenshot-energiegemeinschaft.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-energiegemeinschaft.png'" style="max-width:620px;width:100%" alt="Reiter Energiegemeinschaft"></a><figcaption>Ablage, Protokoll und Übersicht in der Seitenleiste (Testdaten).</figcaption></figure>
+  <h2><span class="n">4</span>Kostenzuordnung</h2>
+  <p>Reiter <span class="ui">🧾 Kostenzuordnung</span>: PDF-Rechnungen hineinziehen, jede Position der richtigen Kostenstelle zuordnen und als Excel exportieren. Jede Zuordnung gehört zu einer <b>Kostenart</b> (vorgegeben Strom und Telefon), ausgewertet wird immer eine Kostenart für sich.</p>
+  <figure><a href="screenshot-kostenzuordnung.png"><img src="screenshot-kostenzuordnung.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-kostenzuordnung.png'" style="max-width:620px;width:100%" alt="Reiter Kostenzuordnung"></a><figcaption>Ablage, Protokoll und Übersicht in der Seitenleiste (Testdaten).</figcaption></figure>
   <h3 id="eg-rechnungen">Rechnungen verarbeiten</h3>
   <ol class="steps">
     <li>Oben rechts den Stand der Kostenstellenliste prüfen: grün = geladen, orange = fehlt.</li>
     <li>PDFs auf die Ablage ziehen oder auf die Ablage klicken und auswählen; × nimmt eine Datei wieder heraus. Liegen Rechnungen im Postfach, zeigt der Reiter <i>📬 n neue Rechnung(en)</i> – <span class="ui">📥 Laden</span> legt sie in die Ablage.</li>
     <li><span class="ui b">Verarbeitung starten</span>: Je Rechnung erscheinen Kacheln (Rechnungsnummer, Format, Positionen, Zugeordnet, Netto, Differenz) und eine Tabelle der Positionen. Positionen ohne Kostenstelle stehen orange als <i>Nicht zugeordnet</i>.</li>
-    <li><span class="ui g">Excel exportieren …</span>: ohne Rückfrage in den Export-Ordner (Standard <code>Downloads\Energiegemeinschaft</code>), auf Wunsch <i>Nach dem Export in Excel öffnen</i>. Die Datei hat das Blatt <i>Zusammenfassung</i> und je Rechnung ein eigenes Blatt.</li>
+    <li><span class="ui g">Excel exportieren …</span>: ohne Rückfrage in den Export-Ordner (Standard <code>Downloads\Kostenzuordnung</code>), auf Wunsch <i>Nach dem Export in Excel öffnen</i>. Die Datei hat das Blatt <i>Zusammenfassung</i> und je Rechnung ein eigenes Blatt.</li>
   </ol>
-  <p>Unterstützt werden zwei Rechnungsformate: Rechnungen mit Zählpunkten und Sammelrechnungen mit Anlagennummern.</p>
+  <p>Eingelesen werden zwei Formate von Stromrechnungen: Rechnungen mit Zählpunkten und Sammelrechnungen mit Anlagennummern. Zuordnungen für Telefon (per Rufnummer) lassen sich schon anlegen; das Einlesen von Telefonrechnungen folgt.</p>
   <h3 id="eg-kst">Kostenstellen</h3>
-  <p><span class="ui">📋 Kostenstellen …</span> öffnet den Editor mit den Reitern <b>Zuordnungen</b> (Art, Nummer, Kostenstelle, Bezeichnung) und <b>Kostenstellen</b> (Bezeichnung, Haushaltsstelle). Doppelklick oder <kbd>F2</kbd> bearbeitet eine Zelle, dazu <span class="ui">Zeile hinzufügen</span>, <span class="ui">Zeile löschen</span> und <span class="ui">Suchen</span>. <span class="ui">Excel importieren …</span> zeigt vorher, was neu, entfernt oder geändert ist; <span class="ui">Excel exportieren …</span> schreibt die Liste hinaus. <span class="ui g">Speichern</span> nur für Verwalter: doppelte Nummern oder fehlende Angaben sperren das Speichern, die bisherige Liste wird vorher gesichert.</p>
+  <p><span class="ui">📋 Kostenstellen …</span> öffnet den Editor mit den Reitern <b>Zuordnungen</b> (Kostenart, Art ZP/Anlage/Rufnummer, Nummer, Kostenstelle, Bezeichnung), <b>Kostenstellen</b> (Bezeichnung, Haushaltsstelle; löschen nur ohne Zuordnung) und <b>Kostenarten</b> (Strom und Telefon vorgegeben, umbenennen, neue anlegen, z. B. Wasser; löschen nur ohne Zuordnung). Doppelklick oder <kbd>F2</kbd> bearbeitet eine Zelle, dazu in jedem Reiter <span class="ui">Zeile hinzufügen</span>, <span class="ui">Zeile löschen</span> und <span class="ui">Suchen</span>. <span class="ui">Excel importieren …</span> zeigt vorher, was neu, entfernt oder geändert ist; <span class="ui">Excel exportieren …</span> schreibt die Liste hinaus. <span class="ui g">Speichern</span> nur für Verwalter: doppelte Nummern oder fehlende Angaben sperren das Speichern, die bisherige Liste wird vorher gesichert.</p>
   <h3 id="eg-archiv">Archiv und Lücken</h3>
   <ul>
     <li>Jede verarbeitete Rechnung kommt ins Archiv, nach Jahr geordnet. Dieselbe Rechnung noch einmal ersetzt die alte.</li>
@@ -196,8 +196,9 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li><span class="ui r">Entfernen</span> (nur Verwalter) legt die Rechnung in <code>_Entfernt</code>.</li>
   </ul>
   <h3 id="eg-uebersicht">Übersicht</h3>
-  <p>Die Seitenleiste zeigt Netto gegen dieselben Monate im Vorjahr, die Zahl der Rechnungen, Säulen je Monat und die fünf Spitzenverbraucher. Breite am Griff ziehen, <span class="ui">📊 Übersicht ausblenden</span>. <i>● live</i>: Rechnungen anderer erscheinen nach spätestens 10 Sekunden.</p>
-  <p><span class="ui b">Große Übersicht öffnen ↗</span>: Auswahl nach Jahr, Monat, Betrag (Netto oder Brutto) und Rangliste (Kosten je Anlage, je Kostenstelle, größte Steigerung). Dazu Top 10, Verlauf, Vorjahresvergleich, Anteile und die Liste der Rechnungen. <span class="ui">🖨 Drucken</span> im Querformat, auch als PDF; <kbd>Esc</kbd> schließt.</p>
+  <div class="note"><b class="h">Immer eine Kostenart</b>Oben in der Übersicht wählst du <span class="ui b">Strom</span> | <span class="ui">Telefon</span> | … Telefonkosten tauchen nie in Strom-Summen, Diagrammen oder Ranglisten auf; eine Summe über mehrere Kostenarten gibt es nicht. Die Rechnung bekommt ihre Kostenart über ihre Zuordnung.</div>
+  <p>Die Seitenleiste zeigt für die gewählte Kostenart Netto gegen dieselben Monate im Vorjahr, die Zahl der Rechnungen, Säulen je Monat und die fünf Spitzenverbraucher. Breite am Griff ziehen, <span class="ui">📊 Übersicht ausblenden</span>. <i>● live</i>: Rechnungen anderer erscheinen nach spätestens 10 Sekunden.</p>
+  <p><span class="ui b">Große Übersicht öffnen ↗</span>: Auswahl nach Kostenart, Jahr, Monat, Betrag (Netto oder Brutto) und Rangliste (Kosten je Anlage, je Kostenstelle, größte Steigerung). Dazu Top 10, Verlauf, Vorjahresvergleich, Anteile und die Liste der Rechnungen. <span class="ui">🖨 Drucken</span> im Querformat, auch als PDF; <kbd>Esc</kbd> schließt.</p>
   <figure><a href="screenshot-uebersicht.png"><img src="screenshot-uebersicht.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-uebersicht.png'" style="max-width:620px;width:100%" alt="Große Übersicht"></a><figcaption>Große Übersicht mit Vorjahresvergleich und Anteilen (Testdaten).</figcaption></figure>
   <h3 id="eg-einst">Einstellungen</h3>
   <table>
@@ -318,19 +319,74 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="ordner">
-  <h2><span class="n">10</span>Dateien</h2>
+  <h2><span class="n">10</span>Was passiert mit deinen Dateien</h2>
+  <p class="lead">Hier steht, was HU-Amt selbst mit Dateien macht. Was ein Modul mit seinen Dateien tut (Rechnungen, Scans, PDFs), steht in der Hilfe des Moduls (<kbd>F1</kbd> im Reiter) unter „Was passiert mit deinen Dateien“.</p>
+
+  <h3 id="ordner-wo">Wo liegt was</h3>
+  <p>Alle Daten liegen im Ordner <code>Data</code> im Programmordner. Läuft HU-Amt von einem Netzlaufwerk, liegen die Daten also mit auf der Freigabe. Einen anderen Datenordner kann man nicht einstellen. Ist <code>Data</code> nicht beschreibbar, startet HU-Amt nicht und sagt das.</p>
   <table>
-    <tr><th>Pfad</th><th>Inhalt</th></tr>
-    <tr><td><code>Data\&lt;Modul&gt;\</code></td><td>Daten der Module, gemeinsam für alle Benutzer, in der Sicherung enthalten</td></tr>
-    <tr><td><code>Data\Benutzer\&lt;Name&gt;\</code></td><td>persönliche Einstellungen und Fensterzustand, Zugänge der Module (verschlüsselt)</td></tr>
-    <tr><td><code>Data\Postfach\&lt;Modul&gt;\</code></td><td>Dateien, die andere Module weitergegeben haben</td></tr>
-    <tr><td><code>Data\Verwalter.txt</code></td><td>Liste der Verwalter</td></tr>
-    <tr><td><code>Data\Laufend\</code></td><td>wer HU-Amt gerade offen hat</td></tr>
-    <tr><td><code>Data\Wiederherstellung\</code></td><td>Stand vor dem letzten Wiederherstellen</td></tr>
-    <tr><td><code>Addons\</code> · <code>AddonsDev\</code></td><td>Module aus privaten Repositories (signiert) · Module in Entwicklung</td></tr>
-    <tr><td><code>Config\update.json</code></td><td>Update-Kanal, Signaturpflicht</td></tr>
-    <tr><td><code>*.husicherung</code></td><td>App-Sicherung (verschlüsselt) im gewählten Sicherungsordner</td></tr>
+    <tr><th>Ordner oder Datei</th><th>Inhalt</th><th>Für wen</th></tr>
+    <tr><td><code>Data\&lt;Modul&gt;\</code></td><td>Daten des Moduls, z. B. Listen, Archiv, Übergabeordner <code>Ausgang</code>; dazu <code>_Kopien</code> mit den Ständen vor dem Speichern</td><td>alle</td></tr>
+    <tr><td><code>Data\Benutzer\&lt;Name&gt;\</code></td><td>eigene Einstellungen, Fenster, Protokolle (<code>Logs</code>), Zugänge der Module (<code>Token</code>, verschlüsselt)</td><td>nur du</td></tr>
+    <tr><td><code>Data\Postfach\&lt;Modul&gt;\</code></td><td>Dateien, die ein anderes Modul weitergegeben hat, je Datei ein eigener Unterordner</td><td>alle</td></tr>
+    <tr><td><code>Data\Verwalter.txt</code></td><td>Liste der Verwalter</td><td>alle (nur Verwalter ändern)</td></tr>
+    <tr><td><code>Data\Laufend\</code></td><td>wer HU-Amt gerade auf welchem PC offen hat</td><td>alle</td></tr>
+    <tr><td><code>Data\Wiederherstellung\</code></td><td>Stand vor einer Wiederherstellung (die letzten fünf)</td><td>Verwalter</td></tr>
+    <tr><td><code>Addons\</code> · <code>AddonsDev\</code></td><td>signierte Module · Module in Entwicklung</td><td>Programm</td></tr>
+    <tr><td>Sicherungsordner</td><td><code>HU-Sicherung_&lt;PC&gt;_&lt;Datum&gt;.husicherung</code>, verschlüsselt</td><td>Verwalter</td></tr>
   </table>
+  <p><code>&lt;Name&gt;</code> ist der Windows-Anmeldename ohne Domäne. Zwei Konten mit gleichem Namen aus verschiedenen Domänen teilen sich deshalb einen Ordner.</p>
+
+  <h3 id="ordner-original">Was mit der Originaldatei passiert</h3>
+  <ul>
+    <li><b>Hineinziehen:</b> HU-Amt gibt die Datei an den Reiter weiter, kopiert nichts und ändert nichts daran. Was danach passiert, entscheidet das Modul.</li>
+    <li><b>Weitergeben an ein anderes Modul:</b> Ins Postfach kommt eine <b>Kopie</b> mit dem Originalnamen. Das Original bleibt, wo es ist; löscht man es danach, hat das Postfach trotzdem seine Kopie. Der Eintrag verschwindet erst, wenn das Ziel-Modul die Datei übernommen hat.</li>
+    <li><b>Übergabeordner für andere Programme:</b> Dateien heißen <code>&lt;Name&gt;_JJJJ-MM-TT_HHmmss</code>, bei Gleichstand mit <code>_2</code>, <code>_3</code>. Sie erscheinen erst fertig geschrieben; nichts wird überschrieben.</li>
+    <li><b>Ausnahme Modul-Datei (<code>*.humodule</code>):</b> Wird sie hineingezogen und sind alle Zugänge gespeichert, <b>löscht HU-Amt die Datei</b>, weil sie Zugangsdaten enthält. Klappt etwas nicht, bleibt sie liegen.</li>
+  </ul>
+
+  <h3 id="ordner-dauer">Was wie lange bleibt</h3>
+  <table>
+    <tr><th>Was</th><th>Wie lange</th></tr>
+    <tr><td>Protokolle von HU-Amt (eines je Tag, ab 10 MB weitere Teile) und der Module</td><td>30 Tage, gelöscht beim Start</td></tr>
+    <tr><td>Kopien einer gemeinsamen Liste vor dem Speichern</td><td>die letzten 20 (Verwalterliste: 10); die Module können eigene Zahlen haben</td></tr>
+    <tr><td>Sicherungen</td><td>die letzten 10 je PC</td></tr>
+    <tr><td>Stände vor einer Wiederherstellung</td><td>die letzten 5</td></tr>
+    <tr><td>Postfach-Einträge</td><td>bis das Ziel-Modul sie übernommen hat</td></tr>
+    <tr><td>Support-ZIP</td><td>auf dem Desktop, bis du es löschst</td></tr>
+  </table>
+
+  <h3 id="ordner-explorer">Wenn du im Explorer etwas änderst</h3>
+  <table>
+    <tr><th>Du …</th><th>Folge</th></tr>
+    <tr><td>löschst <code>Data\&lt;Modul&gt;</code></td><td>Beim nächsten Zugriff entsteht ein leerer Ordner. Die Daten des Moduls sind weg, zurück nur über die Sicherung.</td></tr>
+    <tr><td>benennst <code>Data\&lt;Modul&gt;</code> um oder verschiebst ihn</td><td>Das Modul sieht seine Daten nicht mehr und fängt leer an. Der umbenannte Ordner bleibt liegen und kommt trotzdem in die Sicherung.</td></tr>
+    <tr><td>löschst <code>Data\Benutzer\&lt;Name&gt;</code></td><td>Beim nächsten Start fragt HU-Amt wie beim ersten Mal. Eigene Einstellungen, Protokolle und die Zugänge der Module sind weg; die Zugänge muss ein Verwalter neu hinterlegen.</td></tr>
+    <tr><td>löschst etwas in <code>Data\Postfach</code></td><td>Der Eintrag ist einfach weg, ohne Fehlermeldung.</td></tr>
+    <tr><td>löschst eine Datei in <code>Data\Laufend</code></td><td>Geht nicht, solange die App läuft; die Datei ist offen. Bleibt nach einem Absturz eine zurück, räumt HU-Amt sie selbst weg.</td></tr>
+    <tr><td>benennst einen Modulordner in <code>Addons</code> oder <code>AddonsDev</code> um</td><td>Das Modul wird nicht mehr geladen; im Protokoll steht „Ordnername passt nicht zur Kennung“. Die Daten bleiben, denn sie hängen an der Kennung, nicht am Ordner.</td></tr>
+    <tr><td>legst eigene Dateien in den Programmordner</td><td>Ein Update lässt sie liegen, außer eine Datei heißt genauso wie eine Programmdatei.</td></tr>
+  </table>
+  <div class="note warn"><b class="h">Lieber nicht</b>In <code>Data</code> nichts von Hand löschen, umbenennen oder verschieben, solange jemand HU-Amt offen hat. Wer aufräumen will: erst eine Sicherung machen.</div>
+
+  <h3 id="ordner-gemeinsam">Mehrere Benutzer und Netzlaufwerk</h3>
+  <ul>
+    <li>Eine gemeinsame Liste kann nur eine Person zugleich bearbeiten. Die anderen sehen „Gerade in Bearbeitung von … (PC) seit …“ und können nur lesen.</li>
+    <li>Stürzt ein PC ab, gibt Windows die Sperre frei; beim nächsten Versuch räumt HU-Amt sie weg.</li>
+    <li>Vor dem Speichern einer gemeinsamen Liste legt HU-Amt eine Kopie mit Zeitstempel in <code>_Kopien</code> neben der Liste an.</li>
+    <li>Ein Update geht erst, wenn alle anderen HU-Amt geschlossen haben. Sonst bricht es ab, ohne etwas zu ändern. <code>Data</code>, <code>Addons</code> und <code>AddonsDev</code> fasst ein Update nie an.</li>
+  </ul>
+
+  <h3 id="ordner-sicherung">Was in der Sicherung ist</h3>
+  <table>
+    <tr><th>Drin</th><th>Nicht drin</th></tr>
+    <tr><td>alles unter <code>Data</code>: Daten aller Module, Postfach, <code>_Kopien</code>, Verwalterliste, Einstellungen und Fenster aller Benutzer</td><td>Protokolle, Zugänge der Module (<code>Token</code>), das Kennwort der automatischen Sicherung, Sperrdateien, Programm, Module, <code>Config</code>; Übergabeordner außerhalb von <code>Data</code></td></tr>
+  </table>
+  <ul>
+    <li><b>Wiederherstellen</b> geht nur, wenn sonst niemand HU-Amt offen hat. Vorher kommt der aktuelle Stand der betroffenen Dateien nach <code>Data\Wiederherstellung</code>.</li>
+    <li>Überschrieben werden nur Dateien, die in der Sicherung stehen. Was seither neu dazugekommen ist, bleibt liegen.</li>
+    <li>Danach startet HU-Amt neu; das Kennwort der automatischen Sicherung muss neu gesetzt werden.</li>
+  </ul>
 </section>
 
 <section id="tasten">

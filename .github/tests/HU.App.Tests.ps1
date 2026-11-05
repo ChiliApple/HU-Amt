@@ -24,6 +24,26 @@ Describe 'App-Manifest' {
     }
 }
 
+Describe 'Aufraeumen und Benutzerordner' {
+    It 'Start loescht alte Protokolle von App und Modulen (alle *.log in Logs)' {
+        $t = [IO.File]::ReadAllText((Join-Path $script:Root 'Main.ps1'), [Text.Encoding]::UTF8)
+        $t | Should -Match "-LiteralPath \`$script:LogDir -Filter '\*\.log'"
+    }
+    It 'Pull bildet den Benutzerordner wie Get-HUSafeName (Punkt und Leerzeichen am Ende weg)' {
+        Import-Module (Join-Path $script:Root 'Core\HU.Paths.psm1') -Force
+        $t = [IO.File]::ReadAllText((Join-Path $script:Root 'Pull.ps1'), [Text.Encoding]::UTF8)
+        $m = [regex]::Match($t, '\$tokUser = (\(.+?\)\.Trim\(.+?\));')
+        $m.Success | Should -BeTrue
+        foreach ($n in 'anna', 'max.', 'a b ', 'x/y', '...') {
+            $env:USERNAME_TEST = $n
+            $pull = & ([scriptblock]::Create(($m.Groups[1].Value -replace '\$env:USERNAME', '$env:USERNAME_TEST')))
+            if (-not $pull) { $pull = 'unbekannt' }
+            $pull | Should -Be (Get-HUSafeName $n)
+        }
+        Remove-Item Env:\USERNAME_TEST -ErrorAction SilentlyContinue
+    }
+}
+
 Describe 'Inhalte' {
     It 'der Name steht nur in app.json, nicht fest im Code (kein Name der Vorlage)' {
         # Muster zusammengesetzt, damit diese Datei sich nicht selbst findet

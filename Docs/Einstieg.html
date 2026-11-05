@@ -212,7 +212,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
 
   <article class="scn" id="rechnungen" style="--c: var(--yellow)">
     <div class="scn-head">
-      <span class="tag">Energiegemeinschaft</span>
+      <span class="tag">Kostenzuordnung</span>
       <h3>Die Stromrechnungen sind da</h3>
       <p class="quote">„Jeden Monat dieselben Rechnungen mit dutzenden Zählpunkten – und jede Position muss auf die richtige Kostenstelle.“</p>
     </div>
@@ -220,7 +220,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
       <div>
         <h4>So gehst du vor</h4>
         <ol class="steps">
-          <li><span>Reiter <span class="ui">⚡ Energiegemeinschaft</span>: oben rechts prüfen, ob die Kostenstellenliste geladen ist (grün).</span></li>
+          <li><span>Reiter <span class="ui">🧾 Kostenzuordnung</span>: oben rechts prüfen, ob die Kostenstellenliste geladen ist (grün).</span></li>
           <li><span>Die PDF-Rechnungen auf die Ablage ziehen und <span class="ui b">Verarbeitung starten</span>.</span></li>
           <li><span>Je Rechnung zeigen Kacheln Positionen, Zugeordnet, Netto und Differenz. Was keine Kostenstelle hat, steht orange als <i>Nicht zugeordnet</i>.</span></li>
           <li><span>Excel exportieren – ohne Rückfrage in den Export-Ordner, auf Wunsch gleich in Excel öffnen.</span></li>
@@ -235,7 +235,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
           <li>Eine Übersicht mit Vorjahresvergleich, Spitzenverbrauchern und Verlauf je Monat – live, druckbar</li>
           <li>Fehlende Monate je Zählpunkt auf einen Blick (<span class="ui">🔎 Lücken …</span>)</li>
         </ul>
-        <figure class="shot wide"><img src="screenshot-energiegemeinschaft.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-energiegemeinschaft.png'" alt="Reiter Energiegemeinschaft" loading="lazy"><figcaption>Reiter Energiegemeinschaft mit Übersicht (Testdaten)</figcaption></figure>
+        <figure class="shot wide"><img src="screenshot-kostenzuordnung.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-kostenzuordnung.png'" alt="Reiter Kostenzuordnung" loading="lazy"><figcaption>Reiter Kostenzuordnung mit Übersicht (Testdaten)</figcaption></figure>
       </div>
     </div>
   </article>
@@ -262,7 +262,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
         <ul class="gets">
           <li>Durchsuchbare PDFs – im PDF-Programm lässt sich nach Wörtern suchen und Text kopieren</li>
           <li>Sinnvolle Dateinamen statt Scan-Nummern</li>
-          <li>Auf Wunsch gleich weitergegeben, z. B. Rechnungen an die Energiegemeinschaft</li>
+          <li>Auf Wunsch gleich weitergegeben, z. B. Rechnungen an die Kostenzuordnung</li>
           <li>Fehlerhafte Dateien in einem eigenen Ordner mit Begründung</li>
         </ul>
       </div>
@@ -430,7 +430,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
 <section class="sec">
   <h2>Häufige Fragen</h2>
   <div>
-    <details><summary>Muss ich etwas installieren?</summary><p>Nein. HU-Amt läuft aus einem Ordner am PC oder auf einer Netzfreigabe. Windows PowerShell 5.1 ist in Windows enthalten; ist PowerShell 7 da, nimmt HU-Amt es automatisch. Das Modul Energiegemeinschaft braucht die WebView2-Runtime, die in Windows 11 enthalten ist.</p></details>
+    <details><summary>Muss ich etwas installieren?</summary><p>Nein. HU-Amt läuft aus einem Ordner am PC oder auf einer Netzfreigabe. Windows PowerShell 5.1 ist in Windows enthalten; ist PowerShell 7 da, nimmt HU-Amt es automatisch. Das Modul Kostenzuordnung braucht die WebView2-Runtime, die in Windows 11 enthalten ist.</p></details>
     <details><summary>Ändert HU-Amt etwas an unserer Gemeindesoftware?</summary><p>Nein. HU-Amt hat keine Verbindung zu anderen Programmen. Ergebnisse gehen als Datei in einen festen Ordner, den andere Programme abholen können.</p></details>
     <details><summary>Wo liegen die Daten?</summary><p>Gemeinsame Listen und die Daten der Module im Ordner <code>Data</code> neben dem Programm. Persönliche Einstellungen und Zugangsdaten je Windows-Benutzer. Nichts davon geht ins Internet.</p></details>
     <details><summary>Was passiert, wenn zwei gleichzeitig dieselbe Liste bearbeiten?</summary><p>Eine gemeinsame Liste bearbeitet immer nur eine Person. Die anderen sehen „gerade in Bearbeitung von …“ und können nur lesen. Vor jedem Speichern entsteht eine Kopie mit Zeitstempel.</p></details>
