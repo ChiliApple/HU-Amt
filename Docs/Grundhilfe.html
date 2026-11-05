@@ -1,82 +1,162 @@
-<!DOCTYPE html>
-<html lang="de">
+﻿<!DOCTYPE html>
+<html lang="de" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HU-Amt - Hilfe</title>
 <style>
-  :root { --bg: #1E1E1E; --panel: #252526; --line: #3E3E42; --text: #CCCCCC; --head: #FFFFFF; --muted: #858585; --accent: #4CAF50; --blue: #1976D2; }
-  body { background: var(--bg); color: var(--text); font-family: "Segoe UI", sans-serif; font-size: 15px; line-height: 1.55; margin: 0; }
-  main { max-width: 820px; margin: 0 auto; padding: 28px 22px 60px; }
-  h1 { color: var(--head); font-size: 26px; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin-bottom: 26px; }
-  h2 { color: var(--head); font-size: 18px; border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-top: 30px; }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 18px 10px; margin-bottom: 14px; }
-  .k { display: inline-block; background: #3E3E42; color: #FFFFFF; border-radius: 4px; padding: 0 7px; font-size: 13px; }
-  .gold { background: gold; color: #1E1E1E; font-weight: bold; }
-  ul { padding-left: 20px; }
-  li { margin: 4px 0; }
-  .hint { color: var(--muted); font-size: 13px; }
+:root{
+  --bg:#eff1f5;--panel:#ffffff;--panel2:#e6e9ef;--text:#4c4f69;--sub:#6c6f85;--line:#ccd0da;
+  --blue:#1e66f5;--green:#40a02b;--peach:#fe640b;--red:#d20f39;--mauve:#8839ef;--teal:#179299;--yellow:#df8e1d;
+  --accent:#b9a88a;--shadow:0 2px 10px rgba(76,79,105,.08);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11111b;--panel:#1e1e2e;--panel2:#181825;--text:#cdd6f4;--sub:#a6adc8;--line:#313244;
+  --blue:#89b4fa;--green:#a6e3a1;--peach:#fab387;--red:#f38ba8;--mauve:#cba6f7;--teal:#94e2d5;--yellow:#f9e2af;--shadow:0 2px 12px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  --bg:#11111b;--panel:#1e1e2e;--panel2:#181825;--text:#cdd6f4;--sub:#a6adc8;--line:#313244;
+  --blue:#89b4fa;--green:#a6e3a1;--peach:#fab387;--red:#f38ba8;--mauve:#cba6f7;--teal:#94e2d5;--yellow:#f9e2af;--shadow:0 2px 12px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;padding:10px 20px;background:var(--panel);border-bottom:2px solid var(--accent);box-shadow:var(--shadow)}
+header img{width:44px;height:44px}
+header .t{font-size:22px;font-weight:700;line-height:1.1}
+header .s{font-size:12px;color:var(--sub)}
+header .sp{flex:1}
+header .pnav{position:static;height:auto;overflow:visible;padding:0;border:0;display:flex;gap:6px;flex-wrap:wrap}
+header .pnav a{padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:13px;font-weight:600}
+header .pnav a:hover{text-decoration:none;border-color:var(--blue);color:var(--blue)}
+header .pnav a.act{background:var(--text);color:var(--panel);border-color:var(--text)}
+@media (max-width:900px){header .pnav{display:none}}
+#q{width:260px;max-width:40vw;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit}
+.tbtn{padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer;font:inherit}
+.wrap{display:grid;grid-template-columns:270px 1fr;max-width:1400px;margin:0 auto}
+nav{position:sticky;top:66px;align-self:start;height:calc(100vh - 66px);overflow:auto;padding:18px 10px 40px 18px;border-right:1px solid var(--line)}
+nav a{display:block;padding:4px 10px;border-radius:6px;color:var(--text);font-size:14px}
+nav a:hover{background:var(--panel2);text-decoration:none}
+nav a.l2{padding-left:24px;font-size:13px;color:var(--sub)}
+nav a.act{background:var(--panel2);color:var(--blue);font-weight:600}
+main{padding:24px 36px 80px;min-width:0}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 28px;margin:0 0 22px;box-shadow:var(--shadow)}
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:0 0 12px}
+h2 .n{display:inline-grid;place-items:center;width:32px;height:32px;margin-right:10px;vertical-align:2px;border-radius:50%;background:var(--accent);color:#1e1e2e;font-size:15px}
+h3{font-size:17px;margin:22px 0 8px;color:var(--blue)}
+p{margin:8px 0}
+.lead{color:var(--sub);font-size:16px}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{background:var(--panel2);font-weight:600}
+pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;overflow-x:auto;font-size:13px;line-height:1.45;margin:10px 0}
+pre code{background:none;border:0;padding:0}
+tr:hover td{background:color-mix(in srgb,var(--panel2) 55%,transparent)}
+.ui{display:inline-block;padding:0 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);font-size:13px;font-weight:600;white-space:nowrap}
+.ui.g{border-color:var(--green);color:var(--green)}.ui.r{border-color:var(--red);color:var(--red)}.ui.b{border-color:var(--blue);color:var(--blue)}
+.ui.p{border-color:var(--peach);color:var(--peach)}.ui.m{border-color:var(--mauve);color:var(--mauve)}.ui.t{border-color:var(--teal);color:var(--teal)}
+kbd{padding:1px 7px;border-radius:5px;border:1px solid var(--line);border-bottom-width:2px;background:var(--panel2);font:12px Consolas,monospace}
+code{font:13px Consolas,monospace;background:var(--panel2);padding:1px 5px;border-radius:4px}
+.note{border-left:4px solid var(--blue);background:var(--panel2);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+.note.tip{border-color:var(--green)}.note.warn{border-color:var(--peach)}.note.stop{border-color:var(--red)}
+.note b.h{display:block;margin-bottom:2px}
+.steps{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+.steps>li{counter-increment:s;position:relative;padding:4px 0 10px 46px;min-height:36px}
+.steps>li::before{content:counter(s);position:absolute;left:0;top:2px;width:32px;height:32px;border-radius:50%;background:var(--blue);color:var(--panel);display:grid;place-items:center;font-weight:700}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card b{display:block;margin-bottom:4px}
+.card.g{border-top:4px solid var(--green)}.card.b{border-top:4px solid var(--blue)}.card.p{border-top:4px solid var(--peach)}.card.m{border-top:4px solid var(--mauve)}.card.t{border-top:4px solid var(--teal)}.card.r{border-top:4px solid var(--red)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0}
+.flow span{padding:8px 14px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);font-weight:600;font-size:14px}
+.flow i{color:var(--sub);font-style:normal}
+.hide{display:none!important}
+figure{margin:14px 0}figure img{max-width:100%;border-radius:10px;border:1px solid var(--line);box-shadow:var(--shadow);cursor:zoom-in}figure figcaption{color:var(--sub);font-size:13px;margin-top:4px}
+mark{background:var(--yellow);color:#1e1e2e;border-radius:3px}
+footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}nav{display:none}main{padding:16px}section{padding:18px 16px}#q{width:150px}}
+@media print{header,nav,#q,.tbtn{display:none!important}.wrap{display:block}section{box-shadow:none;break-inside:avoid-page}body{background:#fff;color:#000}}
 </style>
 </head>
 <body>
-<main>
-  <h1>HU-Amt</h1>
-  <div class="sub">Kurze Hilfe. Ausführliche Hilfe zu jedem Reiter gibt es, sobald der Verwalter sie eingerichtet hat.</div>
+<header>
+  <img src="../Assets/logo64.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Assets/logo64.png'" alt="">
+  <div><div class="t">HU-Amt</div><div class="s">Werkzeuge für die Gemeindeverwaltung · Kurze Hilfe</div></div>
+  <nav class="pnav" aria-label="Seiten"><a href="Einstieg.html">Einstieg</a><a href="Funktionen.html">Funktionen</a><a href="Anleitung.html">Anleitung</a></nav>
+  <div class="sp"></div>
+  <button class="tbtn" id="theme" title="Hell / Dunkel">◐</button>
+</header>
+<main style="max-width:920px;margin:0 auto">
 
-  <section id="reiter">
-    <h2>Reiter</h2>
-    <ul>
-      <li>Jeder Reiter oben ist ein Werkzeug. Oben im Reiter steht in einem Satz, was er tut.</li>
-      <li>Der große, farbige Knopf ist der Hauptknopf. Alles andere ist kleiner oder unter <span class="k">⚙ Einstellungen</span> im Reiter.</li>
-      <li>Die Reihenfolge der Reiter lässt sich mit der Maus verschieben (Rechtsklick auf einen Reiter: zurücksetzen).</li>
-    </ul>
-  </section>
+<section id="start">
+  <h1>Kurze Hilfe</h1>
+  <p class="lead">Das Wichtigste auf einen Blick. Ausführlich zu jedem Reiter: <a href="Anleitung.html">Anleitung</a>.</p>
+</section>
 
-  <section id="ziehen">
-    <h2>Dateien hineinziehen</h2>
-    <ul>
-      <li>Dateien einfach aus dem Explorer ins Fenster ziehen. Sie gehen an den Reiter, der gerade offen ist.</li>
-      <li>Passt die Datei nicht zu diesem Reiter, aber zu genau einem anderen, wechselt die App von selbst dorthin.</li>
-      <li>Reiter können Dateien an andere Reiter weitergeben, z. B. die Texterkennung an die Energiegemeinschaft. Eine Zahl am Reiter, z. B. „(3)“, zeigt, wie viele Dateien dort warten.</li>
-      <li>Ergebnisse landen in einem festen Ordner; der Knopf <span class="k">Ordner öffnen</span> zeigt ihn.</li>
-    </ul>
-  </section>
+<section id="reiter">
+  <h2><span class="n">1</span>Reiter</h2>
+  <ul>
+    <li>Jeder Reiter oben ist ein Werkzeug. Oben im Reiter steht in einem Satz, was er tut.</li>
+    <li>Der große, farbige Knopf ist der Hauptknopf. Alles andere ist kleiner oder unter <span class="ui">⚙ Einstellungen</span> im Reiter.</li>
+    <li>Die Reihenfolge der Reiter lässt sich mit der Maus verschieben (Rechtsklick auf einen Reiter: zurücksetzen).</li>
+  </ul>
+</section>
 
-  <section id="update">
-    <h2>Update</h2>
-    <ul>
-      <li>Ist eine neue Version da, wird der Knopf <span class="k gold">Update</span> rechts oben gold. Ein Klick installiert sie; die App startet danach neu.</li>
-      <li>Daten und Einstellungen bleiben dabei erhalten.</li>
-      <li>Nutzen mehrere Personen dieselbe App auf einem Netzlaufwerk, geht das Update erst, wenn alle anderen sie geschlossen haben. Die App zeigt, wer sie noch offen hat.</li>
-    </ul>
-  </section>
+<section id="ziehen">
+  <h2><span class="n">2</span>Dateien hineinziehen</h2>
+  <ul>
+    <li>Dateien einfach aus dem Explorer ins Fenster ziehen. Sie gehen an den Reiter, der gerade offen ist.</li>
+    <li>Passt die Datei nicht zu diesem Reiter, aber zu genau einem anderen, wechselt die App von selbst dorthin.</li>
+    <li>Reiter können Dateien an andere Reiter weitergeben, z. B. die Texterkennung an die Energiegemeinschaft. Eine Zahl am Reiter, z. B. „(3)“, zeigt, wie viele Dateien dort warten.</li>
+    <li>Ergebnisse landen in einem festen Ordner; der Knopf <span class="ui">Ordner öffnen</span> zeigt ihn.</li>
+  </ul>
+</section>
 
-  <section id="gemeinsam">
-    <h2>Gemeinsam arbeiten</h2>
-    <ul>
-      <li>Eine gemeinsame Liste kann immer nur eine Person zugleich bearbeiten. Die anderen sehen „gerade in Bearbeitung von …“ und können nur lesen.</li>
-      <li>Vor dem Speichern einer gemeinsamen Liste legt die App eine Kopie mit Zeitstempel an.</li>
-    </ul>
-  </section>
+<section id="update">
+  <h2><span class="n">3</span>Update</h2>
+  <ul>
+    <li>Ist eine neue Version da, wird der Knopf <span class="ui p">Update</span> rechts oben gold. Ein Klick installiert sie; die App startet danach neu.</li>
+    <li>Daten und Einstellungen bleiben dabei erhalten.</li>
+    <li>Nutzen mehrere Personen dieselbe App auf einem Netzlaufwerk, geht das Update erst, wenn alle anderen sie geschlossen haben. Die App zeigt, wer sie noch offen hat.</li>
+  </ul>
+</section>
 
-  <section id="hilfe">
-    <h2>Wenn etwas nicht geht</h2>
-    <ul>
-      <li><span class="k">F1</span> oder <span class="k">?</span> öffnet die Hilfe zum aktuellen Reiter.</li>
-      <li><span class="k">🛟 Support</span> packt Versionsangaben und auf Wunsch die eigenen Protokolle in eine ZIP-Datei im Ordner Downloads. Diese an den Verwalter schicken. Daten, Kennwörter und Token sind nie dabei.</li>
-    </ul>
-  </section>
+<section id="gemeinsam">
+  <h2><span class="n">4</span>Gemeinsam arbeiten</h2>
+  <ul>
+    <li>Eine gemeinsame Liste kann immer nur eine Person zugleich bearbeiten. Die anderen sehen „gerade in Bearbeitung von …“ und können nur lesen.</li>
+    <li>Vor dem Speichern einer gemeinsamen Liste legt die App eine Kopie mit Zeitstempel an.</li>
+  </ul>
+</section>
 
-  <section id="verwalter">
-    <h2>Für Verwalter</h2>
-    <ul>
-      <li>Verwalter sehen das Protokoll, die Sicherung und unter <span class="k">⚙ Einstellungen</span> die Reiter Sicherung, Update, Module und Verwalter.</li>
-      <li>Wer Verwalter ist, steht unter Einstellungen › Verwalter.</li>
-      <li>Die Sicherung schreibt alle Daten verschlüsselt in einen Ordner, am besten auf ein Netzlaufwerk. Ohne Kennwort lässt sich eine Sicherung nicht öffnen.</li>
-    </ul>
-    <p class="hint">Tastatur: Strg + Mausrad vergrößert oder verkleinert die Oberfläche, Strg + 0 stellt zurück.</p>
-  </section>
+<section id="hilfe">
+  <h2><span class="n">5</span>Wenn etwas nicht geht</h2>
+  <ul>
+    <li><kbd>F1</kbd> oder <span class="ui">?</span> öffnet die Hilfe zum aktuellen Reiter.</li>
+    <li><span class="ui">🛟 Support</span> packt Versionsangaben und auf Wunsch die eigenen Protokolle in eine ZIP-Datei auf dem Desktop. Diese an den Verwalter schicken. Daten, Kennwörter und Token sind nie dabei.</li>
+  </ul>
+</section>
+
+<section id="verwalter">
+  <h2><span class="n">6</span>Für Verwalter</h2>
+  <ul>
+    <li>Verwalter sehen das Protokoll, die Sicherung und unter <span class="ui">⚙ Einstellungen</span> die Reiter Sicherung, Update, Module und Verwalter.</li>
+    <li>Wer Verwalter ist, steht unter Einstellungen › Verwalter.</li>
+    <li>Die Sicherung schreibt alle Daten verschlüsselt in einen Ordner, am besten auf ein Netzlaufwerk. Ohne Kennwort lässt sich eine Sicherung nicht öffnen.</li>
+  </ul>
+  <div class="note tip"><b class="h">Tastatur</b><kbd>Strg</kbd> + Mausrad vergrößert oder verkleinert die Oberfläche, <kbd>Strg</kbd>+<kbd>0</kbd> stellt zurück.</div>
+</section>
+
+<footer>HU-Amt · Nutzungslizenz siehe LICENSE</footer>
 </main>
+<script>
+(function(){
+  var root=document.documentElement,tb=document.getElementById('theme');
+  try{var t=localStorage.getItem('huamt-theme');if(t)root.setAttribute('data-theme',t);}catch(e){}
+  tb.onclick=function(){var dark=root.getAttribute('data-theme')?root.getAttribute('data-theme')==='dark':matchMedia('(prefers-color-scheme: dark)').matches;var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('huamt-theme',n);}catch(e){}};
+})();
+</script>
 </body>
 </html>

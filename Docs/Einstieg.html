@@ -1,0 +1,450 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HU-Amt Einstieg</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root {
+  --bg: #eff1f5; --surface: #ffffff; --surface-2: #e6e9ef; --line: #ccd0da;
+  --fg: #3b3e52; --fg-strong: #1e1e2e; --muted: #6c6f85;
+  --green: #40a02b; --mauve: #8839ef; --yellow: #c78b0a; --teal: #13867f; --blue: #1e66f5; --red: #d20f39; --peach: #e2620e;
+  --tint: 12%;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", Consolas, ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1e1e2e; --surface: #262637; --surface-2: #313244; --line: #3d3e55;
+  --fg: #cdd6f4; --fg-strong: #ffffff; --muted: #a6adc8;
+  --green: #a6e3a1; --mauve: #cba6f7; --yellow: #f9e2af; --teal: #94e2d5; --blue: #89b4fa; --red: #f38ba8; --peach: #fab387;
+  --tint: 16%; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1e1e2e; --surface: #262637; --surface-2: #313244; --line: #3d3e55;
+  --fg: #cdd6f4; --fg-strong: #ffffff; --muted: #a6adc8;
+  --green: #a6e3a1; --mauve: #cba6f7; --yellow: #f9e2af; --teal: #94e2d5; --blue: #89b4fa; --red: #f38ba8; --peach: #fab387;
+  --tint: 16%; color-scheme: dark }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--f-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 40px 16px 72px; display: grid; gap: 64px; }
+h1, h2, h3 { font-family: var(--f-display); color: var(--fg-strong); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+code, .mono { font-family: var(--f-mono); font-size: .88em; }
+a { color: var(--blue); }
+
+/* Kopf */
+header { display: grid; gap: 20px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pnav { display: flex; gap: 6px; flex-wrap: wrap; }
+.pnav a { text-decoration: none; color: var(--fg); font-size: 14px; font-weight: 600; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+.pnav a:hover { border-color: var(--blue); color: var(--blue); }
+.pnav a[aria-current] { background: var(--fg-strong); color: var(--bg); border-color: var(--fg-strong); }
+.brand { display: flex; align-items: center; gap: 12px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+.logo { width: 44px; height: 44px; border-radius: 11px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; }
+.logo img { width: 30px; height: 30px; }
+h1 { font-size: clamp(32px, 6vw, 54px); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
+h1 em { font-style: normal; color: var(--mauve); }
+.lead { font-size: 19px; max-width: 64ch; color: var(--fg); }
+.promise { display: flex; flex-wrap: wrap; gap: 10px; }
+.newhere { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; background: color-mix(in srgb, var(--green) var(--tint), var(--surface)); border: 1px solid color-mix(in srgb, var(--green) 45%, var(--line)); border-radius: 14px; padding: 14px 18px; }
+.newhere b { color: var(--fg-strong); }
+.newhere a.go { background: var(--green); color: var(--bg); font-weight: 700; text-decoration: none; border-radius: 999px; padding: 8px 18px; white-space: nowrap; }
+.promise span { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 14px; font-weight: 600; }
+
+/* Abschnittskopf */
+.sec { display: grid; gap: 22px; }
+.sec > h2 { font-size: clamp(24px, 4vw, 32px); font-weight: 700; }
+.sec > p.sub { color: var(--muted); max-width: 70ch; margin-top: -10px; }
+
+/* Wegweiser */
+.finder { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.finder a { --c: var(--blue); display: grid; gap: 4px; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--c); border-radius: 12px; padding: 14px 16px; transition: transform .12s, border-color .12s; }
+.finder a:hover { transform: translateY(-2px); border-color: var(--c); }
+.finder b { color: var(--fg-strong); font-weight: 600; }
+.finder small { color: var(--muted); font-size: 13.5px; }
+
+/* Warum zusaetzlich zur Cloud */
+.why { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.why > div { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--green); border-radius: 12px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.why b { color: var(--fg-strong); font-family: var(--f-display); font-size: 16.5px; }
+.why span { font-size: 14.5px; }
+
+/* Szenario */
+.scn { --c: var(--blue); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; scroll-margin-top: 16px; }
+.scn-head { padding: 22px 24px 18px; background: color-mix(in srgb, var(--c) var(--tint), var(--surface)); border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.tag { justify-self: start; font: 600 12px/1 var(--f-body); text-transform: uppercase; letter-spacing: .08em; color: var(--c); }
+.scn h3 { font-size: 23px; font-weight: 700; }
+.quote { font-style: italic; color: var(--fg); }
+.scn-body { padding: 20px 24px 24px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; }
+.scn-body h4 { margin: 0 0 8px; font: 600 13px/1 var(--f-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.steps li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; background: var(--c); color: var(--surface); font: 700 14px/28px var(--f-display); text-align: center; }
+.ui { display: inline-block; padding: 0 7px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); font-weight: 600; font-size: .92em; white-space: nowrap; }
+.gets { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.gets li { padding-left: 24px; position: relative; }
+.gets li::before { content: "✓"; position: absolute; left: 2px; color: var(--green); font-weight: 700; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.meta span { font-size: 13px; color: var(--muted); background: var(--surface-2); border-radius: 6px; padding: 3px 9px; }
+.tip { margin-top: 14px; font-size: 14.5px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--yellow) var(--tint), var(--surface)); border: 1px solid color-mix(in srgb, var(--yellow) 35%, var(--line)); }
+.tip b { color: var(--fg-strong); }
+.shot { margin: 16px 0 0; max-width: 300px; display: grid; gap: 6px; }
+.shot.wide { max-width: 100%; }
+.shot img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); }
+.shot figcaption { font-size: 13px; color: var(--muted); text-align: center; }
+.shots2 { display: grid; gap: 4px; margin-top: 4px; align-items: start; }
+
+/* Start */
+.start { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 760px) { .start { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 8px; align-content: start; }
+.card .n { font: 800 30px/1 var(--f-display); color: var(--mauve); }
+.card h3 { font-size: 18px; }
+pre { margin: 6px 0 0; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; font: 500 12.5px/1.5 var(--f-mono); color: var(--fg-strong); white-space: pre; }
+
+/* Erster Versuch */
+.first { background: var(--surface); border: 2px dashed color-mix(in srgb, var(--green) 55%, var(--line)); border-radius: 16px; padding: 22px 24px; display: grid; gap: 12px; }
+.first h2 { font-size: 24px; }
+
+/* FAQ */
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; }
+details + details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; color: var(--fg-strong); }
+details p { margin-top: 8px; }
+
+footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 20px; display: grid; gap: 6px; }
+
+@media (max-width: 760px) {
+  .scn-body { grid-template-columns: 1fr; gap: 20px; }
+  .scn-head, .scn-body { padding-inline: 18px; }
+  .lead { font-size: 17px; }
+}
+kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line); border-bottom-width: 2px; background: var(--surface-2); color: var(--fg-strong); }
+</style>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"><img src="../Assets/logo64.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Assets/logo64.png'" alt=""></div>
+      HU-Amt · Einstieg für die Gemeindeverwaltung
+    </div>
+    <nav class="pnav" aria-label="Seiten">
+      <a href="Einstieg.html" aria-current="page">Einstieg</a>
+      <a href="Funktionen.html">Funktionen</a>
+      <a href="Anleitung.html">Anleitung</a>
+      <a href="https://github.com/ChiliApple/HU-Amt/releases">Download</a>
+    </nav>
+  </div>
+  <h1>Die Werkzeuge fürs Amt – <em>ein</em> Fenster.</h1>
+  <p class="lead">Rechnungen verbuchen, Scans durchsuchbar machen, PDFs zusammenfügen, schwärzen oder stempeln: In der Gemeindeverwaltung sind das oft fünf verschiedene Programme. HU-Amt legt sie als Reiter in ein Fenster – für alle Bediensteten, von einer Netzfreigabe aus. Diese Seite zeigt <b>typische Situationen aus dem Alltag</b>: was du tust und was am Ende herauskommt.</p>
+  <div class="newhere"><span><b>Neu hier?</b> Herunterladen, auf die Freigabe legen, starten – in etwa 10 Minuten. Die Module trägt der Verwalter mit einer Zugangsdatei ein.</span><a class="go" href="#start">In 10 Minuten startklar ↓</a></div>
+  <div class="promise">
+    <span>Ohne Installation</span><span>Läuft von der Netzfreigabe</span><span>Keine Lizenz</span><span>Windows 10 / 11, PowerShell 5.1 oder 7</span><span>Signierte Updates</span><span>Hilfe im Tool mit F1</span>
+  </div>
+</header>
+
+<section class="sec" id="start">
+  <h2>In 10 Minuten startklar</h2>
+  <p class="sub">Du brauchst: Windows 10 / 11 (PowerShell 5.1 ist dabei) und einen Ordner, auf den alle Bediensteten zugreifen – am besten eine Netzfreigabe. Administratorrechte am PC sind nicht nötig.</p>
+  <div class="start">
+    <div class="card" style="grid-column: 1 / -1">
+      <div class="n">1</div>
+      <h3>Herunterladen</h3>
+      <p><a href="https://github.com/ChiliApple/HU-Amt/raw/main/Pull.ps1"><code>Pull.ps1</code></a> herunterladen (Rechtsklick › <i>Link speichern unter …</i>), in einen <b>leeren</b> Ordner legen – z. B. auf der Freigabe – und starten:</p>
+      <pre>powershell.exe -NoProfile -ExecutionPolicy Bypass -File Pull.ps1</pre>
+      <p style="font-size:14px;color:var(--muted)">Lädt die freigegebene Version, prüft jede Datei per SHA-256 und die Signatur des Releases. Updates kommen später über den Knopf <b>Update</b> im Programm – genauso geprüft.</p>
+    </div>
+    <div class="card">
+      <div class="n">2</div>
+      <h3>Starten</h3>
+      <p><b>Start-HU-Amt.cmd</b> doppelklicken. Beim ersten Start fragt HU-Amt jeden Benutzer, ob ein <b>Symbol auf den Desktop</b> soll und ob es an die <b>Taskleiste</b> gehört. Danach startet es mit eigenem Logo, ohne Konsolenfenster.</p>
+    </div>
+    <div class="card">
+      <div class="n">3</div>
+      <h3>Verwalter festlegen und Module eintragen</h3>
+      <p><span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b> › <span class="ui">Mich hinzufügen</span>. Danach die Zugangsdatei <code>*.humodule</code> vom Herausgeber ins Fenster ziehen – HU-Amt prüft die Zugänge, lädt die Module und löscht die Datei.</p>
+      <p style="font-size:14px;color:var(--muted)">Alles Weitere erklärt die Anleitung; im Tool zeigt <b>F1</b> die Hilfe zum Reiter.</p>
+    </div>
+    <div class="card">
+      <div class="n" style="color:var(--muted)">dann</div>
+      <h3>Sicherung einschalten</h3>
+      <p><span class="ui">⚙ Einstellungen</span> › <b>Sicherung</b>: Ordner wählen, Kennwort festlegen, <i>täglich</i> einstellen. Damit sind Einstellungen und Daten aller Module gesichert.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>Warum ein eigenes Programm?</h2>
+  <p class="sub">Viele Aufgaben im Amt sind kleine, immer gleiche Handgriffe mit PDFs und Listen. HU-Amt bündelt sie, ohne an der Gemeindesoftware etwas zu ändern: Ergebnisse gehen als Datei in einen festen Ordner.</p>
+  <div class="why">
+    <div><b>Ein Fenster statt fünf Programme</b><span>Jedes Werkzeug ist ein Reiter. Dateien hineinziehen – der passende Reiter nimmt sie.</span></div>
+    <div><b>Für alle gleich</b><span>Einmal auf die Freigabe, alle Bediensteten arbeiten mit derselben Version und denselben Listen.</span></div>
+    <div><b>Nichts geht verloren</b><span>Verschlüsselte Sicherung aller Einstellungen und Daten, auf Wunsch täglich. Originale bleiben immer unverändert.</span></div>
+    <div><b>Aufgeräumt</b><span>Bedienstete sehen nur, was sie brauchen. Protokoll, Sicherung und Module sieht der Verwalter.</span></div>
+    <div><b>Sicher aktuell</b><span>Updates nur signiert, jede Datei geprüft. Auf der Freigabe startet ein Update erst, wenn alle geschlossen haben.</span></div>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>Was steht bei dir gerade an?</h2>
+  <p class="sub">Tippe auf die Situation, die zu dir passt.</p>
+  <nav class="finder">
+    <a href="#rechnungen" style="--c: var(--yellow)"><b>Die Stromrechnungen sind da</b><small>zuordnen, Excel-Liste, Übersicht</small></a>
+    <a href="#scans" style="--c: var(--blue)"><b>Gescannte Post wiederfinden</b><small>Texterkennung, sinnvolle Dateinamen</small></a>
+    <a href="#zusammen" style="--c: var(--teal)"><b>Mehrere PDFs als eine Datei</b><small>zusammenfügen, Seiten ordnen</small></a>
+    <a href="#mail" style="--c: var(--green)"><b>Die PDF ist zu groß für die Mail</b><small>verkleinern in drei Stufen</small></a>
+    <a href="#schwaerzen" style="--c: var(--red)"><b>Namen müssen raus</b><small>sicher schwärzen</small></a>
+    <a href="#stempel" style="--c: var(--peach)"><b>Eingang vermerken</b><small>Eingangsstempel und Notizzettel</small></a>
+    <a href="#wunsch" style="--c: var(--mauve)"><b>Mir fehlt noch etwas</b><small>Ideen &amp; Wünsche, Feedback</small></a>
+    <a href="#verwalter" style="--c: var(--blue)"><b>Ich bin der Verwalter</b><small>Freigabe, Module, Sicherung</small></a>
+  </nav>
+</section>
+
+<section class="sec">
+  <h2>Situationen aus dem Alltag</h2>
+
+  <article class="scn" id="rechnungen" style="--c: var(--yellow)">
+    <div class="scn-head">
+      <span class="tag">Energiegemeinschaft</span>
+      <h3>Die Stromrechnungen sind da</h3>
+      <p class="quote">„Jeden Monat dieselben Rechnungen mit dutzenden Zählpunkten – und jede Position muss auf die richtige Kostenstelle.“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Reiter <span class="ui">⚡ Energiegemeinschaft</span>: oben rechts prüfen, ob die Kostenstellenliste geladen ist (grün).</span></li>
+          <li><span>Die PDF-Rechnungen auf die Ablage ziehen und <span class="ui b">Verarbeitung starten</span>.</span></li>
+          <li><span>Je Rechnung zeigen Kacheln Positionen, Zugeordnet, Netto und Differenz. Was keine Kostenstelle hat, steht orange als <i>Nicht zugeordnet</i>.</span></li>
+          <li><span>Excel exportieren – ohne Rückfrage in den Export-Ordner, auf Wunsch gleich in Excel öffnen.</span></li>
+        </ol>
+        <div class="meta"><span>⏱ Minuten statt Abtippen</span><span>zwei Rechnungsformate</span></div>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Eine Excel-Liste mit Zusammenfassung und je Rechnung einem Blatt</li>
+          <li>Jede Rechnung im Archiv, nach Jahr geordnet</li>
+          <li>Eine Übersicht mit Vorjahresvergleich, Spitzenverbrauchern und Verlauf je Monat – live, druckbar</li>
+          <li>Fehlende Monate je Zählpunkt auf einen Blick (<span class="ui">🔎 Lücken …</span>)</li>
+        </ul>
+        <figure class="shot wide"><img src="screenshot-energiegemeinschaft.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-energiegemeinschaft.png'" alt="Reiter Energiegemeinschaft" loading="lazy"><figcaption>Reiter Energiegemeinschaft mit Übersicht (Testdaten)</figcaption></figure>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="scans" style="--c: var(--blue)">
+    <div class="scn-head">
+      <span class="tag">Texterkennung</span>
+      <h3>Gescannte Post wiederfinden</h3>
+      <p class="quote">„Der Scanner legt alles als Scan_0042.pdf ab. Wo war noch mal der Bescheid vom März?“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Einmalig: Reiter <span class="ui">🔍 Texterkennung</span> › <span class="ui">Werkzeuge laden</span> (etwa 200 MB je PC, geprüft).</span></li>
+          <li><span>Der Verwalter trägt unter <span class="ui">📁 Ordner …</span> den Scan-Ordner als Eingang ein und legt fest, wie die Dateien heißen sollen – z. B. Datum und ein Text aus dem Dokument.</span></li>
+          <li><span>Ab dann holt jeder PC mit offenem HU-Amt neue Scans ab, sobald der Scanner fertig ist.</span></li>
+          <li><span>Einzelne PDFs gehen auch sofort: hineinziehen, das Ergebnis liegt daneben.</span></li>
+        </ol>
+        <div class="meta"><span>kein fester OCR-PC nötig</span><span>Originale bleiben</span></div>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Durchsuchbare PDFs – im PDF-Programm lässt sich nach Wörtern suchen und Text kopieren</li>
+          <li>Sinnvolle Dateinamen statt Scan-Nummern</li>
+          <li>Auf Wunsch gleich weitergegeben, z. B. Rechnungen an die Energiegemeinschaft</li>
+          <li>Fehlerhafte Dateien in einem eigenen Ordner mit Begründung</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="zusammen" style="--c: var(--teal)">
+    <div class="scn-head">
+      <span class="tag">PDF-Werkzeuge</span>
+      <h3>Mehrere PDFs als eine Datei</h3>
+      <p class="quote">„Antrag, Plan und drei Beilagen sollen als eine Datei an die Bezirkshauptmannschaft – in der richtigen Reihenfolge.“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Reiter <span class="ui">📑 PDF-Werkzeuge</span>: alle Dateien hineinziehen – HU-Amt schlägt <span class="ui">🔗 Zusammenfügen</span> vor.</span></li>
+          <li><span>Reihenfolge mit der Maus oder ↑ ↓ ändern.</span></li>
+          <li><span>Einzelne Seiten drehen, löschen oder umsortieren: Aktion <span class="ui">📄 Seiten</span>.</span></li>
+          <li><span><span class="ui g">Speichern</span> – neben das Original oder in einen festen Ordner.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Eine PDF, auf Wunsch mit einem Lesezeichen je Datei</li>
+          <li>Die Originale unverändert</li>
+          <li>Auch umgekehrt: eine PDF nach Seiten, einzeln oder nach Lesezeichen teilen</li>
+        </ul>
+        <figure class="shot wide"><img src="screenshot-pdf-werkzeuge.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-pdf-werkzeuge.png'" alt="Reiter PDF-Werkzeuge" loading="lazy"><figcaption>Seiten bearbeiten: drehen, löschen, mit der Maus umsortieren</figcaption></figure>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="mail" style="--c: var(--green)">
+    <div class="scn-head">
+      <span class="tag">PDF-Werkzeuge</span>
+      <h3>Die PDF ist zu groß für die Mail</h3>
+      <p class="quote">„40 MB – das nimmt der Mailserver nicht.“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Datei hineinziehen, Aktion <span class="ui">📧 Verkleinern</span>.</span></li>
+          <li><span>Stufe wählen: <i>Bildschirm</i>, <i>Mail</i> (empfohlen) oder <i>Druck</i>.</span></li>
+          <li><span>Die Tabelle zeigt vorher, nachher und die Ersparnis. <span class="ui g">Speichern</span>.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Eine kleinere Kopie – wird eine Datei nicht kleiner, wird nichts gespeichert</li>
+          <li>Fotos vom Handy? <span class="ui">🖼 Bilder zu PDF</span> macht daraus eine PDF, gedreht und auf Wunsch durchsuchbar</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="schwaerzen" style="--c: var(--red)">
+    <div class="scn-head">
+      <span class="tag">PDF-Werkzeuge</span>
+      <h3>Namen müssen raus</h3>
+      <p class="quote">„Das Protokoll geht an die Presse – ohne Namen und Adressen der Anrainer.“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Aktion <span class="ui">⬛ Schwärzen</span>: Suchbegriffe eintragen und <span class="ui">🔎 Suchen</span>, oder ein Muster für z. B. Telefonnummern.</span></li>
+          <li><span>Treffer prüfen und einzeln abwählen. Weitere Stellen <span class="ui">🖱 Mit der Maus markieren …</span>.</span></li>
+          <li><span><span class="ui g">Speichern</span> – vorher prüft HU-Amt, ob wirklich nichts mehr lesbar ist.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Echt geschwärzter Text, nicht nur ein schwarzer Kasten darüber</li>
+          <li>Formularfelder, Kommentare, Anhänge und Eigenschaften entfernt</li>
+          <li>Auf Wunsch weiter durchsuchbar</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="stempel" style="--c: var(--peach)">
+    <div class="scn-head">
+      <span class="tag">PDF-Werkzeuge</span>
+      <h3>Eingang vermerken</h3>
+      <p class="quote">„Auf Papier gab es den Eingangsstempel. Und bei der PDF per Mail?“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Aktion <span class="ui">📬 Eingangsstempel</span>: Text, Kürzel, Position und Farbe wählen – die Vorschau kommt von selbst.</span></li>
+          <li><span>Als Vorlage speichern, für dich oder (Verwalter) für alle.</span></li>
+          <li><span>Für einen Hinweis an Kollegen: <span class="ui">🗒 Notiz</span>, Zettel aufziehen, Text hinein.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Datum, Zeit und Kürzel auf der ersten oder allen Seiten</li>
+          <li>Ein Notizzettel, der in Acrobat eine bearbeitbare Anmerkung bleibt</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="wunsch" style="--c: var(--mauve)">
+    <div class="scn-head">
+      <span class="tag">Ideen &amp; Wünsche</span>
+      <h3>Mir fehlt noch etwas</h3>
+      <p class="quote">„Schön wäre noch eine Erinnerung an Fristen. Wem sag ich das?“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Reiter <span class="ui">💡 Ideen &amp; Wünsche</span>: nachsehen, was es schon gibt, was im Test ist und was geplant ist.</span></li>
+          <li><span>Passt etwas: <span class="ui">👍 Brauch ich auch</span>.</span></li>
+          <li><span>Sonst <span class="ui b">✉ Wunsch oder Feedback</span>: Art, Betrifft, Text – auf Wunsch mit Anhang.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Dein Wunsch ist gespeichert, der Verwalter sieht ihn sofort</li>
+          <li>Status und Antwort stehen unten in der Liste</li>
+        </ul>
+        <figure class="shot wide"><img src="screenshot-ideen.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-ideen.png'" alt="Reiter Ideen und Wünsche" loading="lazy"><figcaption>Ideen &amp; Wünsche: Stand der Entwicklung und eigene Wünsche</figcaption></figure>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="verwalter" style="--c: var(--blue)">
+    <div class="scn-head">
+      <span class="tag">Verwaltung</span>
+      <h3>Ich bin der Verwalter</h3>
+      <p class="quote">„Ich richte das für alle ein – und will mich nicht jeden Monat darum kümmern.“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>HU-Amt einmal auf die Freigabe legen, dich unter <span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b> eintragen.</span></li>
+          <li><span>Zugangsdatei <code>*.humodule</code> ins Fenster ziehen – die Module kommen, die Datei wird danach gelöscht.</span></li>
+          <li><span>Sicherung einschalten: Ordner, Kennwort, täglich.</span></li>
+          <li><span>Updates: Wird <span class="ui">Update</span> gold, einmal klicken. Haben andere HU-Amt offen, sagt die App, wer.</span></li>
+        </ol>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Alle arbeiten mit derselben Version und denselben Listen</li>
+          <li>Eine verschlüsselte Sicherung aller Einstellungen und Daten, auch der Module</li>
+          <li>Jeder Benutzer findet seine Reiter und Fenster beim nächsten Start so vor wie beim Schließen</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+</section>
+
+<section class="sec">
+  <h2>Häufige Fragen</h2>
+  <div>
+    <details><summary>Muss ich etwas installieren?</summary><p>Nein. HU-Amt läuft aus einem Ordner am PC oder auf einer Netzfreigabe. Windows PowerShell 5.1 ist in Windows enthalten; ist PowerShell 7 da, nimmt HU-Amt es automatisch. Das Modul Energiegemeinschaft braucht die WebView2-Runtime, die in Windows 11 enthalten ist.</p></details>
+    <details><summary>Ändert HU-Amt etwas an unserer Gemeindesoftware?</summary><p>Nein. HU-Amt hat keine Verbindung zu anderen Programmen. Ergebnisse gehen als Datei in einen festen Ordner, den andere Programme abholen können.</p></details>
+    <details><summary>Wo liegen die Daten?</summary><p>Gemeinsame Listen und die Daten der Module im Ordner <code>Data</code> neben dem Programm. Persönliche Einstellungen und Zugangsdaten je Windows-Benutzer. Nichts davon geht ins Internet.</p></details>
+    <details><summary>Was passiert, wenn zwei gleichzeitig dieselbe Liste bearbeiten?</summary><p>Eine gemeinsame Liste bearbeitet immer nur eine Person. Die anderen sehen „gerade in Bearbeitung von …“ und können nur lesen. Vor jedem Speichern entsteht eine Kopie mit Zeitstempel.</p></details>
+    <details><summary>Wie kommen Updates?</summary><p>HU-Amt meldet neue Versionen selbst (Knopf <b>Update</b> wird gold). Im Kanal <b>Stabil</b> landen nur geprüfte und signierte Versionen; jede Datei wird vor dem Ersetzen geprüft. Module aktualisieren sich genauso.</p></details>
+    <details><summary>Was kostet das?</summary><p>Nichts. Die Nutzung ist frei, auch für Gemeinden und Behörden. Details stehen in der Lizenz im Repository.</p></details>
+    <details><summary>Und der Datenschutz?</summary><p>Rechnungen und Scans können personenbezogene Daten enthalten. Sie bleiben auf euren Laufwerken. Das Support-Paket ersetzt E-Mail-Adressen, IDs, IP-Adressen, Benutzer und PC und enthält nie Daten der Module.</p></details>
+  </div>
+</section>
+
+<footer>
+  <p>HU-Amt ist ein freies Werkzeug für die Gemeindeverwaltung. Die Nutzung erfolgt ohne Gewähr – neue Abläufe zuerst mit Testdateien ausprobieren.</p>
+  <p><a href="Funktionen.html">Alle Funktionen im Überblick</a> · <a href="Anleitung.html">Ausführliche Anleitung</a> · <a href="https://github.com/ChiliApple/HU-Amt">Repository</a></p>
+</footer>
+
+</div>
+</body>
+</html>

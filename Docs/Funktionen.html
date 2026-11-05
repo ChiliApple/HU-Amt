@@ -1,0 +1,387 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HU-Amt Funktionen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Gleiche Farben, Schriften und Bausteine wie Einstieg.html: Kopf mit Logo, Kennzahlen, Top 3 als grosse Karten,
+   Platz 4-10 kompakt, danach alle Bereiche als Kacheln in der Farbe ihres Bereichs (Spaltenlayout ohne Luecken) */
+:root {
+  --bg: #eff1f5; --surface: #ffffff; --surface-2: #e6e9ef; --line: #ccd0da;
+  --fg: #3b3e52; --fg-strong: #1e1e2e; --muted: #6c6f85;
+  --green: #40a02b; --mauve: #8839ef; --yellow: #c78b0a; --teal: #13867f; --blue: #1e66f5; --red: #d20f39; --peach: #e2620e;
+  --tint: 12%; --chip-fg: #ffffff;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", Consolas, ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1e1e2e; --surface: #262637; --surface-2: #313244; --line: #3d3e55;
+  --fg: #cdd6f4; --fg-strong: #ffffff; --muted: #a6adc8;
+  --green: #a6e3a1; --mauve: #cba6f7; --yellow: #f9e2af; --teal: #94e2d5; --blue: #89b4fa; --red: #f38ba8; --peach: #fab387;
+  --tint: 16%; --chip-fg: #1e1e2e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1e1e2e; --surface: #262637; --surface-2: #313244; --line: #3d3e55;
+  --fg: #cdd6f4; --fg-strong: #ffffff; --muted: #a6adc8;
+  --green: #a6e3a1; --mauve: #cba6f7; --yellow: #f9e2af; --teal: #94e2d5; --blue: #89b4fa; --red: #f38ba8; --peach: #fab387;
+  --tint: 16%; --chip-fg: #1e1e2e; color-scheme: dark }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--f-body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 16px 72px; display: grid; gap: 64px; }
+h1, h2, h3, h4 { font-family: var(--f-display); color: var(--fg-strong); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+a { color: var(--blue); }
+code { font: 500 .88em/1.4 var(--f-mono); background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+/* Kopf */
+header { display: grid; gap: 20px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+.logo { width: 44px; height: 44px; border-radius: 11px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; }
+.logo img { width: 30px; height: 30px; }
+.ver { font: 500 13px/1 var(--f-mono); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; }
+nav { display: flex; gap: 6px; flex-wrap: wrap; }
+nav a { text-decoration: none; color: var(--fg); font-size: 14px; font-weight: 600; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+nav a:hover { border-color: var(--blue); color: var(--blue); }
+nav a[aria-current] { background: var(--fg-strong); color: var(--bg); border-color: var(--fg-strong); }
+h1 { font-size: clamp(32px, 6vw, 54px); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
+h1 em { font-style: normal; color: var(--mauve); }
+.lead { font-size: 19px; max-width: 64ch; }
+.promise { display: flex; flex-wrap: wrap; gap: 10px; }
+.promise span { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 14px; font-weight: 600; }
+
+/* Kennzahlen */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.stats div { --c: var(--blue); background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 12px; padding: 14px 16px; display: grid; gap: 2px; }
+.stats b { font: 800 34px/1.05 var(--f-display); color: var(--c); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.stats span { font-size: 14px; color: var(--fg); }
+
+/* Abschnittskopf */
+.sec { display: grid; gap: 22px; }
+.sec > h2 { font-size: clamp(24px, 4vw, 32px); font-weight: 700; }
+.sec > p.sub { color: var(--muted); max-width: 70ch; margin-top: -10px; }
+.kicker { font: 600 12px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: -14px; }
+
+/* Top 3 */
+.podium { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+.podium li { --c: var(--blue); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+.podium .head { padding: 18px 20px 14px; background: color-mix(in srgb, var(--c) var(--tint), var(--surface)); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.podium .rank { font: 800 40px/1 var(--f-display); color: var(--c); letter-spacing: -.03em; }
+.podium .body { padding: 16px 20px 20px; display: grid; gap: 8px; align-content: start; }
+.podium h3 { font-size: 21px; font-weight: 700; }
+.podium p { font-size: 15px; }
+.area { font: 600 11.5px/1 var(--f-body); text-transform: uppercase; letter-spacing: .08em; color: var(--c); text-decoration: none; border: 1px solid color-mix(in srgb, var(--c) 55%, var(--line)); border-radius: 999px; padding: 6px 10px; white-space: nowrap; }
+.area:hover { background: var(--c); color: var(--surface); }
+
+/* Platz 4-10 */
+.rest { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 10px; }
+.rest li { --c: var(--blue); display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: start; padding: 14px 16px 14px 14px; background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--c); border-radius: 12px; min-width: 0; }
+.rest .rank { font: 800 26px/1 var(--f-display); color: var(--c); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.rest h3 { font-size: 16.5px; font-weight: 700; margin-bottom: 2px; }
+.rest p { color: var(--muted); font-size: 14.5px; }
+.rest .area { align-self: center; }
+
+/* Sprungleiste */
+.jump { display: flex; flex-wrap: wrap; gap: 8px; }
+.jump a { --c: var(--blue); display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--fg-strong); font-size: 14px; font-weight: 600; padding: 7px 12px 7px 9px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
+.jump a::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.jump a:hover { border-color: var(--c); }
+
+/* Bereiche: drei Spalten, Kacheln von Hand verteilt, damit alle Spalten etwa gleich lang sind */
+.cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+.col { display: grid; gap: 16px; min-width: 0; }
+.cat { --c: var(--blue); margin: 0; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 14px; overflow: hidden; scroll-margin-top: 16px; }
+.cat-head { padding: 16px 18px 14px; background: color-mix(in srgb, var(--c) var(--tint), var(--surface)); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.chip { font: 600 12px/1 var(--f-body); padding: 7px 10px; border-radius: 6px; background: var(--c); color: var(--chip-fg); white-space: nowrap; }
+.cat h3 { font-size: 19px; font-weight: 700; flex: 1; }
+.count { font: 500 12px/1 var(--f-mono); color: var(--muted); }
+.cat-body { padding: 14px 18px 18px; display: grid; gap: 14px; }
+.group { display: grid; gap: 6px; }
+.group h4 { font: 600 12px/1 var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--c); display: flex; align-items: center; gap: 8px; }
+.group h4::after { content: ""; flex: 1; height: 1px; background: color-mix(in srgb, var(--c) 35%, var(--line)); }
+.cat ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.cat li { position: relative; padding-left: 16px; font-size: 14.5px; line-height: 1.5; }
+.cat li::before { content: ""; position: absolute; left: 2px; top: .6em; width: 6px; height: 6px; border-radius: 2px; background: var(--c); }
+.new { font: 600 10.5px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--c); border: 1px solid var(--c); border-radius: 4px; padding: 2px 5px; margin-left: 4px; vertical-align: 1px; white-space: nowrap; }
+.shot { margin: 2px 0 0; display: grid; gap: 6px; }
+.shot a { display: block; }
+.shot img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); }
+.shot figcaption { font-size: 12.5px; color: var(--muted); }
+.shot.phone { max-width: 180px; }
+
+footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 20px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+footer a { text-decoration: none; } footer a:hover { text-decoration: underline; }
+
+@media (max-width: 980px) { .cats { grid-template-columns: 1fr 1fr; } .col:nth-child(3) { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; align-items: start; } }
+@media (max-width: 640px) {
+  .wrap { gap: 48px; padding-top: 28px; }
+  .cats, .col:nth-child(3) { grid-template-columns: 1fr; }
+  .lead { font-size: 17px; }
+  .rest li { grid-template-columns: 32px 1fr; }
+  .rest .area { grid-column: 2; justify-self: start; }
+  .podium .rank { font-size: 34px; }
+}
+kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line); border-bottom-width: 2px; background: var(--surface-2); color: var(--fg-strong); }
+</style>
+<body>
+<div class="wrap">
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"><img src="../Assets/logo64.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Assets/logo64.png'" alt=""></div>
+      HU-Amt · Funktionsübersicht <span class="ver">v0.1.1</span>
+    </div>
+    <nav aria-label="Seiten">
+      <a href="Einstieg.html">Einstieg</a>
+      <a href="Funktionen.html" aria-current="page">Funktionen</a>
+      <a href="Anleitung.html">Anleitung</a>
+      <a href="https://github.com/ChiliApple/HU-Amt/releases">Download</a>
+    </nav>
+  </div>
+  <h1>Alles, was HU-Amt <em>kann</em> – auf einer Seite.</h1>
+  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen der Energiegemeinschaft verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
+  <div class="promise">
+    <span>Windows 10 / 11</span><span>PowerShell 5.1 und 7</span><span>Ohne Installation</span><span>Selbst-Update aus GitHub</span><span>Signierte Releases</span>
+  </div>
+  <div class="stats" aria-label="Kennzahlen">
+    <div style="--c: var(--blue)"><b>4</b><span>Module als Reiter</span></div>
+    <div style="--c: var(--yellow)"><b>8</b><span>PDF-Werkzeuge</span></div>
+    <div style="--c: var(--green)"><b>1</b><span>Ordner für alle, auch auf der Freigabe</span></div>
+    <div style="--c: var(--peach)"><b>AES-256</b><span>verschlüsselte Sicherung</span></div>
+    <div style="--c: var(--teal)"><b>0</b><span>Server, Lizenzen oder Installation nötig</span></div>
+  </div>
+</header>
+
+<section class="sec" aria-labelledby="t-top">
+  <span class="kicker">Die Stärksten zuerst</span>
+  <h2 id="t-top">Top 10</h2>
+  <ol class="podium">
+    <li style="--c: var(--yellow)">
+      <div class="head"><span class="rank">1</span><a class="area" href="#eg">Energiegemeinschaft</a></div>
+      <div class="body"><h3>Rechnungen auf Kostenstellen – automatisch</h3><p>PDF-Rechnungen hineinziehen, jede Position landet auf ihrer Kostenstelle, Excel-Liste mit einem Klick.</p></div>
+    </li>
+    <li style="--c: var(--blue)">
+      <div class="head"><span class="rank">2</span><a class="area" href="#ocr">Texterkennung</a></div>
+      <div class="body"><h3>Scans durchsuchbar und sinnvoll benannt</h3><p>Überwachte Ordner, jeder PC mit offenem HU-Amt hilft mit. Dateiname aus Datum und Text aus dem Dokument.</p></div>
+    </li>
+    <li style="--c: var(--teal)">
+      <div class="head"><span class="rank">3</span><a class="area" href="#pdf">PDF-Werkzeuge</a></div>
+      <div class="body"><h3>Acht PDF-Werkzeuge, ein Reiter</h3><p>Zusammenfügen, teilen, Seiten, schwärzen, verkleinern, Bilder zu PDF, Eingangsstempel und Notiz – Originale bleiben unverändert.</p></div>
+    </li>
+  </ol>
+  <ol class="rest" start="4">
+    <li style="--c: var(--red)"><span class="rank">4</span><div><h3>Sicher schwärzen</h3><p>Suchbegriffe, Muster oder mit der Maus – Text wird entfernt und vor dem Speichern geprüft.</p></div><a class="area" href="#pdf">PDF-Werkzeuge</a></li>
+    <li style="--c: var(--yellow)"><span class="rank">5</span><div><h3>Übersicht mit Vorjahresvergleich</h3><p>Netto, Spitzenverbraucher, Verlauf je Monat und Anteile je Kostenstelle – live und druckbar.</p></div><a class="area" href="#eg">Energiegemeinschaft</a></li>
+    <li style="--c: var(--green)"><span class="rank">6</span><div><h3>Verschlüsselte App-Sicherung</h3><p>Alle Einstellungen und Daten aller Module, automatisch täglich oder wöchentlich, Wiederherstellen nach Bereichen.</p></div><a class="area" href="#sicherung">Sicherung</a></li>
+    <li style="--c: var(--peach)"><span class="rank">7</span><div><h3>Signierte Updates per Knopf</h3><p>Programm und Module, jede Datei geprüft, nie halb aktualisiert. Auf der Freigabe erst, wenn alle geschlossen haben.</p></div><a class="area" href="#update">Update</a></li>
+    <li style="--c: var(--blue)"><span class="rank">8</span><div><h3>Dateien zwischen Modulen weitergeben <span class="new">neu</span></h3><p>Postfach je Reiter, auch zwischen PCs. Die Zahl am Reiter zeigt, wie viele Dateien warten.</p></div><a class="area" href="#fenster">Hauptfenster</a></li>
+    <li style="--c: var(--mauve)"><span class="rank">9</span><div><h3>Module per Zugangsdatei</h3><p>Eine Datei ins Fenster ziehen – alle Module des Herausgebers werden geprüft, geladen und aktuell gehalten.</p></div><a class="area" href="#module">Module</a></li>
+    <li style="--c: var(--mauve)"><span class="rank">10</span><div><h3>Ideen &amp; Wünsche</h3><p>Was es gibt, was kommt, was im Test ist. Mit 👍 abstimmen, Wünsche und Fehler direkt melden.</p></div><a class="area" href="#roadmap">Ideen &amp; Wünsche</a></li>
+  </ol>
+</section>
+
+<section class="sec" aria-labelledby="t-cats">
+  <span class="kicker">Alle Funktionen</span>
+  <h2 id="t-cats">Nach Bereichen</h2>
+  <p class="sub">Jede Kachel entspricht einem Reiter oder Knopf in HU-Amt.</p>
+  <div class="jump" aria-label="Zu Bereich springen">
+    <a href="#eg" style="--c: var(--yellow)">Energiegemeinschaft</a>
+    <a href="#ocr" style="--c: var(--blue)">Texterkennung</a>
+    <a href="#pdf" style="--c: var(--teal)">PDF-Werkzeuge</a>
+    <a href="#roadmap" style="--c: var(--mauve)">Ideen &amp; Wünsche</a>
+    <a href="#fenster" style="--c: var(--blue)">Hauptfenster</a>
+    <a href="#update" style="--c: var(--peach)">Update</a>
+    <a href="#sicherung" style="--c: var(--green)">Sicherung</a>
+    <a href="#module" style="--c: var(--mauve)">Module</a>
+    <a href="#betrieb" style="--c: var(--teal)">Freigabe und Verwalter</a>
+    <a href="#hilfe" style="--c: var(--red)">Hilfe und Support</a>
+  </div>
+
+  <div class="cats">
+    <div class="col">
+    <article class="cat" id="eg" style="--c: var(--yellow)">
+      <div class="cat-head"><span class="chip">⚡ Energiegemeinschaft</span><h3>Energiegemeinschaft</h3><span class="count">Modul 0.1.0</span></div>
+      <div class="cat-body">
+        <div class="group"><h4>Rechnungen</h4>
+          <ul>
+            <li>PDF-Rechnungen hineinziehen, zwei Formate (Zählpunkte, Anlagennummern)</li>
+            <li>Kacheln je Rechnung: Positionen, Zugeordnet, Netto, Differenz</li>
+            <li>Positionen ohne Kostenstelle orange als „Nicht zugeordnet“</li>
+            <li>Excel-Export mit Zusammenfassung und je Rechnung einem Blatt, Dateiname mit Platzhaltern</li>
+            <li>Rechnungen aus dem Postfach übernehmen, z. B. von der Texterkennung</li>
+          </ul>
+        </div>
+        <div class="group"><h4>Kostenstellen</h4>
+          <ul>
+            <li>Zuordnungen und Kostenstellen mit Haushaltsstelle in einem Editor</li>
+            <li>Excel-Import mit Vorschau, was neu, geändert oder entfernt ist</li>
+            <li>Speichern nur für Verwalter, mit Prüfung und Sicherung der alten Liste</li>
+          </ul>
+        </div>
+        <div class="group"><h4>Archiv und Übersicht</h4>
+          <ul>
+            <li>Jede Rechnung im Archiv, Bestand aus Ordnern einlesen</li>
+            <li>Lücken: fehlende Monate je Zählpunkt oder Anlage</li>
+            <li>Seitenleiste live: Netto zum Vorjahr, Verlauf je Monat, Top 5</li>
+            <li>Große Übersicht: Top 10, Vorjahresvergleich, Anteile, Rechnungen – druckbar</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="cat" id="roadmap" style="--c: var(--mauve)">
+      <div class="cat-head"><span class="chip">💡 Ideen &amp; Wünsche</span><h3>Ideen &amp; Wünsche</h3><span class="count">Modul 0.1.0</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Liste mit Status: In Arbeit, Im Test, Geplant, Idee, Fertig, Zurückgestellt</li>
+          <li>„👍 Brauch ich auch“: eine Stimme je Person, rotes „Neu“ seit dem letzten Besuch</li>
+          <li>Wunsch, Fehler, Frage oder Lob melden, auf Wunsch mit Anhang</li>
+          <li>Status und Antwort des Verwalters in der Liste, „nur meine“</li>
+          <li>Verwaltung: Einträge pflegen, Feedbacks beantworten, als neue Idee übernehmen</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="cat" id="fenster" style="--c: var(--blue)">
+      <div class="cat-head"><span class="chip">🪟 Hauptfenster</span><h3>Hauptfenster und Reiter</h3><span class="count">8 Punkte</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Jedes Modul ein Reiter, Reihenfolge mit der Maus verschieben <span class="new">neu</span></li>
+          <li>Dateien ins Fenster ziehen: der passende Reiter übernimmt sie</li>
+          <li>Postfach zwischen Modulen, Zahl wartender Dateien am Reiter <span class="new">neu</span></li>
+          <li>Fenster, Reiter und Einstellungen bleiben je Benutzer gespeichert</li>
+          <li>Strg + Mausrad skaliert die Oberfläche</li>
+          <li>Erster Start: Desktop-Symbol und Taskleiste</li>
+          <li>Dunkles Farbschema, Startbildschirm abschaltbar</li>
+          <li>Ergebnisse als Datei in einen festen Übergabeordner, auch für andere Programme</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="cat" id="hilfe" style="--c: var(--red)">
+      <div class="cat-head"><span class="chip">🛟 Support</span><h3>Hilfe und Support</h3><span class="count">5 Punkte</span></div>
+      <div class="cat-body">
+        <ul>
+          <li><kbd>F1</kbd> oder „?“: Hilfe zum aktuellen Reiter</li>
+          <li>Support-Paket als ZIP: Protokolle und Einstellungen, anonymisiert</li>
+          <li>Per E-Mail senden oder ansehen, nie mit Daten der Module, Kennwörtern oder Tokens</li>
+          <li>Protokoll für Verwalter, neueste Einträge oben, Stufe einstellbar</li>
+          <li>Info-Fenster mit Version, Kanal und Prüfung der Installation</li>
+        </ul>
+      </div>
+    </article>
+    </div>
+
+    <div class="col">
+    <article class="cat" id="ocr" style="--c: var(--blue)">
+      <div class="cat-head"><span class="chip">🔍 Texterkennung</span><h3>Texterkennung</h3><span class="count">Modul 0.1.0</span></div>
+      <div class="cat-body">
+        <div class="group"><h4>Ordner überwachen</h4>
+          <ul>
+            <li>Eingang und Ausgang je Ordner, für alle oder nur diesen PC</li>
+            <li>Dateiname aus Bausteinen: Datum, Zeit, Original, Seiten, Text aus dem Dokument</li>
+            <li>Kein fester OCR-PC: jede Datei holt genau ein PC ab</li>
+            <li>Danach an ein anderes Modul weitergeben</li>
+            <li>Fehlerhafte Dateien in Quarantäne mit Begründung</li>
+          </ul>
+        </div>
+        <div class="group"><h4>Sofort</h4>
+          <ul>
+            <li>PDFs hineinziehen, Ergebnis neben dem Original oder in einem Ordner</li>
+            <li>Werkzeuge einmal je PC laden, geprüft per Prüfsumme und Probe-Erkennung</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="cat" id="pdf" style="--c: var(--teal)">
+      <div class="cat-head"><span class="chip">📑 PDF-Werkzeuge</span><h3>PDF-Werkzeuge</h3><span class="count">8 Werkzeuge</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>🔗 Zusammenfügen, auf Wunsch mit Lesezeichen je Datei</li>
+          <li>✂ Teilen nach Seitenbereichen, einzeln oder nach Lesezeichen</li>
+          <li>📄 Seiten drehen, löschen und mit der Maus umsortieren</li>
+          <li>⬛ Schwärzen: Suchbegriffe, Muster oder Maus, mit Prüfung vor dem Speichern</li>
+          <li>📧 Verkleinern in drei Stufen mit Vorher/Nachher</li>
+          <li>🖼 Bilder zu PDF, Handyfotos gedreht, auf Wunsch durchsuchbar</li>
+          <li>📬 Eingangsstempel mit Vorlagen und 🗒 Notizzettel als Anmerkung</li>
+          <li>Geschützte PDFs: Kennwort wird abgefragt und nie gespeichert</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="cat" id="update" style="--c: var(--peach)">
+      <div class="cat-head"><span class="chip">🔄 Update</span><h3>Update</h3><span class="count">6 Punkte</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Knopf „Update“ wird gold, ein Klick installiert und startet neu</li>
+          <li>Jede Datei gegen Prüfsumme und Signatur geprüft, nie halb aktualisiert</li>
+          <li>Kanal Stabil oder Test, Vorversion installieren</li>
+          <li>Module aktualisieren sich genauso, neue Fassung nach dem Neustart</li>
+          <li>Auf der Freigabe erst, wenn alle anderen geschlossen haben – mit Namen</li>
+          <li>Daten und Einstellungen bleiben unangetastet</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="cat" id="sicherung" style="--c: var(--green)">
+      <div class="cat-head"><span class="chip">💾 Sicherung</span><h3>App-Sicherung</h3><span class="count">6 Punkte</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Verschlüsselt mit Kennwort, auch auf Netzfreigabe oder USB</li>
+          <li>Enthält Listen, Einstellungen, Daten aller Module, persönliche Einstellungen jedes Benutzers</li>
+          <li>Automatisch täglich oder wöchentlich, aufbewahren nach Anzahl</li>
+          <li>Jede Sicherung wird zurückgelesen und geprüft</li>
+          <li>Wiederherstellen nach Bereichen, alter Stand bleibt erhalten</li>
+          <li>Diskette in der Kopfzeile zeigt Stand und Fortschritt</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="cat" id="module" style="--c: var(--mauve)">
+      <div class="cat-head"><span class="chip">🧩 Module</span><h3>Module</h3><span class="count">5 Punkte</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Mitgeliefert, aus einem privaten Repository (nur signiert) oder in Entwicklung</li>
+          <li>Zugangsdatei <code>*.humodule</code>: alle Zugänge auf einmal, Datei wird danach gelöscht</li>
+          <li>Nur-Lese-Token je Windows-Benutzer verschlüsselt</li>
+          <li>Wächter: externe Werkzeuge werden wöchentlich auf Updates und Lücken geprüft</li>
+          <li>Eigene Module bauen: <a href="https://github.com/ChiliApple/HU-Amt/blob/main/MODULE-DEVELOPMENT.md">MODULE-DEVELOPMENT.md</a></li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="cat" id="betrieb" style="--c: var(--teal)">
+      <div class="cat-head"><span class="chip">🏢 Betrieb</span><h3>Freigabe und Verwalter</h3><span class="count">6 Punkte</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Ein Ordner auf der Freigabe für alle Bediensteten</li>
+          <li>Gemeinsame Listen: immer nur eine Person bearbeitet, die anderen lesen</li>
+          <li>Vor jedem Speichern eine Kopie mit Zeitstempel</li>
+          <li>Verwalter-Liste: Protokoll, Sicherung und Module nur für Verwalter</li>
+          <li>Startet mit PowerShell 7, sonst 5.1 – einstellbar</li>
+          <li>Starter mit eigenem Logo, ohne Konsolenfenster</li>
+        </ul>
+      </div>
+    </article>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>Stand 05.11.2026 · Version 0.1.1</span>
+  <a href="Einstieg.html">Einstieg</a>
+  <a href="Anleitung.html">Anleitung</a>
+  <a href="https://github.com/ChiliApple/HU-Amt">Projekt auf GitHub</a>
+  <a href="https://github.com/ChiliApple/HU-Amt/releases">Download (Releases)</a>
+</footer>
+
+</div>
+</body>
+</html>
