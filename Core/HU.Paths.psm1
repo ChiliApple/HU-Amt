@@ -17,7 +17,7 @@
 Set-StrictMode -Version 1.0
 
 # Ordnernamen in Data\, die kein Modul belegen darf
-$script:ReservedDataNames = @('Benutzer', 'Laufend', 'Docs')
+$script:ReservedDataNames = @('Benutzer', 'Laufend', 'Docs', 'Postfach', 'Wiederherstellung')
 
 function Get-HUSafeName([string]$Name) {
     # fuer Dateinamen: nur Buchstaben, Ziffern, Punkt, Minus, Unterstrich
@@ -231,7 +231,9 @@ function Backup-HUDataFile {
     while (Test-Path -LiteralPath $dest) { $dest = Join-Path $dir ('{0}_{1}_{2}{3}' -f $base, (Get-Date).ToString('yyyyMMdd-HHmmss'), $n, $ext); $n++ }
     Copy-Item -LiteralPath $Path -Destination $dest
     if ($Keep -gt 0) {
-        $old = @(Get-ChildItem -LiteralPath $dir -File | Where-Object { $_.Name -like "$($base)_*$ext" } | Sort-Object Name -Descending | Select-Object -Skip $Keep)
+        # nur eigene Kopien dieser Datei (Name_JJJJMMTT-HHMMSS[_n]Ext), keine fremden Dateien mit gleichem Anfang
+        $rx = '^' + [regex]::Escape($base) + '_\d{8}-\d{6}(_\d+)?' + [regex]::Escape($ext) + '$'
+        $old = @(Get-ChildItem -LiteralPath $dir -File | Where-Object { $_.Name -match $rx } | Sort-Object Name -Descending | Select-Object -Skip $Keep)
         foreach ($o in $old) { Remove-Item -LiteralPath $o.FullName -Force -ErrorAction SilentlyContinue }
     }
     return $dest

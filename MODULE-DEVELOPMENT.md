@@ -26,7 +26,7 @@ Ein Modul ist ein Ordner mit dem Namen seiner Kennung und wird als eigener Reite
 }
 ```
 
-- **Kennung:** Buchstaben und Ziffern, beginnt mit einem Buchstaben. Reserviert sind `Benutzer`, `Laufend`, `Docs` und `Postfach`.
+- **Kennung:** Buchstaben und Ziffern, beginnt mit einem Buchstaben. Reserviert sind `Benutzer`, `Laufend`, `Docs`, `Postfach` und `Wiederherstellung`.
 - **`minApp`:** Ältere Programmversionen laden das Modul nicht.
 - **`drop`:** Endungen, die der Reiter beim Hineinziehen annimmt. Ohne `drop` nimmt er keine Dateien.
 - **Farbschema:** In `Tab.xaml` übernimmt `<TabItem.Resources><!--HU:THEME--></TabItem.Resources>` das dunkle Schema des Programms.
@@ -49,6 +49,8 @@ Funktionen in `Addon.ps1` (Konvention statt Schnittstelle):
 
 - **Daten:** `Data\<Id>\`, gemeinsam für alle Benutzer und in der Sicherung enthalten (`Get-HUAddonDataDir`).
 - **Zugang zu privaten Repositories:** Token je Windows-Benutzer, verschlüsselt mit DPAPI.
+- **Protokolle:** eigene Dateien `*.log` in `Data\Benutzer\<Name>\Logs\`. Der Kern löscht beim Start alle `*.log` dort, die älter als `logging.retentionDays` sind (Standard 30 Tage).
+- **Kennung ändern:** Die Kennung legt Ordner und Daten fest. Ändert sie sich, zuerst ein signiertes Release mit der neuen Kennung veröffentlichen und erst danach die Modulquelle neu hinterlegen. Sonst holt das Update die alte Fassung, und es gibt zwei Reiter.
 
 ## Releases
 

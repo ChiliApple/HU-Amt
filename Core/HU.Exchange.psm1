@@ -284,7 +284,7 @@ function Import-HUTable {
 
 function Get-HUExModuleDir([string]$DataRoot, [string]$ModuleId) {
     if ($ModuleId -notmatch '^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$') { throw "Ungueltige Modul-Id: '$ModuleId'" }
-    if (@('Benutzer', 'Laufend', 'Docs') -contains $ModuleId) { throw "Modul-Id '$ModuleId' ist reserviert" }
+    if (@('Benutzer', 'Laufend', 'Docs', 'Postfach', 'Wiederherstellung') -contains $ModuleId) { throw "Modul-Id '$ModuleId' ist reserviert" }
     $p = Join-Path $DataRoot $ModuleId
     if (-not (Test-Path -LiteralPath $p)) { [void](New-Item -ItemType Directory -Path $p -Force) }
     return $p

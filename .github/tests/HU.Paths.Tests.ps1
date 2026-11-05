@@ -33,6 +33,8 @@ Describe 'Datenordner' {
     It 'Modulordner: reservierte und ungueltige Ids werden abgelehnt' {
         $p = Initialize-HUDataPaths -AppRoot $script:App -UserName 'u' -PcName 'pc'
         { Get-HUModuleDataPath -DataRoot $p.DataRoot -ModuleId 'Benutzer' } | Should -Throw
+        { Get-HUModuleDataPath -DataRoot $p.DataRoot -ModuleId 'Postfach' } | Should -Throw
+        { Get-HUModuleDataPath -DataRoot $p.DataRoot -ModuleId 'Wiederherstellung' } | Should -Throw
         { Get-HUModuleDataPath -DataRoot $p.DataRoot -ModuleId '..\x' } | Should -Throw
         { Get-HUModuleDataPath -DataRoot $p.DataRoot -ModuleId '' } | Should -Throw
     }
@@ -128,6 +130,16 @@ Describe 'Regel 3: gemeinsame Datei bearbeiten' {
         $k = @(Get-ChildItem -LiteralPath (Join-Path $script:Dir '_Kopien') -File)
         $k.Count | Should -Be 2
         $k[0].Name | Should -Match '^Liste_\d{8}-\d{6}(_\d+)?\.xlsx$'
+    }
+    It 'Aufraeumen der Kopien laesst fremde Dateien mit gleichem Anfang stehen' {
+        $kd = Join-Path $script:Dir '_Kopien'
+        [void](New-Item -ItemType Directory -Path $kd -Force)
+        foreach ($n in 'Liste_alt.xlsx', 'Liste_Notizen.xlsx', 'Liste_20200101-000000.xlsx') { Set-Content -LiteralPath (Join-Path $kd $n) -Value 'y' }
+        1..3 | ForEach-Object { [void](Backup-HUDataFile -Path $script:File -Keep 1) }
+        Test-Path (Join-Path $kd 'Liste_alt.xlsx') | Should -BeTrue
+        Test-Path (Join-Path $kd 'Liste_Notizen.xlsx') | Should -BeTrue
+        Test-Path (Join-Path $kd 'Liste_20200101-000000.xlsx') | Should -BeFalse
+        @(Get-ChildItem -LiteralPath $kd -File | Where-Object { $_.Name -match '^Liste_\d{8}-\d{6}(_\d+)?\.xlsx$' }).Count | Should -Be 1
     }
     It 'Kopie einer fehlenden Datei liefert leer' {
         Backup-HUDataFile -Path (Join-Path $script:Dir 'fehlt.xlsx') | Should -Be ''

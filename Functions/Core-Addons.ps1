@@ -40,7 +40,7 @@ function Get-HUAddonDataDir([string]$Id) {
 }
 
 # Kennung eines Moduls: Buchstaben/Ziffern, beginnt mit Buchstabe (wird Teil von Funktions- und Ordnernamen)
-function Test-HUAddonId([string]$Id) { return ("$Id" -cmatch '^[A-Za-z][A-Za-z0-9]{1,30}$' -and "$Id" -notin 'Benutzer', 'Laufend', 'Docs', 'Postfach') }
+function Test-HUAddonId([string]$Id) { return ("$Id" -cmatch '^[A-Za-z][A-Za-z0-9]{1,30}$' -and "$Id" -notin 'Benutzer', 'Laufend', 'Docs', 'Postfach', 'Wiederherstellung') }
 function Test-HUAddonRepoName([string]$Owner, [string]$Repo) { return ("$Owner" -match '^[A-Za-z0-9-]{1,39}$' -and "$Repo" -match '^[A-Za-z0-9._-]{1,100}$') }
 
 # --- Tokens (DPAPI) --------------------------------------------------------------------------
