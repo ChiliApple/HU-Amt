@@ -248,6 +248,8 @@ function Get-HUAddonInboxItems([string]$DataRoot, [string]$Id, [string[]]$Extens
         if (-not $name -or $name -ne [IO.Path]::GetFileName($name) -or $name -eq $script:HUInboxEntry) { continue }
         $f = Join-Path $d.FullName $name
         if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { continue }
+        # keine Verknuepfungen (Datei-Symlink wuerde dem Zielmodul eine fremde Datei uebergeben)
+        try { if ((Get-Item -LiteralPath $f -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { continue } } catch { continue }
         if ($ext.Count -and $ext -notcontains [IO.Path]::GetExtension($name).ToLowerInvariant()) { continue }
         $t = $null; try { $t = [datetime]::Parse("$($j.zeit)", [Globalization.CultureInfo]::InvariantCulture) } catch { $t = $d.CreationTime }
         $out += [pscustomobject]@{ Key = $d.Name; Path = $f; Name = $name; From = "$($j.von)"; Pc = "$($j.pc)"; User = "$($j.benutzer)"; Time = $t; Dir = $d.FullName; Inbox = $Id }

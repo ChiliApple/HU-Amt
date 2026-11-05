@@ -175,6 +175,15 @@ Describe 'Postfach zwischen Modulen' {
         Test-Path -LiteralPath $e.Dir | Should -BeFalse
         @(Get-HUAddonInboxItems -DataRoot $script:Data -Id 'Ziel').Count | Should -Be 0
     }
+    It 'laesst Datei-Verknuepfungen aus' {
+        $root = Get-HUAddonInboxRoot $script:Data 'Ziel'
+        $d = Join-Path $root ('c' * 32); [void](New-Item -ItemType Directory -Path $d -Force)
+        [IO.File]::WriteAllText((Join-Path $d 'eintrag.json'), '{"name":"link.pdf","zeit":"2026-11-05T10:00:00"}')
+        $link = Join-Path $d 'link.pdf'
+        try { [void](New-Item -ItemType SymbolicLink -Path $link -Target $script:Src -ErrorAction Stop) }
+        catch { Set-ItResult -Skipped -Because 'Symlink-Recht fehlt auf diesem PC'; return }
+        @(Get-HUAddonInboxItems -DataRoot $script:Data -Id 'Ziel' -Extensions '.pdf').Count | Should -Be 0
+    }
     It 'lehnt ungueltige Kennungen und Eintraege ab' {
         { Get-HUAddonInboxRoot $script:Data '..\x' } | Should -Throw
         { Add-HUAddonInboxItem -DataRoot $script:Data -To 'Ziel' -Path (Join-Path $TestDrive 'fehlt.pdf') } | Should -Throw
