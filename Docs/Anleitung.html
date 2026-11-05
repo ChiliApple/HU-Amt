@@ -1,0 +1,378 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HU-Amt – Anleitung</title>
+<style>
+:root{
+  --bg:#eff1f5;--panel:#ffffff;--panel2:#e6e9ef;--text:#4c4f69;--sub:#6c6f85;--line:#ccd0da;
+  --blue:#1e66f5;--green:#40a02b;--peach:#fe640b;--red:#d20f39;--mauve:#8839ef;--teal:#179299;--yellow:#df8e1d;
+  --accent:#b9a88a;--shadow:0 2px 10px rgba(76,79,105,.08);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11111b;--panel:#1e1e2e;--panel2:#181825;--text:#cdd6f4;--sub:#a6adc8;--line:#313244;
+  --blue:#89b4fa;--green:#a6e3a1;--peach:#fab387;--red:#f38ba8;--mauve:#cba6f7;--teal:#94e2d5;--yellow:#f9e2af;--shadow:0 2px 12px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  --bg:#11111b;--panel:#1e1e2e;--panel2:#181825;--text:#cdd6f4;--sub:#a6adc8;--line:#313244;
+  --blue:#89b4fa;--green:#a6e3a1;--peach:#fab387;--red:#f38ba8;--mauve:#cba6f7;--teal:#94e2d5;--yellow:#f9e2af;--shadow:0 2px 12px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;padding:10px 20px;background:var(--panel);border-bottom:2px solid var(--accent);box-shadow:var(--shadow)}
+header img{width:44px;height:44px}
+header .t{font-size:22px;font-weight:700;line-height:1.1}
+header .s{font-size:12px;color:var(--sub)}
+header .sp{flex:1}
+header .pnav{position:static;height:auto;overflow:visible;padding:0;border:0;display:flex;gap:6px;flex-wrap:wrap}
+header .pnav a{padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:13px;font-weight:600}
+header .pnav a:hover{text-decoration:none;border-color:var(--blue);color:var(--blue)}
+header .pnav a.act{background:var(--text);color:var(--panel);border-color:var(--text)}
+@media (max-width:900px){header .pnav{display:none}}
+#q{width:260px;max-width:40vw;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit}
+.tbtn{padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer;font:inherit}
+.wrap{display:grid;grid-template-columns:270px 1fr;max-width:1400px;margin:0 auto}
+nav{position:sticky;top:66px;align-self:start;height:calc(100vh - 66px);overflow:auto;padding:18px 10px 40px 18px;border-right:1px solid var(--line)}
+nav a{display:block;padding:4px 10px;border-radius:6px;color:var(--text);font-size:14px}
+nav a:hover{background:var(--panel2);text-decoration:none}
+nav a.l2{padding-left:24px;font-size:13px;color:var(--sub)}
+nav a.act{background:var(--panel2);color:var(--blue);font-weight:600}
+main{padding:24px 36px 80px;min-width:0}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 28px;margin:0 0 22px;box-shadow:var(--shadow)}
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:0 0 12px}
+h2 .n{display:inline-grid;place-items:center;width:32px;height:32px;margin-right:10px;vertical-align:2px;border-radius:50%;background:var(--accent);color:#1e1e2e;font-size:15px}
+h3{font-size:17px;margin:22px 0 8px;color:var(--blue)}
+p{margin:8px 0}
+.lead{color:var(--sub);font-size:16px}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{background:var(--panel2);font-weight:600}
+pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;overflow-x:auto;font-size:13px;line-height:1.45;margin:10px 0}
+pre code{background:none;border:0;padding:0}
+tr:hover td{background:color-mix(in srgb,var(--panel2) 55%,transparent)}
+.ui{display:inline-block;padding:0 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);font-size:13px;font-weight:600;white-space:nowrap}
+.ui.g{border-color:var(--green);color:var(--green)}.ui.r{border-color:var(--red);color:var(--red)}.ui.b{border-color:var(--blue);color:var(--blue)}
+.ui.p{border-color:var(--peach);color:var(--peach)}.ui.m{border-color:var(--mauve);color:var(--mauve)}.ui.t{border-color:var(--teal);color:var(--teal)}
+kbd{padding:1px 7px;border-radius:5px;border:1px solid var(--line);border-bottom-width:2px;background:var(--panel2);font:12px Consolas,monospace}
+code{font:13px Consolas,monospace;background:var(--panel2);padding:1px 5px;border-radius:4px}
+.note{border-left:4px solid var(--blue);background:var(--panel2);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+.note.tip{border-color:var(--green)}.note.warn{border-color:var(--peach)}.note.stop{border-color:var(--red)}
+.note b.h{display:block;margin-bottom:2px}
+.steps{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+.steps>li{counter-increment:s;position:relative;padding:4px 0 10px 46px;min-height:36px}
+.steps>li::before{content:counter(s);position:absolute;left:0;top:2px;width:32px;height:32px;border-radius:50%;background:var(--blue);color:var(--panel);display:grid;place-items:center;font-weight:700}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card b{display:block;margin-bottom:4px}
+.card.g{border-top:4px solid var(--green)}.card.b{border-top:4px solid var(--blue)}.card.p{border-top:4px solid var(--peach)}.card.m{border-top:4px solid var(--mauve)}.card.t{border-top:4px solid var(--teal)}.card.r{border-top:4px solid var(--red)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0}
+.flow span{padding:8px 14px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);font-weight:600;font-size:14px}
+.flow i{color:var(--sub);font-style:normal}
+.hide{display:none!important}
+figure{margin:14px 0}figure img{max-width:100%;border-radius:10px;border:1px solid var(--line);box-shadow:var(--shadow);cursor:zoom-in}figure figcaption{color:var(--sub);font-size:13px;margin-top:4px}
+mark{background:var(--yellow);color:#1e1e2e;border-radius:3px}
+footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}nav{display:none}main{padding:16px}section{padding:18px 16px}#q{width:150px}}
+@media print{header,nav,#q,.tbtn{display:none!important}.wrap{display:block}section{box-shadow:none;break-inside:avoid-page}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<header>
+  <img src="../Assets/logo64.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Assets/logo64.png'" alt="">
+  <div><div class="t">HU-Amt</div><div class="s">Werkzeuge für die Gemeindeverwaltung · Anleitung</div></div>
+  <nav class="pnav" aria-label="Seiten"><a href="Einstieg.html">Einstieg</a><a href="Funktionen.html">Funktionen</a><a href="Anleitung.html" class="act">Anleitung</a><a href="https://github.com/ChiliApple/HU-Amt/releases">Download</a></nav>
+  <div class="sp"></div>
+  <input id="q" type="search" placeholder="Suchen … (z. B. Schwärzen, Sicherung, Update)">
+  <button class="tbtn" id="theme" title="Hell / Dunkel">◐</button>
+  <button class="tbtn" onclick="window.print()" title="Drucken / PDF">⎙</button>
+</header>
+<div class="wrap">
+<nav id="toc"></nav>
+<main>
+
+<section id="start">
+  <h1>HU-Amt</h1>
+  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Jeder Reiter ist ein Modul. Dazu Update per Knopf, verschlüsselte Sicherung, Hilfe mit F1 und dunkles Farbschema. Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe.</p>
+  <div class="cards">
+    <div class="card g"><b>⚡ Energiegemeinschaft</b>PDF-Rechnungen auf Kostenstellen verteilen, Excel-Liste, Archiv und Übersicht.</div>
+    <div class="card b"><b>🔍 Texterkennung</b>Gescannte PDFs durchsuchbar machen, sinnvoll benennen und ablegen.</div>
+    <div class="card t"><b>📑 PDF-Werkzeuge</b>Zusammenfügen, teilen, Seiten, schwärzen, verkleinern, Bilder zu PDF, Stempel und Notiz.</div>
+    <div class="card m"><b>💡 Ideen &amp; Wünsche</b>Was es gibt und was kommt, abstimmen und Wünsche melden.</div>
+    <div class="card p"><b>💾 Sicherung</b>Alle Einstellungen und Daten verschlüsselt, auf Wunsch täglich.</div>
+    <div class="card r"><b>🔄 Update</b>Signierte Versionen per Knopf, für Programm und Module.</div>
+  </div>
+  <div class="flow"><span>Pull.ps1 starten</span><i>→</i><span>Verwalter eintragen</span><i>→</i><span>Zugangsdatei hineinziehen</span><i>→</i><span>Sicherung einschalten</span></div>
+  <p>Neu hier? <a href="Einstieg.html">Einstieg</a> zeigt typische Situationen aus dem Alltag, <a href="Funktionen.html">Funktionen</a> alles auf einer Seite.</p>
+</section>
+
+<section id="einrichten">
+  <h2><span class="n">1</span>Einrichten</h2>
+  <div class="note"><b class="h">Voraussetzung</b>Windows 10 oder 11. Windows PowerShell 5.1 ist dabei; ist PowerShell 7 installiert, nimmt HU-Amt es automatisch. Administratorrechte am PC sind nicht nötig. Das Modul Energiegemeinschaft braucht die WebView2-Runtime (in Windows 11 enthalten).</div>
+  <h3 id="installation">Installation</h3>
+  <ol class="steps">
+    <li><code>Pull.ps1</code> in einen <b>leeren</b> Ordner legen, z. B. <code>C:\Tools\HU-Amt</code> oder auf die Netzfreigabe, und ausführen: <code>powershell -ExecutionPolicy Bypass -File Pull.ps1</code>. Lädt die freigegebene Version und prüft jede Datei per Prüfsumme und Signatur.</li>
+    <li><b>Start-HU-Amt.cmd</b> doppelklicken.</li>
+    <li>Beim ersten Start fragt HU-Amt: <i>„Ein Symbol für HU-Amt auf den Desktop legen?“</i> und, wenn es noch nicht angeheftet ist, ob es an die Taskleiste soll. Bei Ja zeigt es, wie das geht: Rechtsklick auf das Symbol in der Taskleiste › <i>An Taskleiste anheften</i> (selbst anheften darf sich ein Programm unter Windows nicht).</li>
+  </ol>
+  <h3 id="freigabe">Auf einer Netzfreigabe</h3>
+  <p>Den Ordner einmal auf die Freigabe legen. Jeder Benutzer startet <code>Start-HU-Amt.cmd</code> von dort und bekommt beim ersten Start die Frage nach dem Desktop-Symbol. Gemeinsame Listen und die Daten der Module liegen im Ordner <code>Data\</code> neben dem Programm, persönliche Einstellungen und Zugangsdaten je Windows-Benutzer.</p>
+  <ul>
+    <li>Jede offene App meldet sich in <code>Data\Laufend</code> an. Nach einem Absturz gibt Windows die Anmeldung von selbst frei.</li>
+    <li>Eine gemeinsame Liste bearbeitet immer nur eine Person. Die anderen sehen <i>„gerade in Bearbeitung von …“</i> und können nur lesen.</li>
+    <li>Vor dem Speichern einer gemeinsamen Liste legt HU-Amt eine Kopie mit Zeitstempel an.</li>
+    <li>Update und Wiederherstellen gehen erst, wenn alle anderen HU-Amt geschlossen haben. Die Meldung nennt, wer es noch offen hat.</li>
+  </ul>
+  <h3 id="verwalter">Verwalter</h3>
+  <p><span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b>: <span class="ui b">Mich hinzufügen</span> oder <span class="ui">Hinzufügen</span> (Windows-Benutzername, ohne Domäne oder als <code>DOMÄNE\Name</code>), <span class="ui r">Markierten entfernen</span> fragt nach und legt vorher eine Kopie der Liste an. Verwalter sehen zusätzlich das Protokoll, die Sicherung, die Update-Einstellungen und die Module. Alle anderen bekommen eine aufgeräumte Oberfläche; das Update per goldenem Knopf geht für alle.</p>
+  <h3 id="zugang">Module eintragen (Zugangsdatei)</h3>
+  <p>Module aus einem privaten Repository bekommt man mit einem Nur-Lese-Token des Herausgebers. Am einfachsten über die Zugangsdatei <code>*.humodule</code>, die alle Repositories und den Token enthält:</p>
+  <ol class="steps">
+    <li>Als Verwalter die Datei ins Hauptfenster ziehen oder <span class="ui">⚙ Einstellungen</span> › <b>Module</b> › <span class="ui">Private Module hinterlegen …</span> › <span class="ui">Datei einlesen …</span>.</li>
+    <li>Die Rückfrage mit der Liste der Repositories bestätigen.</li>
+    <li>HU-Amt prüft jeden Zugang vor dem Speichern und zeigt das Ergebnis je Repository.</li>
+    <li>Sind alle gespeichert, löscht HU-Amt die Datei. Sonst bleibt sie, und die Meldung nennt, was fehlt.</li>
+  </ol>
+  <div class="note warn"><b class="h">Je Windows-Benutzer</b>Der Token wird verschlüsselt nur für den eigenen Windows-Benutzer gespeichert. Jeder Verwalter, der Module aktualisiert, zieht die Zugangsdatei selbst ein. Die Datei wie ein Kennwort behandeln und nicht weitergeben.</div>
+  <h3 id="sicherung">App-Sicherung</h3>
+  <p><span class="ui">⚙ Einstellungen</span> › <b>Sicherung</b> (nur Verwalter): Sicherungsordner wählen (auch Netzfreigabe oder USB, nie im Programmordner), <span class="ui">Kennwort festlegen …</span> – auf Wunsch <i>Für die automatische Sicherung merken</i> (verschlüsselt beim eigenen Windows-Benutzer) –, dann <span class="ui b">Jetzt sichern</span> oder automatisch <i>täglich</i> bzw. <i>wöchentlich</i>. Die Automatik läuft beim Start oder solange die App offen ist; auf der Freigabe sichert der Erste, dem es fällig wird. <i>aufbewahren</i> legt fest, wie viele Sicherungen je PC bleiben.</p>
+  <table>
+    <tr><th>Gesichert</th><th>Nicht gesichert</th></tr>
+    <tr><td>gemeinsame Listen und Einstellungen, Daten aller Module, persönliche Einstellungen und Fensterzustand jedes Benutzers, Verwalter-Liste, welche Module installiert waren</td><td>Protokolle, Zugangsdaten der Module (Token), das gemerkte Kennwort der Sicherung</td></tr>
+  </table>
+  <p>Jede Sicherung wird nach dem Schreiben zurückgelesen und geprüft. <span class="ui">Sicherung prüfen …</span> öffnet eine Datei, ohne etwas zu schreiben. <span class="ui">Wiederherstellen …</span> zeigt die Bereiche zur Auswahl (je Modul, Benutzer, Verwalter, Allgemein; <b>Verwalter ist orange und nicht vorgewählt</b>), fragt noch einmal nach, legt den aktuellen Stand unter <code>Data\Wiederherstellung</code> ab und startet HU-Amt neu. Installierte Module werden danach neu geladen. Die 💾 in der Kopfzeile zeigt den Stand, während der Sicherung den Fortschritt, bei einem Fehler ein „!“.</p>
+  <div class="note stop"><b class="h">Kennwort aufbewahren</b>Ohne Kennwort lässt sich eine Sicherung nicht öffnen. Ein neues Kennwort gilt nur für neue Sicherungen.</div>
+  <h3 id="verkn">Verknüpfung</h3>
+  <p><span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b>: <span class="ui b">🖥 Desktop-Verknüpfung</span>, <span class="ui b">☰ Startmenü-Eintrag</span>, <i>Desktop für alle Benutzer</i> (braucht Administratorrechte) und <span class="ui">Starter neu erstellen</span>. Der Starter <code>HU-Amt.exe</code> im Programmordner hat ein eigenes Logo und kein Konsolenfenster.</p>
+</section>
+
+<section id="oberflaeche">
+  <h2><span class="n">2</span>Oberfläche</h2>
+  <table>
+    <tr><th>Bereich</th><th>Inhalt</th></tr>
+    <tr><td>Kopfzeile</td><td>Logo, Name, Version und Kanal. Rechts <span class="ui">⚙ Einstellungen</span>, <span class="ui">🛟 Support</span>, <span class="ui">?</span> Anleitung und <span class="ui">Update</span>. Für Verwalter die 💾 der Sicherung.</td></tr>
+    <tr><td>Reiter</td><td>Jedes Modul ein Reiter. Oben im Reiter steht in einem Satz, was er tut. Der große farbige Knopf ist der Hauptknopf, alles andere ist kleiner oder unter <span class="ui">⚙ Einstellungen</span> im Reiter. Ohne Modul gibt es nur den Reiter <i>Start</i>.</td></tr>
+    <tr><td>Reihenfolge</td><td>Reiter mit der Maus verschieben; die Reihenfolge bleibt beim nächsten Start. Rechtsklick auf einen Reiter: Reihenfolge zurücksetzen.</td></tr>
+    <tr><td>Protokoll</td><td>Nur für Verwalter, neueste Einträge oben. Höhe am Griff ziehen.</td></tr>
+  </table>
+  <p><span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b>: <i>Reiter beim Start</i> (z. B. zuletzt verwendeter), <i>Oberflächengröße</i>, <i>Startanimation</i>. Nur Verwalter: <i>PowerShell beim Start</i> (Automatisch, PowerShell 7 oder Windows PowerShell 5.1) und <i>Protokoll-Stufe</i> mit Log-Ordner.</p>
+  <div class="note tip"><b class="h">Bleibt gespeichert</b>Fensterposition und -größe, Höhe des Protokolls, Reihenfolge der Reiter, letzter Reiter und die Einstellungen der Module – je Windows-Benutzer in <code>Data\Benutzer\&lt;Name&gt;</code>. <kbd>Strg</kbd> + Mausrad skaliert die Oberfläche, <kbd>Strg</kbd>+<kbd>0</kbd> = 100 %.</div>
+</section>
+
+<section id="dateien-ziehen">
+  <h2><span class="n">3</span>Dateien hineinziehen und weitergeben</h2>
+  <ul>
+    <li>Dateien aus dem Explorer ins Fenster ziehen: Sie gehen an den offenen Reiter.</li>
+    <li>Passt die Datei nicht zu diesem Reiter, aber zu genau einem anderen, wechselt HU-Amt dorthin.</li>
+    <li>Reiter können Dateien an andere Reiter weitergeben, z. B. die Texterkennung an die Energiegemeinschaft. Die Datei kommt als Kopie ins Postfach des Ziels im gemeinsamen Datenordner – das klappt auch von einem anderen PC aus. Am Reiter steht die Zahl wartender Dateien, z. B. „Energiegemeinschaft (3)“; sie wird jede Minute neu gezählt.</li>
+    <li>Ob und wohin weitergegeben wird, legst du im Modul fest. Am Inhalt wird nichts erraten.</li>
+    <li>Ergebnisse landen in einem festen Ordner; <span class="ui">Ordner öffnen</span> zeigt ihn. Für andere Programme schreibt jedes Modul in seinen Übergabeordner: Dateien erscheinen erst fertig geschrieben, mit Zeitstempel im Namen, nichts wird überschrieben.</li>
+  </ul>
+</section>
+
+<section id="eg">
+  <h2><span class="n">4</span>Energiegemeinschaft</h2>
+  <p>Reiter <span class="ui">⚡ Energiegemeinschaft</span>: PDF-Rechnungen hineinziehen, verarbeiten und als Excel exportieren.</p>
+  <figure><a href="screenshot-energiegemeinschaft.png"><img src="screenshot-energiegemeinschaft.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-energiegemeinschaft.png'" style="max-width:620px;width:100%" alt="Reiter Energiegemeinschaft"></a><figcaption>Ablage, Protokoll und Übersicht in der Seitenleiste (Testdaten).</figcaption></figure>
+  <h3 id="eg-rechnungen">Rechnungen verarbeiten</h3>
+  <ol class="steps">
+    <li>Oben rechts den Stand der Kostenstellenliste prüfen: grün = geladen, orange = fehlt.</li>
+    <li>PDFs auf die Ablage ziehen oder auf die Ablage klicken und auswählen; × nimmt eine Datei wieder heraus. Liegen Rechnungen im Postfach, zeigt der Reiter <i>📬 n neue Rechnung(en)</i> – <span class="ui">📥 Laden</span> legt sie in die Ablage.</li>
+    <li><span class="ui b">Verarbeitung starten</span>: Je Rechnung erscheinen Kacheln (Rechnungsnummer, Format, Positionen, Zugeordnet, Netto, Differenz) und eine Tabelle der Positionen. Positionen ohne Kostenstelle stehen orange als <i>Nicht zugeordnet</i>.</li>
+    <li><span class="ui g">Excel exportieren …</span>: ohne Rückfrage in den Export-Ordner (Standard <code>Downloads\Energiegemeinschaft</code>), auf Wunsch <i>Nach dem Export in Excel öffnen</i>. Die Datei hat das Blatt <i>Zusammenfassung</i> und je Rechnung ein eigenes Blatt.</li>
+  </ol>
+  <p>Unterstützt werden zwei Rechnungsformate: Rechnungen mit Zählpunkten und Sammelrechnungen mit Anlagennummern.</p>
+  <h3 id="eg-kst">Kostenstellen</h3>
+  <p><span class="ui">📋 Kostenstellen …</span> öffnet den Editor mit den Reitern <b>Zuordnungen</b> (Art, Nummer, Kostenstelle, Bezeichnung) und <b>Kostenstellen</b> (Bezeichnung, Haushaltsstelle). Doppelklick oder <kbd>F2</kbd> bearbeitet eine Zelle, dazu <span class="ui">Zeile hinzufügen</span>, <span class="ui">Zeile löschen</span> und <span class="ui">Suchen</span>. <span class="ui">Excel importieren …</span> zeigt vorher, was neu, entfernt oder geändert ist; <span class="ui">Excel exportieren …</span> schreibt die Liste hinaus. <span class="ui g">Speichern</span> nur für Verwalter: doppelte Nummern oder fehlende Angaben sperren das Speichern, die bisherige Liste wird vorher gesichert.</p>
+  <h3 id="eg-archiv">Archiv und Lücken</h3>
+  <ul>
+    <li>Jede verarbeitete Rechnung kommt ins Archiv, nach Jahr geordnet. Dieselbe Rechnung noch einmal ersetzt die alte.</li>
+    <li><span class="ui">📥 Bestand einlesen …</span>: einen Ordner samt Unterordnern übernehmen, PDFs in Paketen zu 20, abbrechbar. Danach eine Liste, was nicht ging.</li>
+    <li><span class="ui">🔎 Lücken …</span> zeigt fehlende Monate je Zählpunkt bzw. Anlage, z. B. „fehlt: März 2026“. Ändert nichts.</li>
+    <li>Alte Excel-Exporte übernimmt <span class="ui">Aus Excel übernehmen …</span> oder Hineinziehen.</li>
+    <li><span class="ui r">Entfernen</span> (nur Verwalter) legt die Rechnung in <code>_Entfernt</code>.</li>
+  </ul>
+  <h3 id="eg-uebersicht">Übersicht</h3>
+  <p>Die Seitenleiste zeigt Netto gegen dieselben Monate im Vorjahr, die Zahl der Rechnungen, Säulen je Monat und die fünf Spitzenverbraucher. Breite am Griff ziehen, <span class="ui">📊 Übersicht ausblenden</span>. <i>● live</i>: Rechnungen anderer erscheinen nach spätestens 10 Sekunden.</p>
+  <p><span class="ui b">Große Übersicht öffnen ↗</span>: Auswahl nach Jahr, Monat, Betrag (Netto oder Brutto) und Rangliste (Kosten je Anlage, je Kostenstelle, größte Steigerung). Dazu Top 10, Verlauf, Vorjahresvergleich, Anteile und die Liste der Rechnungen. <span class="ui">🖨 Drucken</span> im Querformat, auch als PDF; <kbd>Esc</kbd> schließt.</p>
+  <figure><a href="screenshot-uebersicht.png"><img src="screenshot-uebersicht.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-uebersicht.png'" style="max-width:620px;width:100%" alt="Große Übersicht"></a><figcaption>Große Übersicht mit Vorjahresvergleich und Anteilen (Testdaten).</figcaption></figure>
+  <h3 id="eg-einst">Einstellungen</h3>
+  <table>
+    <tr><th>Reiter</th><th>Inhalt</th></tr>
+    <tr><td>Pfade</td><td>Excel-Export, Ergebnisse (JSON), Ordner der Kostenstellenliste (nur Verwalter)</td></tr>
+    <tr><td>Export</td><td>Dateiname mit Platzhaltern <code>{name}</code>, <code>{rechnung}</code>, <code>{monat}</code>, <code>{datum}</code>; je Abrechnungsmonat ein Unterordner; verarbeitete PDFs neben die Excel-Datei; Nummer anhängen oder überschreiben; in Excel öffnen; im Explorer zeigen</td></tr>
+    <tr><td>Aufbewahrung</td><td>Ergebnisse (Standard 100), Kopien der Kostenstellenliste (Standard 20, nur Verwalter)</td></tr>
+  </table>
+</section>
+
+<section id="ocr">
+  <h2><span class="n">5</span>Texterkennung</h2>
+  <p>Reiter <span class="ui">🔍 Texterkennung</span>: Gescannte PDFs werden durchsuchbar gemacht, benannt und abgelegt. PDFs hineinziehen für sofortige Texterkennung.</p>
+  <h3 id="ocr-werkzeuge">Werkzeuge laden</h3>
+  <p>Beim ersten Mal steht oben <i>„Werkzeuge: noch nicht auf diesem PC“</i> – <span class="ui b">Werkzeuge laden</span>. Geladen werden etwa 200 MB je PC und Windows-Benutzer. Jede Datei wird gegen eine Prüfsumme geprüft, dann folgt eine Probe-Erkennung; danach steht <i>„Werkzeuge: Paket … bereit“</i>. Ein neues Werkzeugpaket kommt mit dem Modul-Update, wird im Hintergrund geladen und erst nach erfolgreicher Probe aktiv.</p>
+  <h3 id="ocr-ordner">Überwachte Ordner</h3>
+  <ol class="steps">
+    <li><span class="ui">📁 Ordner …</span> › <span class="ui">+ Für alle</span> (nur Verwalter, z. B. eine Freigabe) oder <span class="ui">+ Nur dieser PC</span>.</li>
+    <li>Name, Eingang und Ausgang (leer = Übergabeordner) eintragen, <i>Aktiv</i> anhaken. Unter <i>Danach an</i> auf Wunsch ein anderes Modul wählen.</li>
+    <li>Dateinamen aus Bausteinen zusammensetzen: Datum, Zeit, Original, Ordner, Seiten, PC und <i>Text aus dem Dokument …</i> (Muster). <span class="ui">Mit einer PDF prüfen …</span> zeigt eine Vorschau.</li>
+  </ol>
+  <p>Gibt es den Namen schon, kommt <code>_2</code>, <code>_3</code> dazu. Gleicher Ein- und Ausgang wird gesperrt. Vor dem Speichern wird die bisherige Liste gesichert.</p>
+  <h3 id="ocr-alltag">Im Alltag</h3>
+  <ul>
+    <li>Die Ordnerliste zeigt <i>Wartend</i>, <i>In Arbeit</i> und <i>Hinweis</i>; Doppelklick öffnet den Eingang.</li>
+    <li>Zuletzt verarbeitete Dateien aller PCs mit <span class="ui">Ergebnis öffnen</span>, <span class="ui">Original öffnen</span>, <span class="ui">Ordner öffnen</span>. <span class="ui">Weitergeben …</span> gibt die PDF an ein anderes Modul.</li>
+    <li>Kein fester OCR-PC: Jede Datei holt genau ein PC mit offenem HU-Amt ab – erst, wenn der Scanner fertig ist. Die Ordner werden alle 15 Sekunden abgefragt.</li>
+    <li>Originale kommen nach <code>processed</code>, fehlerhafte Dateien nach <code>quarantine</code> mit einer <code>.fehler.txt</code>. Liegengebliebene Dateien (über 2 Stunden bei einem anderen PC) gibt ein Verwalter mit <span class="ui">Zurückgeben</span> frei.</li>
+    <li><span class="ui">⏸ Überwachung anhalten</span> hält nur diesen PC an.</li>
+    <li>Hineinziehen oder <span class="ui">📄 PDFs auswählen …</span>: Das Ergebnis heißt standardmäßig <code>Name_OCR.pdf</code> und liegt neben dem Original.</li>
+  </ul>
+  <div class="note warn"><b class="h">Grenzen</b>Nur PDF, keine Bilder (dafür: PDF-Werkzeuge › Bilder zu PDF). Läuft nur bei offener App. Seiten werden nur gedreht, wenn die Erkennung sicher ist.</div>
+</section>
+
+<section id="pdf">
+  <h2><span class="n">6</span>PDF-Werkzeuge</h2>
+  <p>Reiter <span class="ui">📑 PDF-Werkzeuge</span>: PDFs oder Bilder hineinziehen, oben die Aktion wählen, unten speichern. Die Originale bleiben immer unverändert.</p>
+  <ol class="steps">
+    <li>Dateien ziehen oder <span class="ui">+ Hinzufügen …</span>. Beim Hineinziehen kommt ein Vorschlag: mehrere PDFs › Zusammenfügen, eine PDF › Seiten, Bilder › Bilder zu PDF.</li>
+    <li>Oben eine der Aktionen wählen, rechts die Optionen einstellen.</li>
+    <li><span class="ui g">Speichern</span>: neben das Original oder in einen festen Ordner, bei gleichem Namen mit <code>_2</code>, <code>_3</code>.</li>
+  </ol>
+  <p>Die Dateiliste zeigt Vorschau, Seiten, Größe und Hinweis. Reihenfolge per Ziehen oder ↑ ↓, Doppelklick öffnet die Datei, Klick auf die Vorschau zeigt alle Seiten groß.</p>
+  <figure><a href="screenshot-pdf-werkzeuge.png"><img src="screenshot-pdf-werkzeuge.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-pdf-werkzeuge.png'" style="max-width:620px;width:100%" alt="PDF-Werkzeuge"></a><figcaption>Aktion Seiten: drehen, löschen, mit der Maus umsortieren.</figcaption></figure>
+  <table>
+    <tr><th>Aktion</th><th>Wirkung</th></tr>
+    <tr><td><span class="ui">🔗 Zusammenfügen</span></td><td>alle Dateien in einer PDF, auf Wunsch je Datei ein Lesezeichen mit dem Dateinamen</td></tr>
+    <tr><td><span class="ui">✂ Teilen</span></td><td>nach Seitenbereichen (z. B. <code>1-3, 5, 8-</code>), jede Seite einzeln oder nach Lesezeichen; die Teile kommen in den Ordner <code>&lt;Name&gt;_geteilt</code></td></tr>
+    <tr><td><span class="ui">📄 Seiten</span></td><td>drehen, löschen, zurücksetzen, mit der Maus umsortieren (mehrere mit <kbd>Strg</kbd> oder <kbd>Umschalt</kbd>)</td></tr>
+    <tr><td><span class="ui">⬛ Schwärzen</span></td><td>siehe unten</td></tr>
+    <tr><td><span class="ui">📧 Verkleinern</span></td><td>Bildschirm (72 dpi), Mail (empfohlen, 150 dpi), Druck (300 dpi); vorher, nachher, Ersparnis. Wird eine Datei nicht kleiner, wird sie nicht gespeichert.</td></tr>
+    <tr><td><span class="ui">🖼 Bilder zu PDF</span></td><td>JPG und PNG, Handyfotos werden gedreht; Seitengröße wie das Bild oder A4; auf Wunsch mit Texterkennung</td></tr>
+    <tr><td><span class="ui">📬 Eingangsstempel</span></td><td>Text, Kürzel, Position, Farbe, Größe, Rahmen, erste oder alle Seiten; Vorlagen für sich oder (Verwalter) für alle</td></tr>
+    <tr><td><span class="ui">🗒 Notiz</span></td><td>Notizzettel aufziehen und beschriften; bleibt in Acrobat eine bearbeitbare Anmerkung</td></tr>
+  </table>
+  <h3 id="pdf-schwaerzen">Schwärzen</h3>
+  <ol class="steps">
+    <li>Suchbegriffe eintragen, je Zeile einen, und <span class="ui">🔎 Suchen</span> – oder ein Muster (Regex). Treffer lassen sich einzeln abwählen.</li>
+    <li>Weitere Stellen mit <span class="ui">🖱 Mit der Maus markieren …</span>: Rahmen aufziehen, Rechtsklick entfernt ihn.</li>
+    <li>Auf Wunsch <i>Danach Texterkennung</i> (geschwärzte Seiten bleiben durchsuchbar) oder <i>Alle Seiten rastern</i> (am sichersten, Datei wird größer).</li>
+    <li><span class="ui g">Speichern</span>: Vorher wird geprüft. Besteht die Prüfung nicht, wird nichts gespeichert.</li>
+  </ol>
+  <p>Formularfelder, Kommentare, Lesezeichen, Anhänge und Eigenschaften werden beim Schwärzen immer entfernt.</p>
+  <h3 id="pdf-notiz">Notizzettel</h3>
+  <ol class="steps">
+    <li>Text, Farbe und Schrift wählen oder eine Vorlage. Bausteine: <code>{Datum}</code>, <code>{Zeit}</code>, <code>{Kürzel}</code>, <code>{Benutzer}</code>.</li>
+    <li><span class="ui">🗒 Zettel setzen …</span>: Zettel aufziehen, verschieben oder am Eck die Größe ändern; Rechtsklick entfernt ihn.</li>
+    <li><span class="ui">Übernehmen</span>, dann speichern. Das Ergebnis heißt <code>Name_notiz.pdf</code>.</li>
+  </ol>
+  <div class="note"><b class="h">Geschützte PDFs</b>Das Kennwort wird beim Hineinziehen abgefragt und nirgends gespeichert. Das Ergebnis ist nicht mehr geschützt.</div>
+  <div class="note warn"><b class="h">Gut zu wissen</b>Die PDF-Werkzeuge nutzen die Werkzeuge der Texterkennung. Fehlen sie, ist <span class="ui">Speichern</span> gesperrt und nennt den Grund. Kein HEIC. Auf geschwärzten Seiten gehen Formularfelder und Links verloren.</div>
+</section>
+
+<section id="roadmap">
+  <h2><span class="n">7</span>Ideen &amp; Wünsche</h2>
+  <p>Reiter <span class="ui">💡 Ideen &amp; Wünsche</span>: Was es gibt, was kommt und woran gerade gearbeitet wird. Mit 👍 zeigst du, was du auch brauchst.</p>
+  <figure><a href="screenshot-ideen.png"><img src="screenshot-ideen.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-ideen.png'" style="max-width:620px;width:100%" alt="Ideen und Wünsche"></a><figcaption>Liste mit Status und Abstimmung, darunter die eigenen Wünsche.</figcaption></figure>
+  <ul>
+    <li>Status: 🔨 In Arbeit, 🧪 Im Test, 📋 Geplant, 💡 Idee, ✅ Fertig, ⏸ Zurückgestellt. In Arbeit und Im Test stehen oben, dann nach Stimmen.</li>
+    <li>Filter <i>Anzeigen:</i>, rotes <i>Neu</i> seit dem letzten Besuch.</li>
+    <li><span class="ui">👍 Brauch ich auch</span>: eine Stimme je Person und Eintrag, ein zweiter Klick nimmt sie zurück. Der Tooltip zeigt, wer gestimmt hat.</li>
+  </ul>
+  <h3 id="rm-wunsch">Wunsch oder Feedback</h3>
+  <ol class="steps">
+    <li><span class="ui b">✉ Wunsch oder Feedback</span>.</li>
+    <li>Art wählen (Wunsch, Fehler, Frage, Lob/Sonstiges), dazu Betrifft, Wie wichtig, Text und Name. Auf Wunsch einen Anhang hineinziehen oder <span class="ui">Datei wählen …</span>.</li>
+    <li><span class="ui g">✉ Absenden</span> – damit ist der Eintrag gespeichert. Die Mail öffnet sich im Mailprogramm, dort auf Senden klicken (Anhang nur mit Outlook klassisch).</li>
+  </ol>
+  <p>Unten stehen alle Feedbacks mit Status (neu, gelesen, übernommen, erledigt, abgelehnt) und Antwort; <i>nur meine</i> filtert, Doppelklick zeigt alles. Die Liste lädt alle 90 Sekunden neu, sofort mit <span class="ui">⟳ Aktualisieren</span>.</p>
+  <h3 id="rm-verwaltung">Verwaltung</h3>
+  <p><span class="ui">🛠 Verwaltung</span> (Verwalter): Reiter <b>Einträge der Liste</b> mit <span class="ui">+ Neu</span>, <span class="ui">Bearbeiten …</span>, <span class="ui">▲ Hoch</span>, <span class="ui">▼ Runter</span>, <span class="ui r">Löschen …</span>; Reiter <b>Feedbacks</b> mit Status, <span class="ui">Antwort speichern</span>, <span class="ui">Anhang öffnen</span> und <span class="ui">💡 Als neue Idee übernehmen</span>; Reiter <b>Übersicht</b>. Solange das Fenster offen ist, kann kein anderer Verwalter die Liste ändern. <span class="ui">⚙ Einstellungen</span>: Empfänger, Anhänge bis (MB), Mailweg.</p>
+</section>
+
+<section id="update">
+  <h2><span class="n">8</span>Update</h2>
+  <p>Beim Start sucht HU-Amt im Hintergrund nach Updates; bei einer neuen Version wird <span class="ui">Update</span> gold. Klick: HU-Amt schließt sich, <code>Pull.ps1</code> lädt die neue Version ganz, prüft jede Datei gegen die Prüfsummen-Liste und die Signatur des Herausgebers und ersetzt erst dann. Bei einem Fehler bleibt alles, wie es war. Danach startet HU-Amt neu. <code>Data\</code> und lokale Einstellungen werden nie angefasst.</p>
+  <table>
+    <tr><th>Rechtsklick auf Update</th><th>Wirkung</th></tr>
+    <tr><td>Jetzt nach Updates suchen</td><td>sofort prüfen</td></tr>
+    <tr><td>Info …</td><td>Version, Kanal, Prüfung der installierten Version</td></tr>
+    <tr><td>Andere Version / Vorversion installieren …</td><td>Liste aller Releases (nur Verwalter)</td></tr>
+    <tr><td>Kanal: Testversionen annehmen</td><td>Häkchen = Kanal <b>Test</b>, auch Vorab-Versionen (nur Verwalter)</td></tr>
+    <tr><td>Module (private Repositories) …</td><td>Zugänge der Module hinterlegen oder entfernen (nur Verwalter)</td></tr>
+  </table>
+  <p><span class="ui">⚙ Einstellungen</span> › <b>Update</b>: <i>Beim Start nach Updates suchen</i>, <span class="ui">Jetzt prüfen</span>, Kanal <i>Stabil</i> (freigegebene Versionen) oder <i>Test</i> (auch Vorab-Versionen), <i>Nur signierte Updates installieren (empfohlen)</i>.</p>
+  <div class="note"><b class="h">Module</b>Module aus privaten Repositories werden nur als signierte Fassung geladen und genauso aktuell gehalten: <span class="ui">⚙ Einstellungen</span> › <b>Module</b> zeigt die geladenen Module mit Version und Herkunft, <span class="ui">Module jetzt aktualisieren</span> holt die neueste signierte Fassung. Eine neue Fassung wirkt nach dem nächsten Neustart.</div>
+</section>
+
+<section id="support">
+  <h2><span class="n">9</span>Hilfe und Support</h2>
+  <p><kbd>F1</kbd> oder <span class="ui">?</span> öffnet die Hilfe zum aktuellen Reiter, Rechtsklick auf <span class="ui">?</span> die Übersicht.</p>
+  <ol class="steps">
+    <li><span class="ui">🛟 Support</span>: aufschreiben, was passiert ist (Schritte, Fehlermeldung, erwartetes Ergebnis).</li>
+    <li>Unter <i>Mitsenden</i> wählen: Protokolle (3 Tage) und Ausgaben, Einstellungen (ohne Kennwörter), <i>Anonymisieren (empfohlen)</i>.</li>
+    <li><span class="ui">ZIP erstellen und ansehen</span> oder <span class="ui b">Per E-Mail senden</span>. Das ZIP liegt auf dem Desktop.</li>
+  </ol>
+  <p>Anonymisiert werden E-Mail-Adressen, IDs, IP-Adressen, der Programmordner, Benutzer und PC. Nie enthalten: Daten der Module, Kennwörter, Tokens, Sicherungen.</p>
+</section>
+
+<section id="ordner">
+  <h2><span class="n">10</span>Dateien</h2>
+  <table>
+    <tr><th>Pfad</th><th>Inhalt</th></tr>
+    <tr><td><code>Data\&lt;Modul&gt;\</code></td><td>Daten der Module, gemeinsam für alle Benutzer, in der Sicherung enthalten</td></tr>
+    <tr><td><code>Data\Benutzer\&lt;Name&gt;\</code></td><td>persönliche Einstellungen und Fensterzustand, Zugänge der Module (verschlüsselt)</td></tr>
+    <tr><td><code>Data\Postfach\&lt;Modul&gt;\</code></td><td>Dateien, die andere Module weitergegeben haben</td></tr>
+    <tr><td><code>Data\Verwalter.txt</code></td><td>Liste der Verwalter</td></tr>
+    <tr><td><code>Data\Laufend\</code></td><td>wer HU-Amt gerade offen hat</td></tr>
+    <tr><td><code>Data\Wiederherstellung\</code></td><td>Stand vor dem letzten Wiederherstellen</td></tr>
+    <tr><td><code>Addons\</code> · <code>AddonsDev\</code></td><td>Module aus privaten Repositories (signiert) · Module in Entwicklung</td></tr>
+    <tr><td><code>Config\update.json</code></td><td>Update-Kanal, Signaturpflicht</td></tr>
+    <tr><td><code>*.husicherung</code></td><td>App-Sicherung (verschlüsselt) im gewählten Sicherungsordner</td></tr>
+  </table>
+</section>
+
+<section id="tasten">
+  <h2><span class="n">11</span>Tastenkürzel</h2>
+  <table>
+    <tr><th>Taste</th><th>Wirkung</th></tr>
+    <tr><td><kbd>F1</kbd></td><td>Hilfe zum aktuellen Reiter</td></tr>
+    <tr><td><kbd>Strg</kbd> + Mausrad · <kbd>Strg</kbd>+<kbd>0</kbd></td><td>Oberfläche größer/kleiner · 100 %</td></tr>
+    <tr><td><kbd>F2</kbd></td><td>Zelle bearbeiten (Kostenstellen-Editor)</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>große Übersicht schließen</td></tr>
+  </table>
+</section>
+
+<footer>HU-Amt · Nutzungslizenz siehe LICENSE · Diese Anleitung wird mit jedem Update aktualisiert</footer>
+
+</main>
+</div>
+<script>
+(function(){
+  var toc=document.getElementById('toc'),secs=[].slice.call(document.querySelectorAll('main section'));
+  secs.forEach(function(s){
+    var h=s.querySelector('h2,h1');var a=document.createElement('a');a.href='#'+s.id;a.textContent=h.textContent.replace(/^\d+/,'').trim();a.dataset.s=s.id;toc.appendChild(a);
+    [].slice.call(s.querySelectorAll('h3[id]')).forEach(function(h3){var b=document.createElement('a');b.href='#'+h3.id;b.className='l2';b.textContent=h3.textContent;toc.appendChild(b);});
+  });
+  var links=[].slice.call(toc.querySelectorAll('a[data-s]'));
+  function spy(){var cur=secs[0].id;secs.forEach(function(s){if(s.getBoundingClientRect().top<120)cur=s.id;});links.forEach(function(l){l.classList.toggle('act',l.dataset.s===cur);});}
+  window.addEventListener('scroll',spy,{passive:true});spy();
+  var root=document.documentElement,tb=document.getElementById('theme');
+  try{var t=localStorage.getItem('huamt-theme');if(t)root.setAttribute('data-theme',t);}catch(e){}
+  tb.onclick=function(){var dark=root.getAttribute('data-theme')?root.getAttribute('data-theme')==='dark':matchMedia('(prefers-color-scheme: dark)').matches;var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('huamt-theme',n);}catch(e){}};
+  var q=document.getElementById('q'),orig=secs.map(function(s){return s.innerHTML;});
+  q.addEventListener('input',function(){
+    var v=q.value.trim().toLowerCase();
+    secs.forEach(function(s,i){
+      s.innerHTML=orig[i];
+      if(!v){s.classList.remove('hide');return;}
+      var hit=s.textContent.toLowerCase().indexOf(v)>=0;s.classList.toggle('hide',!hit);
+      if(hit){var w=document.createTreeWalker(s,NodeFilter.SHOW_TEXT,null,false),n,list=[];while(n=w.nextNode())if(n.nodeValue.toLowerCase().indexOf(v)>=0)list.push(n);
+        list.forEach(function(n){var i2=n.nodeValue.toLowerCase().indexOf(v);var m=document.createElement('mark');var r=n.splitText(i2);r.splitText(v.length);m.textContent=r.nodeValue;r.parentNode.replaceChild(m,r);});}
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -73,7 +73,7 @@ Describe 'Hilfe' {
     }
     It 'mitgelieferte Grundhilfe ist vorhanden und dunkel' {
         $t = [IO.File]::ReadAllText((Join-Path $script:Root 'Docs\Grundhilfe.html'), [Text.Encoding]::UTF8)
-        $t | Should -Match '<html lang="de">'
-        $t | Should -Match '#1E1E1E'
+        $t | Should -Match '<html lang="de"'
+        $t | Should -Match 'data-theme="dark"'
     }
 }
