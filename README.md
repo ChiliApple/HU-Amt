@@ -1,44 +1,59 @@
-﻿# HU-Amt
+﻿<h1 align="center"><img src="Assets/logo64.png" width="44" alt="" align="absmiddle"/> HU-Amt</h1>
 
-Werkzeuge für die Gemeindeverwaltung: ein Fenster mit Reitern, jeder Reiter ein Modul. Dazu Update per Knopf, Sicherung, Hilfe und dunkles Farbschema.
+<p align="center"><b>Werkzeuge für die Gemeindeverwaltung – aus einem Fenster</b><br>
+Jeder Reiter ist ein Modul: mitgeliefert oder signiert aus einem eigenen Repository. Dazu Update per Knopf, verschlüsselte Sicherung aller Einstellungen, Hilfe mit F1 und dunkles Farbschema.<br>
+Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe, für mehrere Bedienstete gleichzeitig.</p>
 
-- Windows 10/11, Windows PowerShell 5.1 oder PowerShell 7
-- ohne Installation, läuft aus einem Ordner am PC oder auf einer Freigabe
+<p align="center">
+  <a href="https://github.com/ChiliApple/HU-Amt/releases/latest"><img src="https://img.shields.io/github/v/release/ChiliApple/HU-Amt?include_prereleases&label=Version&color=b9a88a" alt="Version"></a>
+  <img src="https://img.shields.io/badge/PowerShell-5.1%20%7C%207-5391FE?logo=powershell&logoColor=white" alt="PowerShell 5.1 | 7">
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6" alt="Windows 10 | 11">
+  <img src="https://img.shields.io/badge/Oberfl%C3%A4che-WPF-8839ef" alt="WPF">
+  <img src="https://img.shields.io/badge/Updates-signiert-2E7D32" alt="Updates signiert">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Lizenz-Nutzung%20frei-orange" alt="Lizenz"></a>
+</p>
 
-## Schnellstart
+<p align="center">
+  <a href="https://chiliapple.github.io/HU-Amt/Docs/Grundhilfe.html"><b>Hilfe</b></a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#auf-einer-netzfreigabe">Netzfreigabe</a> ·
+  <a href="MODULE-DEVELOPMENT.md">Module entwickeln</a> ·
+  <a href="CHANGELOG.md">Änderungen</a> ·
+  <a href="LICENSE">Lizenz</a>
+</p>
 
-1. Ordner herunterladen und entpacken, z. B. nach `C:\Tools\HU-Amt`.
-2. `Start-HU-Amt.cmd` doppelklicken.
+---
 
-## Für Module: Datei-Austausch mit anderen Programmen
+## Was es kann
 
-Module schreiben keine eigenen CSV-Dateien, sondern nutzen den Kern (`Core\HU.Exchange.psm1`):
+- **Module als Reiter:** Jedes Werkzeug ist ein eigener Reiter. Die Reiter lassen sich mit der Maus verschieben, die Reihenfolge bleibt gespeichert.
+- **Dateien hineinziehen:** PDF- oder Excel-Dateien aufs Fenster ziehen, das passende Modul übernimmt sie. Module können Dateien auch an andere Module weitergeben.
+- **Update per Knopf:** Programm und Module kommen als signierte Releases von GitHub. Jede Datei wird vor dem Ersetzen geprüft, bei einer Abweichung bleibt alles, wie es war.
+- **Sicherung:** Einstellungen, Daten und Module werden verschlüsselt gesichert und lassen sich wiederherstellen.
+- **Beim nächsten Start wie beim Schließen:** Fenster, Reiter und Einstellungen jedes Benutzers bleiben erhalten.
+- **Ansichten:** Verwalter richtet ein, Bedienstete arbeiten.
 
-- **`Export-HUTable` / `Import-HUTable` mit Profil:** Trennzeichen, Kodierung (`utf8bom`, `utf8`, `windows-1252`), Dezimalzeichen, Datumsformat und Spalten (`Name` in der Datei, `Source` im Programm, `Type` = `text`, `number` oder `date`).
-  - Vorgaben: `;`, Dezimalkomma, `dd.MM.yyyy`, UTF-8 mit BOM. Unter PowerShell 5.1 und 7 entstehen dieselben Bytes.
-  - Profile liegen als JSON in `Data\<Modul>\Profile\` (`Get-HUTableProfileFolder`, `Get-HUTableProfiles`). Ein neues Zielformat ist nur eine Datei.
-- **Übergabeordner:** `Export-HUHandoverTable` schreibt in `Data\<Modul>\Ausgang\` oder in den eingestellten Ordner (`Set-HUHandoverFolder`, auch eine Freigabe).
-  - Die Datei entsteht unter einem Temp-Namen und wird erst fertig umbenannt; der Name trägt einen Zeitstempel, nichts wird überschrieben.
+## Installation
 
-Beispiel:
+1. `Pull.ps1` in einen leeren Ordner legen, z. B. `C:\Tools\HU-Amt`, und ausführen:
+   `powershell -ExecutionPolicy Bypass -File Pull.ps1`
+2. **Start-HU-Amt.cmd** doppelklicken.
+3. Beim ersten Start fragt das Programm, ob es eine Verknüpfung auf den Desktop oder in die Taskleiste legen soll.
 
-```powershell
-$p = New-HUTableProfile -Columns @(@{ Name = 'Beleg'; Source = 'Nr' }, @{ Name = 'Betrag'; Type = 'number' }, @{ Name = 'Datum'; Type = 'date' })
-Export-HUHandoverTable -Rows $rows -TableProfile $p -DataRoot $script:DataRoot -ModuleId 'Beispiel' -BaseName 'Liste'
-```
+Voraussetzungen: Windows 10 oder 11, Windows PowerShell 5.1 (vorhanden) oder PowerShell 7.
 
-## Für Module: Dateien an andere Module weitergeben
+## Auf einer Netzfreigabe
 
-Der Kern hat ein Postfach je Modul im gemeinsamen Datenordner (`Data\Postfach\<Modul>\`). Nur einbauen, wenn die Funktionen vorhanden sind (`Get-Command`).
+- Den Ordner einmal auf die Freigabe legen. Jeder Benutzer startet `Start-HU-Amt.cmd` von dort und bekommt beim ersten Start die Frage nach der Verknüpfung.
+- Daten liegen gemeinsam im Ordner `Data\`, Einstellungen und Zugangsdaten je Windows-Benutzer.
+- Ein Update ersetzt nichts, solange jemand anderer das Programm offen hat.
 
-- `Get-HUAddonTargets -Extension '.pdf' [-Exclude <Id>]`: Module, die diese Endung annehmen (`Id`, `Title`).
-- `Send-HUAddonFiles -To <Id> -Paths <...> -From <Id> [-Open]`: gibt Dateien weiter, Rückgabe ist die Anzahl.
-  - Ohne `-Open` kommt eine Kopie ins Postfach. Das klappt auch zwischen PCs.
-  - Mit `-Open` wechselt die App zum Reiter und übergibt die Dateien sofort.
-- `Get-HUAddonInbox <Id>`: wartende Einträge (`Key`, `Path`, `Name`, `From`, `Pc`, `User`, `Time`), nur mit den Endungen aus `drop`.
-- `Remove-HUAddonInboxItem <Eintrag>`: Eintrag samt Kopie entfernen, erst nach gelungener Übernahme.
-- `Update-HUAddonInboxBadge [<Id>]`: Zahl am Reiter neu zählen. Der Kern zählt zusätzlich jede Minute.
+## Module
 
-## Lizenz
+- **Mitgeliefert** kommen sie mit dem Programm-Update.
+- **Aus einem eigenen Repository** werden sie in der Modulverwaltung eingetragen, auch mehrere auf einmal über eine Zugangsdatei. Jede Fassung muss signiert sein.
+- Wie man ein Modul baut: [MODULE-DEVELOPMENT.md](MODULE-DEVELOPMENT.md).
 
-Nutzungslizenz, siehe [LICENSE](LICENSE).
+---
+
+**Lizenz:** kostenlose Nutzung erlaubt, eigene Module und Einstellungen ausdrücklich auch – Details in [LICENSE](LICENSE).
