@@ -40,7 +40,7 @@ function Get-HUAddonDataDir([string]$Id) {
 }
 
 # Kennung eines Moduls: Buchstaben/Ziffern, beginnt mit Buchstabe (wird Teil von Funktions- und Ordnernamen)
-function Test-HUAddonId([string]$Id) { return ("$Id" -cmatch '^[A-Za-z][A-Za-z0-9]{1,30}$' -and "$Id" -notin 'Benutzer', 'Laufend', 'Docs') }
+function Test-HUAddonId([string]$Id) { return ("$Id" -cmatch '^[A-Za-z][A-Za-z0-9]{1,30}$' -and "$Id" -notin 'Benutzer', 'Laufend', 'Docs', 'Postfach') }
 function Test-HUAddonRepoName([string]$Owner, [string]$Repo) { return ("$Owner" -match '^[A-Za-z0-9-]{1,39}$' -and "$Repo" -match '^[A-Za-z0-9._-]{1,100}$') }
 
 # --- Tokens (DPAPI) --------------------------------------------------------------------------
@@ -198,6 +198,68 @@ function Merge-HUAddonList([object[]]$Lists) {
 function Test-HUAddonDropMatch($Info, [string]$Path) {
     if (-not $Info -or -not @($Info.Drop).Count) { return $false }
     return (@($Info.Drop) -contains ([IO.Path]::GetExtension($Path).ToLowerInvariant()))
+}
+
+# --- Postfach: Dateien von einem Modul an ein anderes weitergeben ------------------------------
+# Data\Postfach\<Ziel>\<guid>\<Datei> + eintrag.json { von, pc, benutzer, zeit, name }.
+# Die Datei wird KOPIERT (das Original kann lokal auf einem anderen PC liegen oder spaeter verschoben werden).
+# eintrag.json wird zuletzt geschrieben: ein Eintrag ohne eintrag.json ist unfertig und wird nicht gelesen.
+# Das Postfach liegt im gemeinsamen Datenordner - das Zielmodul nimmt nur, was Get-HUAddonInboxItems liefert
+# (Endung erlaubt, Datei liegt wirklich im Eintragsordner).
+$script:HUInboxEntry = 'eintrag.json'
+function Get-HUAddonInboxRoot([string]$DataRoot, [string]$Id) {
+    if (-not (Test-HUAddonId $Id)) { throw "Ungueltige Kennung fuer das Postfach: '$Id'" }
+    return (Join-Path (Join-Path $DataRoot 'Postfach') $Id)
+}
+
+# Eine Datei ins Postfach legen. Rueckgabe: Pfad des Eintragsordners. Wirft bei Fehlern (nichts Halbes bleibt liegen).
+function Add-HUAddonInboxItem([string]$DataRoot, [string]$To, [string]$Path, [string]$From, [string]$User = "$env:USERNAME", [string]$Pc = "$env:COMPUTERNAME") {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Datei nicht gefunden: $Path" }
+    if ($From -and -not (Test-HUAddonId $From)) { throw "Ungueltige Kennung des Absenders: '$From'" }
+    $root = Get-HUAddonInboxRoot $DataRoot $To
+    $dir = Join-Path $root ([guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    try {
+        $name = [IO.Path]::GetFileName($Path)
+        Copy-Item -LiteralPath $Path -Destination (Join-Path $dir $name) -Force -ErrorAction Stop
+        $e = [pscustomobject][ordered]@{ von = "$From"; pc = "$Pc"; benutzer = "$User"; zeit = (Get-Date).ToString('s'); name = $name }
+        $json = $e | ConvertTo-Json -Depth 3
+        [IO.File]::WriteAllText((Join-Path $dir $script:HUInboxEntry), $json, (New-Object Text.UTF8Encoding($true)))
+        return $dir
+    } catch {
+        Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
+        throw
+    }
+}
+
+# Eintraege im Postfach eines Moduls, aelteste zuerst. -Extensions: nur diese Endungen (wie "drop" des Zielmoduls).
+function Get-HUAddonInboxItems([string]$DataRoot, [string]$Id, [string[]]$Extensions = @()) {
+    $root = Get-HUAddonInboxRoot $DataRoot $Id
+    if (-not (Test-Path -LiteralPath $root -PathType Container)) { return @() }
+    $ext = @($Extensions | ForEach-Object { "$_".ToLowerInvariant() })
+    $out = @()
+    foreach ($d in @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^[0-9a-f]{32}$' })) {
+        if ($d.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+        $ef = Join-Path $d.FullName $script:HUInboxEntry
+        if (-not (Test-Path -LiteralPath $ef -PathType Leaf)) { continue }
+        try { $j = [IO.File]::ReadAllText($ef, [Text.Encoding]::UTF8) | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+        $name = "$($j.name)"
+        # nur ein reiner Dateiname, der wirklich im Eintragsordner liegt
+        if (-not $name -or $name -ne [IO.Path]::GetFileName($name) -or $name -eq $script:HUInboxEntry) { continue }
+        $f = Join-Path $d.FullName $name
+        if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { continue }
+        if ($ext.Count -and $ext -notcontains [IO.Path]::GetExtension($name).ToLowerInvariant()) { continue }
+        $t = $null; try { $t = [datetime]::Parse("$($j.zeit)", [Globalization.CultureInfo]::InvariantCulture) } catch { $t = $d.CreationTime }
+        $out += [pscustomobject]@{ Key = $d.Name; Path = $f; Name = $name; From = "$($j.von)"; Pc = "$($j.pc)"; User = "$($j.benutzer)"; Time = $t; Dir = $d.FullName; Inbox = $Id }
+    }
+    return @($out | Sort-Object Time)
+}
+
+# Eintrag samt Kopie entfernen. Nur Ordner direkt unter dem Postfach des Moduls.
+function Remove-HUAddonInboxEntry([string]$DataRoot, $Item) {
+    if (-not $Item -or "$($Item.Key)" -notmatch '^[0-9a-f]{32}$') { throw 'Ungueltiger Postfach-Eintrag' }
+    $dir = Join-Path (Get-HUAddonInboxRoot $DataRoot "$($Item.Inbox)") "$($Item.Key)"
+    if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction Stop }
 }
 
 # --- Installieren / Aktualisieren --------------------------------------------------------------

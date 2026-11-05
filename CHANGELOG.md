@@ -1,6 +1,21 @@
 ﻿# Changelog
 
-## v0.0.2 (in Arbeit)
+## v0.1.0
+
+### 🧩 Module
+- **Dateien zwischen Modulen weitergeben:** Ein Modul gibt Dateien an ein anderes weiter, z. B. die Texterkennung fertige Rechnungen an die Energiegemeinschaft.
+  - Die Datei kommt als Kopie in ein Postfach im gemeinsamen Datenordner. So kommt sie auch an, wenn die Erkennung auf einem anderen PC läuft.
+  - Am Reiter steht, wie viele Dateien warten, z. B. „Energiegemeinschaft (3)“. Die Zahl wird jede Minute aktualisiert.
+  - Das Ziel-Modul nimmt nur Dateien mit seinen Endungen an.
+  - Ob und wohin weitergegeben wird, legt der Anwender im Modul fest. Am Inhalt wird nichts erraten.
+- **Wächter für externe Werkzeuge:** Werkzeuge und Bibliotheken der Module werden jede Woche auf neue Versionen, bekannte Lücken und Ende der Pflege geprüft.
+  - Meldung als Issue im Repository des Moduls und auf Wunsch in Teams.
+
+### 🪟 Hauptfenster
+- **Reiter verschieben:** Reiter lassen sich wieder mit der Maus an eine andere Stelle ziehen. Die Reihenfolge bleibt beim nächsten Start erhalten.
+  - Rechtsklick auf einen Reiter stellt die Reihenfolge zurück.
+
+## v0.0.2
 
 ### 🧩 Module
 - **Module per Datei eintragen:** Eine Modul-Datei (`*.humodule`) mit Repositories und Nur-Lese-Token ins Fenster ziehen, und alle Module sind auf einmal hinterlegt.

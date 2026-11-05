@@ -138,3 +138,47 @@ Describe 'Modul-Datei (*.humodule)' {
         { Read-HUAddonKeyFile (Write-KeyFile '{"module":[]}') } | Should -Throw
     }
 }
+
+Describe 'Postfach zwischen Modulen' {
+    BeforeEach {
+        $script:Data = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+        [void](New-Item -ItemType Directory -Path $script:Data -Force)
+        $script:Src = Join-Path $TestDrive 'scan.pdf'
+        [IO.File]::WriteAllText($script:Src, 'kuenstlich')
+    }
+    It 'kopiert die Datei und liefert den Eintrag' {
+        [void](Add-HUAddonInboxItem -DataRoot $script:Data -To 'Ziel' -Path $script:Src -From 'OCR' -User 'Test' -Pc 'PC1')
+        $e = @(Get-HUAddonInboxItems -DataRoot $script:Data -Id 'Ziel' -Extensions '.pdf')
+        $e.Count | Should -Be 1
+        $e[0].Name | Should -Be 'scan.pdf'
+        $e[0].From | Should -Be 'OCR'
+        $e[0].Pc | Should -Be 'PC1'
+        $e[0].Path | Should -Not -Be $script:Src
+        Test-Path -LiteralPath $e[0].Path | Should -BeTrue
+        Test-Path -LiteralPath $script:Src | Should -BeTrue
+    }
+    It 'laesst fremde Endungen, unfertige und manipulierte Eintraege aus' {
+        [void](Add-HUAddonInboxItem -DataRoot $script:Data -To 'Ziel' -Path $script:Src -From 'OCR')
+        @(Get-HUAddonInboxItems -DataRoot $script:Data -Id 'Ziel' -Extensions '.xlsx').Count | Should -Be 0
+        $root = Get-HUAddonInboxRoot $script:Data 'Ziel'
+        # ohne eintrag.json
+        $d1 = Join-Path $root ('a' * 32); [void](New-Item -ItemType Directory -Path $d1); [IO.File]::WriteAllText((Join-Path $d1 'x.pdf'), 'x')
+        # Name zeigt aus dem Ordner hinaus
+        $d2 = Join-Path $root ('b' * 32); [void](New-Item -ItemType Directory -Path $d2)
+        [IO.File]::WriteAllText((Join-Path $d2 'eintrag.json'), '{"name":"..\..\boese.pdf","zeit":"2026-11-05T10:00:00"}')
+        @(Get-HUAddonInboxItems -DataRoot $script:Data -Id 'Ziel' -Extensions '.pdf').Count | Should -Be 1
+    }
+    It 'entfernt einen Eintrag samt Kopie' {
+        [void](Add-HUAddonInboxItem -DataRoot $script:Data -To 'Ziel' -Path $script:Src -From 'OCR')
+        $e = @(Get-HUAddonInboxItems -DataRoot $script:Data -Id 'Ziel')[0]
+        Remove-HUAddonInboxEntry -DataRoot $script:Data -Item $e
+        Test-Path -LiteralPath $e.Dir | Should -BeFalse
+        @(Get-HUAddonInboxItems -DataRoot $script:Data -Id 'Ziel').Count | Should -Be 0
+    }
+    It 'lehnt ungueltige Kennungen und Eintraege ab' {
+        { Get-HUAddonInboxRoot $script:Data '..\x' } | Should -Throw
+        { Add-HUAddonInboxItem -DataRoot $script:Data -To 'Ziel' -Path (Join-Path $TestDrive 'fehlt.pdf') } | Should -Throw
+        { Remove-HUAddonInboxEntry -DataRoot $script:Data -Item ([pscustomobject]@{ Key = '..'; Inbox = 'Ziel' }) } | Should -Throw
+        Test-HUAddonId 'Postfach' | Should -BeFalse
+    }
+}
