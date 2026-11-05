@@ -270,6 +270,8 @@ foreach ($__a in @(Get-HUAddonStartList)) {
 Remove-Variable __a -ErrorAction SilentlyContinue
 # Dateien ins Fenster ziehen: gehen an das Modul im aktiven Reiter
 Register-HUFileDrop
+# Postfach zwischen Modulen: Zahl wartender Dateien am Reiter
+if (-not $SmokeTest) { Start-HUAddonInboxWatch }
 
 # Tastatur: F1 Hilfe, Strg+0 Groesse 100 %
 $script:Window.Add_PreviewKeyDown({

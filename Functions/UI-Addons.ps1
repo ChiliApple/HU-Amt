@@ -9,6 +9,8 @@
 
 $script:LoadedAddons = @()
 $script:AddonByTab = @{}
+$script:AddonHeader = @{}       # Kennung -> urspruengliche Reiter-Beschriftung (fuer die Zahl im Postfach)
+$script:AddonInboxTimer = $null
 
 # Reiter eines (bereits gepruefen) Moduls in das Hauptfenster einbauen und die benannten Elemente registrieren
 function Add-HUAddonTab($Info) {
@@ -35,6 +37,7 @@ function Add-HUAddonTab($Info) {
     try { Set-HUOutputTools $tab } catch { }  # Ausgaben: Umkehren/Loeschen, neuestes oben (global)
     $script:Controls[$tab.Name] = $tab
     $script:AddonByTab[$tab.Name] = $Info
+    if ($tab.Header -is [string]) { $script:AddonHeader[$Info.Id] = $tab.Header }
     # Platzhalter "Start" weg, sobald ein Modul da ist
     $tc = $script:Controls['tabMain']
     if ($script:Controls['tabStart'] -and $tc.Items.Contains($script:Controls['tabStart'])) { $tc.Items.Remove($script:Controls['tabStart']) }
@@ -114,6 +117,9 @@ function Register-HUFileDrop {
     $w.AllowDrop = $true
     $over = {
         param($s, $e)
+        # nur Dateien behandeln: alles andere (z. B. ein gezogener Reiter) muss bis zum Ziel durchkommen,
+        # sonst sperrt Effects=None + Handled das Verschieben der Reiter
+        if (-not $e.Data.GetDataPresent([System.Windows.DataFormats]::FileDrop)) { return }
         $fl = @(Get-HUDropFiles $e)
         $t = $(if (@($fl | Where-Object { Test-HUAddonKeyFile $_ }).Count) { $true } else { Resolve-HUDropTarget $fl })
         $e.Effects = $(if ($t) { [System.Windows.DragDropEffects]::Copy } else { [System.Windows.DragDropEffects]::None })
@@ -148,6 +154,87 @@ function Register-HUFileDrop {
             try { & "Invoke-HUAddonDrop$($t.Info.Id)" -Paths @($t.Files) }
             catch { Write-HULogError "$($t.Info.Title): Dateien nicht übernommen: $($_.Exception.Message)" }
         })
+}
+
+# ============================================================================
+# Weitergeben zwischen Modulen (Postfach im gemeinsamen Datenordner, Logik in Core-Addons.ps1)
+#   Get-HUAddonTargets -Extension '.pdf' [-Exclude <Id>]     Module, die diese Endung annehmen: @{ Id; Title }
+#   Send-HUAddonFiles -To <Id> -Paths <...> -From <Id> [-Open] Anzahl der weitergegebenen Dateien
+#       ohne -Open: Kopie ins Postfach (geht auch an Bediener auf anderen PCs), Zahl am Reiter
+#       mit -Open:  zum Reiter wechseln und die Dateien sofort uebergeben (Invoke-HUAddonDrop<Id>)
+#   Get-HUAddonInbox <Id>                Eintraege @{ Key; Path; Name; From; Pc; User; Time }
+#   Remove-HUAddonInboxItem <Eintrag>    Eintrag samt Kopie entfernen (erst nach gelungener Uebernahme)
+#   Update-HUAddonInboxBadge [<Id>]      Zahl am Reiter neu zaehlen (der Kern prueft zusaetzlich jede Minute)
+# ============================================================================
+function Get-HUAddonLoaded([string]$Id) { return @($script:LoadedAddons | Where-Object { $_.Id -ceq $Id })[0] }
+
+function Get-HUAddonTargets([string]$Extension, [string]$Exclude = '') {
+    $x = "$Extension".Trim().ToLowerInvariant(); if ($x -and -not $x.StartsWith('.')) { $x = ".$x" }
+    $out = @()
+    foreach ($a in @($script:LoadedAddons)) {
+        if ($Exclude -and $a.Id -ceq $Exclude) { continue }
+        if (-not (Test-HUAddonCanDrop $a)) { continue }
+        if ($x -and @($a.Drop) -notcontains $x) { continue }
+        $out += [pscustomobject]@{ Id = $a.Id; Title = $(if ($a.Title) { $a.Title } else { $a.Id }) }
+    }
+    return $out
+}
+
+function Send-HUAddonFiles([string]$To, [string[]]$Paths, [string]$From = '', [switch]$Open) {
+    $t = Get-HUAddonLoaded $To
+    if (-not (Test-HUAddonCanDrop $t)) { throw "Modul '$To' ist nicht geladen oder nimmt keine Dateien an" }
+    $files = @($Paths | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) -and (Test-HUAddonDropMatch $t $_) })
+    $skip = @($Paths).Count - $files.Count
+    if ($skip -gt 0) { Write-HULogWarn "$skip Datei(en) passen nicht zu $($t.Title) oder fehlen und wurden nicht weitergegeben." }
+    if (-not $files.Count) { return 0 }
+    if ($Open) {
+        $tab = @($script:Controls['tabMain'].Items | Where-Object { $script:AddonByTab["$($_.Name)"] -eq $t })[0]
+        if ($tab) { $script:Controls['tabMain'].SelectedItem = $tab }
+        & "Invoke-HUAddonDrop$($t.Id)" -Paths @($files)
+        return $files.Count
+    }
+    $n = 0
+    foreach ($f in $files) {
+        try { [void](Add-HUAddonInboxItem -DataRoot $script:DataRoot -To $t.Id -Path $f -From $From -User $script:UserName); $n++ }
+        catch { Write-HULogWarn "$([IO.Path]::GetFileName($f)) nicht an $($t.Title) weitergegeben: $($_.Exception.Message)" }
+    }
+    if ($n) { Write-HULogInfo "$n Datei(en) an $($t.Title) weitergegeben$(if ($From) { " (von $From)" })" }
+    Update-HUAddonInboxBadge $t.Id
+    return $n
+}
+
+function Get-HUAddonInbox([string]$Id) {
+    $t = Get-HUAddonLoaded $Id
+    if (-not $t) { return @() }
+    return @(Get-HUAddonInboxItems -DataRoot $script:DataRoot -Id $t.Id -Extensions @($t.Drop))
+}
+
+function Remove-HUAddonInboxItem($Item) {
+    Remove-HUAddonInboxEntry -DataRoot $script:DataRoot -Item $Item
+    try { Update-HUAddonInboxBadge "$($Item.Inbox)" } catch { }
+}
+
+# Zahl der wartenden Dateien an den Reiter schreiben ("Titel (3)"). Nur bei Reitern mit Text als Beschriftung.
+function Update-HUAddonInboxBadge([string]$Id = '') {
+    foreach ($a in @($script:LoadedAddons)) {
+        if ($Id -and $a.Id -cne $Id) { continue }
+        if (-not $script:AddonHeader.ContainsKey($a.Id) -or -not (Test-HUAddonCanDrop $a)) { continue }
+        $tab = @($script:Controls['tabMain'].Items | Where-Object { $script:AddonByTab["$($_.Name)"] -eq $a })[0]
+        if (-not $tab) { continue }
+        $n = 0; try { $n = @(Get-HUAddonInbox $a.Id).Count } catch { }
+        $h = $script:AddonHeader[$a.Id]
+        $tab.Header = $(if ($n) { "$h ($n)" } else { $h })
+    }
+}
+
+# Beim Start: Zahl einmal setzen, dann jede Minute (andere PCs legen auch ins Postfach)
+function Start-HUAddonInboxWatch {
+    try { Update-HUAddonInboxBadge } catch { }
+    if ($script:AddonInboxTimer) { return }
+    $script:AddonInboxTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:AddonInboxTimer.Interval = [TimeSpan]::FromSeconds(60)
+    $script:AddonInboxTimer.Add_Tick({ try { Update-HUAddonInboxBadge } catch { } })
+    $script:AddonInboxTimer.Start()
 }
 
 # ============================================================================
