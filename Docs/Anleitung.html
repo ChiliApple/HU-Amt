@@ -114,7 +114,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <div class="note"><b class="h">Voraussetzung</b>Windows 10 oder 11. Windows PowerShell 5.1 ist dabei; ist PowerShell 7 installiert, nimmt HU-Amt es automatisch. Administratorrechte am PC sind nicht nötig. Das Modul Kostenzuordnung braucht die WebView2-Runtime (in Windows 11 enthalten).</div>
   <h3 id="installation">Installation</h3>
   <ol class="steps">
-    <li><code>Pull.ps1</code> in einen <b>leeren</b> Ordner legen, z. B. <code>C:\Tools\HU-Amt</code> oder auf die Netzfreigabe, und ausführen: <code>powershell -ExecutionPolicy Bypass -File Pull.ps1</code>. Lädt die freigegebene Version und prüft jede Datei per Prüfsumme und Signatur.</li>
+    <li>Einen <b>neuen, leeren</b> Ordner anlegen, z. B. <code>C:\Tools\HU-Amt</code> oder auf der Netzfreigabe, und nur <code>Pull.ps1</code> hineinlegen. Rechtsklick auf <code>Pull.ps1</code> › <i>Mit PowerShell ausführen</i>. HU-Amt kommt in genau diesen Ordner (nicht in Desktop, Downloads oder Dokumente; dort landet es in <code>Desktop\HU-Amt</code>). Lädt die freigegebene Version und prüft jede Datei per Prüfsumme und Signatur.</li>
     <li><b>Start-HU-Amt.cmd</b> doppelklicken.</li>
     <li>Beim ersten Start fragt HU-Amt: <i>„Ein Symbol für HU-Amt auf den Desktop legen?“</i> und, wenn es noch nicht angeheftet ist, ob es an die Taskleiste soll. Bei Ja zeigt es, wie das geht: Rechtsklick auf das Symbol in der Taskleiste › <i>An Taskleiste anheften</i> (selbst anheften darf sich ein Programm unter Windows nicht).</li>
   </ol>
