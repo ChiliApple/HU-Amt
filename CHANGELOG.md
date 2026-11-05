@@ -1,5 +1,12 @@
 ﻿# Changelog
 
+## v0.1.1
+
+### 🔄 Update
+- **Release signieren friert nicht mehr ein:** Die Abfrage des GitHub-Tokens erscheint jetzt in einem eigenen Fenster.
+  - Unter PowerShell 7 wartete die App vorher auf eine Eingabe im unsichtbaren Konsolenfenster und reagierte nicht mehr.
+  - Gilt auch für „Release freigeben“ und das Hinterlegen des Lese-Tokens für Updates.
+
 ## v0.1.0
 
 ### 🧩 Module

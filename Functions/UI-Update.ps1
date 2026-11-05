@@ -58,9 +58,45 @@ function Read-GitHubToken {
     }
     return ''
 }
+# Token im eigenen Fenster abfragen. Nicht Get-Credential: unter PowerShell 7 fragt das in der (unsichtbaren) Konsole
+# statt in einem Fenster - die App wartet dann ewig und friert ein (Microsoft Learn, Get-Credential: "In PowerShell 6.0
+# and later, the prompt is presented in the console"). Rueckgabe: SecureString oder $null (abgebrochen)
+function Read-HUSecretDialog([string]$Message, [string]$Title = 'GitHub-Token') {
+    $x = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Token" Width="560" MinWidth="460" SizeToContent="Height" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" Background="#1E1E1E" ShowInTaskbar="False">
+    <Window.Resources>
+        <!--HU:THEME-->
+    </Window.Resources>
+    <StackPanel Margin="16">
+        <TextBlock x:Name="txtMsg" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+        <PasswordBox x:Name="pwdTok" Margin="0,0,0,12" Background="#2D2D30" Foreground="White" BorderBrush="#3E3E42" Padding="4,3" ToolTip="Token einfügen (Strg+V). Er wird nicht angezeigt und verschlüsselt nur für deinen Windows-Benutzer gespeichert."/>
+        <WrapPanel HorizontalAlignment="Right">
+            <Button x:Name="btnOk" Content="Speichern" Width="110" Background="#388E3C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" IsDefault="True" ToolTip="Token verschlüsselt speichern und weitermachen"/>
+            <Button x:Name="btnCancel" Content="Abbrechen" Width="110" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True" ToolTip="Ohne Token abbrechen"/>
+        </WrapPanel>
+    </StackPanel>
+</Window>
+'@
+    $d = New-HUWindow -XamlText (Get-HUThemedXaml $x)
+    $w = $d.Window; $c = $d.C
+    $w.Title = $Title
+    $c.txtMsg.Text = $Message
+    $script:HUSecretOk = $false
+    $c.btnOk.Add_Click({ $script:HUSecretOk = $true; $w.Close() })
+    $w.Add_ContentRendered({ $c.pwdTok.Focus() | Out-Null })
+    [void]$w.ShowDialog()
+    if (-not $script:HUSecretOk) { return $null }
+    $s = $c.pwdTok.SecurePassword.Copy(); $s.MakeReadOnly()
+    return $s
+}
+
 function Save-GitHubTokenFromPrompt([string]$File, [string]$Message) {
     $c = $null
-    try { $c = Get-Credential -UserName 'github' -Message $Message } catch { $c = $null }
+    try {
+        $sec = Read-HUSecretDialog $Message
+        if ($sec -and $sec.Length) { $c = New-Object System.Management.Automation.PSCredential -ArgumentList 'github', $sec }
+    } catch { Write-HULogError "Token-Abfrage fehlgeschlagen: $($_.Exception.Message)"; $c = $null }
     if (-not $c -or -not $c.GetNetworkCredential().Password.Trim()) { Write-HULogWarn 'Kein Token eingegeben'; return $false }
     try {
         $d = Split-Path $File -Parent
