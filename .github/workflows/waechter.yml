@@ -1,0 +1,108 @@
+# Waechter fuer externe Werkzeuge und Bibliotheken der Module (wiederverwendbarer Workflow, liegt nur im Kern).
+# Ein Modul ruft ihn mit einer kleinen Datei auf (Vorlage: .github/waechter/Vorlage-Modul.yml) und liefert nur
+# .github/waechter.json. Skripte, Tests und Ablauf sind fuer alle Module gleich und werden hier gepflegt.
+# - laeuft im Repository des Moduls: Issue "Waechter: Werkzeuge" dort (wird aktualisiert, ohne Befund geschlossen)
+# - Teams-Nachricht nur, wenn sich die Befunde geaendert haben und das Secret TEAMS_WEBHOOK im Modul gesetzt ist
+# - optional Secret NVD_API_KEY fuer schnellere Abfragen bei der NVD
+# - Ergebnis als Artefakt waechter-ergebnis.json (fuer die Uebersicht in der Modulverwaltung)
+# - aendert nichts am Modul. Nichts davon wird mit der App oder einem Modul ausgeliefert.
+name: Waechter
+
+on:
+  workflow_call:
+    inputs:
+      kern-ref:
+        description: Stand des Kerns, dessen Waechter-Skripte verwendet werden
+        type: string
+        default: main
+    secrets:
+      TEAMS_WEBHOOK:
+        required: false
+      NVD_API_KEY:
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  waechter:
+    name: Werkzeuge pruefen
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Modul holen
+        uses: actions/checkout@v4
+        with:
+          path: modul
+
+      - name: Waechter des Kerns holen
+        uses: actions/checkout@v4
+        with:
+          repository: ChiliApple/HU-Amt
+          ref: ${{ inputs.kern-ref }}
+          path: kern
+          sparse-checkout: .github/waechter
+
+      - name: Pruefen
+        id: pruefen
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./kern/.github/waechter/Waechter.ps1 -Wurzel ./modul -Ausgabe "$env:RUNNER_TEMP/waechter"
+
+      - name: Ergebnis aufheben
+        uses: actions/upload-artifact@v4
+        with:
+          name: waechter-ergebnis
+          path: ${{ runner.temp }}/waechter/
+          retention-days: 90
+
+      - name: Issue aktualisieren
+        id: issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFUNDE: ${{ steps.pruefen.outputs.befunde }}
+          SIGNATUR: ${{ steps.pruefen.outputs.signatur }}
+        run: |
+          TITEL="Wächter: Werkzeuge"
+          BERICHT="$RUNNER_TEMP/waechter/waechter-bericht.md"
+          NR=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$TITEL\"" --json number,title --jq ".[] | select(.title == \"$TITEL\") | .number" | head -n1)
+          ALT=""
+          if [ -n "$NR" ]; then
+            ALT=$(gh issue view "$NR" --repo "$GITHUB_REPOSITORY" --json body --jq .body | grep -o 'huwaechter:[0-9a-f]*' | head -n1 | cut -d: -f2)
+          fi
+          GEAENDERT=false
+          if [ "$BEFUNDE" != "0" ]; then
+            if [ -z "$NR" ]; then
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITEL" --body-file "$BERICHT"
+              GEAENDERT=true
+            else
+              gh issue edit "$NR" --repo "$GITHUB_REPOSITORY" --body-file "$BERICHT"
+              if [ "$ALT" != "$SIGNATUR" ]; then
+                gh issue comment "$NR" --repo "$GITHUB_REPOSITORY" --body "Befunde haben sich geändert ($BEFUNDE). Stand im Text oben."
+                GEAENDERT=true
+              fi
+            fi
+          elif [ -n "$NR" ]; then
+            gh issue close "$NR" --repo "$GITHUB_REPOSITORY" --comment "Keine Befunde mehr."
+            GEAENDERT=true
+          fi
+          echo "geaendert=$GEAENDERT" >> "$GITHUB_OUTPUT"
+
+      - name: Teams
+        if: steps.issue.outputs.geaendert == 'true'
+        shell: pwsh
+        env:
+          TEAMS_WEBHOOK: ${{ secrets.TEAMS_WEBHOOK }}
+        run: |
+          if (-not $env:TEAMS_WEBHOOK) { Write-Host 'kein TEAMS_WEBHOOK gesetzt'; exit 0 }
+          . ./kern/.github/waechter/Waechter.Funktionen.ps1
+          $e = Get-Content -LiteralPath "$env:RUNNER_TEMP/waechter/waechter-ergebnis.json" -Raw | ConvertFrom-Json
+          $z = @(@($e.eintraege) | Where-Object { $_.status -ne 'aktuell' } | ForEach-Object { "$($_.id) $($_.version): $($_.status)$(if (@($_.luecken).Count) { ", $(@($_.luecken).Count) Lücke(n)" })$(if ($_.neueste -and $_.neueste -ne $_.version) { ", neueste $($_.neueste)" })" })
+          $z += "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/issues"
+          $stufe = $(if ($e.befunde) { 'Warning' } else { 'OK' })
+          $titel = $(if ($e.befunde) { "Wächter $($e.modul): $($e.befunde) Befund(e)" } else { "Wächter $($e.modul): keine Befunde mehr" })
+          $g = Send-HUWTeams $env:TEAMS_WEBHOOK $titel $z $stufe
+          if ($g) { Write-Host "Teams: $g" } else { Write-Host 'Teams: gesendet' }
