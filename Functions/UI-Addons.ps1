@@ -114,7 +114,8 @@ function Register-HUFileDrop {
     $w.AllowDrop = $true
     $over = {
         param($s, $e)
-        $t = Resolve-HUDropTarget (Get-HUDropFiles $e)
+        $fl = @(Get-HUDropFiles $e)
+        $t = $(if (@($fl | Where-Object { Test-HUAddonKeyFile $_ }).Count) { $true } else { Resolve-HUDropTarget $fl })
         $e.Effects = $(if ($t) { [System.Windows.DragDropEffects]::Copy } else { [System.Windows.DragDropEffects]::None })
         $e.Handled = $true
     }
@@ -125,6 +126,13 @@ function Register-HUFileDrop {
             $files = @(Get-HUDropFiles $e)
             if (-not $files.Count) { return }
             $e.Handled = $true
+            # Modul-Dateien (*.humodule) behandelt der Kern selbst, kein Modul bekommt sie
+            $keys = @($files | Where-Object { Test-HUAddonKeyFile $_ })
+            if ($keys.Count) {
+                foreach ($k in $keys) { Import-HUAddonKeyFile $k }
+                $files = @($files | Where-Object { -not (Test-HUAddonKeyFile $_) })
+                if (-not $files.Count) { return }
+            }
             $t = Resolve-HUDropTarget $files
             if (-not $t) {
                 $ext = @($files | ForEach-Object { [IO.Path]::GetExtension($_).ToLowerInvariant() } | Sort-Object -Unique) -join ', '
@@ -201,7 +209,7 @@ function Start-HUAddonUpdate([switch]$Loud) {
 function Show-HUAddonDialog {
     $x = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Module" Width="560" MinWidth="560" SizeToContent="Height" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" Background="#1E1E1E" ShowInTaskbar="False">
+        Title="Module" Width="660" MinWidth="660" SizeToContent="Height" WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip" Background="#1E1E1E" ShowInTaskbar="False">
     <Window.Resources>
         <!--HU:THEME-->
     </Window.Resources>
@@ -215,6 +223,7 @@ function Show-HUAddonDialog {
         <TextBlock Text="Nur-Lese-Token" Foreground="#AAAAAA" FontSize="11"/>
         <PasswordBox x:Name="pwdTok" Margin="0,2,0,12" Background="#2D2D30" Foreground="White" BorderBrush="#3E3E42" Padding="4,3" ToolTip="Token vom Herausgeber (wird verschlüsselt gespeichert)"/>
         <WrapPanel HorizontalAlignment="Right">
+            <Button x:Name="btnFile" Content="Datei einlesen ..." Width="140" Background="#0E639C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Modul-Datei (*.humodule) mit Repositories und Token einlesen. Geht auch per Hineinziehen ins Hauptfenster."/>
             <Button x:Name="btnDel" Content="Markiertes entfernen" Width="160" Background="#C62828" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Token des markierten Repositories löschen"/>
             <Button x:Name="btnAdd" Content="Hinterlegen und laden" Width="170" Background="#388E3C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Token speichern und das Modul laden"/>
             <Button x:Name="btnClose" Content="Schließen" Width="100" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True" ToolTip="Fenster schließen"/>
@@ -241,6 +250,13 @@ function Show-HUAddonDialog {
             Write-HULogInfo "Modul $($parts[0])/$($parts[1]) hinterlegt - wird geladen ..."
             Start-HUAddonUpdate -Loud
         })
+    $c.btnFile.Add_Click({
+            $dlg = New-Object Microsoft.Win32.OpenFileDialog
+            $dlg.Filter = "Modul-Datei (*$($script:HUAddonKeyFileExt))|*$($script:HUAddonKeyFileExt)"
+            if (-not $dlg.ShowDialog($w)) { return }
+            Import-HUAddonKeyFile $dlg.FileName -Owner $w
+            $w.Close()
+        })
     $c.btnDel.Add_Click({
             $sel = "$($c.lstSrc.SelectedItem)"
             if (-not $sel) { return }
@@ -248,6 +264,57 @@ function Show-HUAddonDialog {
             $p = $sel -split '/', 2; Remove-HUAddonToken $p[0] $p[1]; & $fill
         })
     [void]$w.ShowDialog()
+}
+
+# Modul-Datei (*.humodule) einlesen (nur Verwalter): alle Repositories mit Token pruefen und hinterlegen.
+# Die Datei wird geloescht, wenn alle Eintraege gespeichert sind; sonst bleibt sie und die Meldung nennt, was fehlt.
+# Tokens erscheinen nie in Meldungen oder im Protokoll.
+function Import-HUAddonKeyFile([string]$Path, $Owner = $null) {
+    $name = [IO.Path]::GetFileName($Path)
+    if (-not (Test-HUVerwalter)) { Show-HUMessage "Module eintragen dürfen nur Verwalter.`n`nDie Datei $name bleibt unverändert." -Icon Info -Owner $Owner; return }
+    try { $items = @(Read-HUAddonKeyFile $Path) }
+    catch { Write-HULogWarn "Modul-Datei $($name): $($_.Exception.Message)"; Show-HUMessage "$name kann nicht gelesen werden:`n$($_.Exception.Message)" -Icon Warning -Owner $Owner; return }
+    $list = ($items | ForEach-Object { if ($_.Error) { "  - $($_.Error)" } else { "  - $($_.Owner)/$($_.Repo)" } }) -join "`n"
+    if (-not (Confirm-HU "Diese Module aus $name eintragen?`n`n$list`n`nVorhandene Einträge für dieselben Repositories werden ersetzt. Ist alles eingetragen, wird die Datei gelöscht." 'Module' -Owner $Owner)) { return }
+    $ok = @($items | Where-Object { -not $_.Error })
+    if (-not $ok.Count) { Show-HUMessage "In $name ist kein brauchbarer Eintrag.`n`n$list" -Icon Warning -Owner $Owner; return }
+    Write-HULogInfo "Modul-Datei $($name): $($ok.Count) Repository(s) werden geprüft ..."
+    $src = @($ok | ForEach-Object { [pscustomobject]@{ Owner = $_.Owner; Repo = $_.Repo; Token = $_.Token } })
+    Invoke-AsyncCommand -ScriptBlock {
+        param($addonLib, $lib, $pathsMod, $sources)
+        Import-Module $pathsMod -DisableNameChecking
+        . $lib; . $addonLib
+        try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+        $out = @()
+        foreach ($s in @($sources)) { $out += "$($s.Owner)/$($s.Repo)|$(Test-HUAddonTokenAccess $s.Owner $s.Repo $s.Token)" }
+        return ($out -join "`n")
+    } -ArgumentList @((Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), $script:UpdateLib, (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src) -TimeoutSec 120 -BusyText 'Module werden geprüft ...' -State @{ Path = $Path; Name = $name; Items = $items; Owner = $Owner } -OnComplete {
+        param($result, $st)
+        $why = @{}
+        foreach ($ln in @("$result" -split "`n" | Where-Object { $_ -match '\|' })) { $p = $ln -split '\|', 2; $why[$p[0]] = $p[1] }
+        $done = @(); $fail = @()
+        foreach ($i in @($st.Items)) {
+            $key = "$($i.Owner)/$($i.Repo)"
+            if ($i.Error) { $fail += "$(if ($i.Owner) { $key } else { 'Eintrag' }): $($i.Error)"; continue }
+            if (-not $why.ContainsKey($key)) { $fail += "$($key): nicht geprüft ($result)"; continue }
+            if ($why[$key]) { $fail += "$($key): $($why[$key])"; continue }
+            try { $ss = New-Object Security.SecureString; foreach ($ch in "$($i.Token)".ToCharArray()) { $ss.AppendChar($ch) }; $ss.MakeReadOnly()
+                Save-HUAddonToken $i.Owner $i.Repo $ss; $done += $key }
+            catch { $fail += "$($key): nicht gespeichert ($($_.Exception.Message))" }
+        }
+        foreach ($d in $done) { Write-HULogOK "Modul hinterlegt: $d" }
+        foreach ($f in $fail) { Write-HULogWarn "Modul-Datei: $f" }
+        $txt = ''
+        if ($done.Count) { $txt += "Eingetragen:`n  $($done -join "`n  ")`n`n" }
+        if ($fail.Count) {
+            $txt += "Nicht eingetragen:`n  $($fail -join "`n  ")`n`nDie Datei $($st.Name) bleibt erhalten."
+        } else {
+            try { Remove-Item -LiteralPath $st.Path -Force -ErrorAction Stop; $txt += "Die Datei $($st.Name) wurde gelöscht."; Write-HULogInfo "Modul-Datei $($st.Name) gelöscht" }
+            catch { $txt += "Die Datei $($st.Name) konnte nicht gelöscht werden, bitte selbst löschen:`n$($_.Exception.Message)"; Write-HULogWarn "Modul-Datei $($st.Name) nicht gelöscht: $($_.Exception.Message)" }
+        }
+        Show-HUMessage $txt.Trim() -Icon $(if ($fail.Count) { 'Warning' } else { 'Info' }) -Title 'Module'
+        if ($done.Count) { Start-HUAddonUpdate -Loud }
+    }
 }
 
 # Hinweis nach dem Laden einer neuen Fassung: jetzt neu starten?

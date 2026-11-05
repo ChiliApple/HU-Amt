@@ -104,3 +104,37 @@ Describe 'Datenordner der Module' {
         } finally { Remove-Item -LiteralPath $script:DataRoot -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
+
+Describe 'Modul-Datei (*.humodule)' {
+    BeforeEach {
+        $script:KTmp = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtKey-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:KTmp)
+        function Write-KeyFile([string]$Json) { $p = Join-Path $script:KTmp 'test.humodule'; [IO.File]::WriteAllText($p, $Json, (New-Object Text.UTF8Encoding $false)); return $p }
+    }
+    AfterEach { Remove-Item -LiteralPath $script:KTmp -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'erkennt die Endung unabhaengig von Gross- und Kleinschreibung' {
+        Test-HUAddonKeyFile 'C:\x\a.humodule' | Should -BeTrue
+        Test-HUAddonKeyFile 'C:\x\a.HUMODULE' | Should -BeTrue
+        Test-HUAddonKeyFile 'C:\x\a.json' | Should -BeFalse
+    }
+    It 'liest mehrere Eintraege mit eigenem Token' {
+        $r = @(Read-HUAddonKeyFile (Write-KeyFile '{"module":[{"repo":"Besitzer/ModulA","token":"tok-a"},{"repo":"Besitzer/ModulB","token":"tok-b"}]}'))
+        $r.Count | Should -Be 2
+        $r[0].Owner | Should -Be 'Besitzer'; $r[0].Repo | Should -Be 'ModulA'; $r[0].Token | Should -Be 'tok-a'; $r[0].Error | Should -Be ''
+        $r[1].Token | Should -Be 'tok-b'
+    }
+    It 'gemeinsamer Token gilt fuer Eintraege ohne eigenen' {
+        $r = @(Read-HUAddonKeyFile (Write-KeyFile '{"token":"tok-x","module":[{"repo":"Besitzer/ModulA"},{"repo":"Besitzer/ModulB","token":"tok-b"}]}'))
+        $r[0].Token | Should -Be 'tok-x'
+        $r[1].Token | Should -Be 'tok-b'
+    }
+    It 'meldet ungueltiges Repository und fehlenden Token je Eintrag' {
+        $r = @(Read-HUAddonKeyFile (Write-KeyFile '{"module":[{"repo":"ohneSchraegstrich","token":"t"},{"repo":"Besitzer/ModulA"}]}'))
+        $r[0].Error | Should -Match 'ungültig'
+        $r[1].Error | Should -Be 'Token fehlt'
+    }
+    It 'wirft bei kaputtem JSON oder fehlender Liste' {
+        { Read-HUAddonKeyFile (Write-KeyFile '{kaputt') } | Should -Throw
+        { Read-HUAddonKeyFile (Write-KeyFile '{"module":[]}') } | Should -Throw
+    }
+}

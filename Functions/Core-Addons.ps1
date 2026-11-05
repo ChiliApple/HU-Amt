@@ -66,6 +66,49 @@ function Get-HUAddonSources {
     return $out
 }
 
+# --- Modul-Datei (*.humodule): mehrere Repositories mit Token auf einmal hinterlegen -------------
+# Aufbau (JSON): { "module": [ { "repo": "Besitzer/Name", "token": "..." }, ... ] }
+# Ein "token" auf oberster Ebene gilt fuer alle Eintraege ohne eigenen Token.
+$script:HUAddonKeyFileExt = '.humodule'
+function Test-HUAddonKeyFile([string]$Path) { return ([IO.Path]::GetExtension("$Path").ToLowerInvariant() -eq $script:HUAddonKeyFileExt) }
+# Rueckgabe: Liste @{ Owner; Repo; Token; Error } - Error leer, wenn der Eintrag brauchbar ist. Wirft bei unlesbarer Datei.
+function Read-HUAddonKeyFile([string]$Path) {
+    $raw = [IO.File]::ReadAllText($Path, [Text.Encoding]::UTF8)
+    try { $j = $raw | ConvertFrom-Json -ErrorAction Stop } catch { throw 'keine gültige Modul-Datei (JSON nicht lesbar)' }
+    if (-not $j -or -not $j.PSObject.Properties['module'] -or -not @($j.module).Count) { throw 'keine gültige Modul-Datei (Liste "module" fehlt oder ist leer)' }
+    $common = $(if ($j.PSObject.Properties['token']) { "$($j.token)".Trim() } else { '' })
+    $out = @()
+    foreach ($e in @($j.module)) {
+        $repo = $(if ($e -and $e.PSObject.Properties['repo']) { "$($e.repo)".Trim() } else { '' })
+        $tok = $(if ($e -and $e.PSObject.Properties['token'] -and "$($e.token)".Trim()) { "$($e.token)".Trim() } else { $common })
+        $parts = $repo -split '/', 2
+        $r = [pscustomobject]@{ Owner = ''; Repo = ''; Token = $tok; Error = '' }
+        if ($parts.Count -eq 2 -and (Test-HUAddonRepoName $parts[0] $parts[1])) { $r.Owner = $parts[0]; $r.Repo = $parts[1] }
+        else { $r.Error = "Repository ungültig: '$repo'" }
+        if (-not $r.Error -and -not $tok) { $r.Error = 'Token fehlt' }
+        $out += $r
+    }
+    return $out
+}
+# Kann der Token das Repository lesen? Rueckgabe: '' (ja) oder Grund. Laeuft im Hintergrund (Netz).
+function Test-HUAddonTokenAccess([string]$Owner, [string]$Repo, [string]$Token) {
+    $ua = $(if ($script:HMUserAgent) { $script:HMUserAgent } else { 'HU-Amt' })
+    $h = @{ Accept = 'application/vnd.github+json'; 'User-Agent' = $ua; Authorization = "token $Token" }
+    try {
+        $r = Invoke-RestMethod "https://api.github.com/repos/$Owner/$Repo" -Headers $h -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+        if ("$($r.full_name)" -ine "$Owner/$Repo") { return 'Antwort passt nicht zum Repository' }
+        return ''
+    } catch {
+        $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch { }
+        switch ($code) {
+            401 { return 'Token ungültig oder abgelaufen' }
+            403 { return 'Token hat keine Leserechte' }
+            404 { return 'Repository nicht gefunden oder Token ohne Zugriff' }
+            default { return "nicht erreichbar: $($_.Exception.Message)" }
+        }
+    }
+}
+
 # --- Pruefen ---------------------------------------------------------------------------------
 # addon.json lesen und pruefen. Rueckgabe: Objekt mit Error = '' (gueltig) oder Grund.
 function Read-HUAddonInfo([string]$Dir) {

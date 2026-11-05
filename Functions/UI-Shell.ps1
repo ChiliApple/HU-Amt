@@ -222,6 +222,22 @@ function Test-HUShortcut {
     return $false
 }
 
+# Ist die App an die Taskleiste angeheftet? (Verknuepfung im Ordner der angehefteten Symbole zeigt auf den Starter)
+# Anheften selbst kann ein Programm unter Windows 10/11 nicht (dafuer gibt es keine Schnittstelle fuer Desktop-Programme),
+# deshalb nur pruefen und den Weg zeigen.
+function Test-HUTaskbarPinned {
+    $dir = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'
+    if (-not (Test-Path -LiteralPath $dir)) { return $false }
+    $exe = Join-Path $script:AppRoot $script:LauncherName
+    $sh = New-Object -ComObject WScript.Shell
+    try {
+        foreach ($l in @(Get-ChildItem -LiteralPath $dir -Filter '*.lnk' -File -ErrorAction SilentlyContinue)) {
+            try { if ("$($sh.CreateShortcut($l.FullName).TargetPath)" -ieq $exe) { return $true } } catch { }
+        }
+    } finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($sh) }
+    return $false
+}
+
 # ============================================================================
 # Taskleiste: eigenes Symbol statt PowerShell
 #   Ohne eigene AppUserModelID gruppiert Windows das Fenster unter powershell.exe (PowerShell-Symbol).
