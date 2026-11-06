@@ -106,7 +106,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <div class="card p"><b>💾 Sicherung</b>Alle Einstellungen und Daten verschlüsselt, auf Wunsch täglich.</div>
     <div class="card r"><b>🔄 Update</b>Signierte Versionen per Knopf, für Programm und Module.</div>
   </div>
-  <div class="flow"><span>Pull.ps1 starten</span><i>→</i><span>Verwalter eintragen</span><i>→</i><span>Zugangsdatei hineinziehen</span><i>→</i><span>Sicherung einschalten</span></div>
+  <div class="flow"><span>Pull.ps1 starten</span><i>→</i><span>Du bist Verwalter</span><i>→</i><span>Zugangsdatei hineinziehen</span><i>→</i><span>Sicherung einschalten</span></div>
   <p>Neu hier? <a href="Einstieg.html">Einstieg</a> zeigt typische Situationen aus dem Alltag, <a href="Funktionen.html">Funktionen</a> alles auf einer Seite.</p>
 </section>
 
@@ -128,6 +128,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li>Update und Wiederherstellen gehen erst, wenn alle anderen HU-Amt geschlossen haben. Die Meldung nennt, wer es noch offen hat.</li>
   </ul>
   <h3 id="verwalter">Verwalter</h3>
+  <p><b>Erster Verwalter:</b> Wer HU-Amt mit <code>Pull.ps1</code> neu installiert, wird automatisch Verwalter. Fehlt die Liste trotzdem, fragt HU-Amt beim Start einmal: <span class="ui">Soll … Verwalter werden?</span> Wer Nein sagt, wird nicht mehr gefragt. Sobald jemand eingetragen ist, kommt die Frage für niemanden mehr, ein Update ändert die Liste nie.</p>
   <p><span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b>: <span class="ui b">Mich hinzufügen</span> oder <span class="ui">Hinzufügen</span> (Windows-Benutzername, ohne Domäne oder als <code>DOMÄNE\Name</code>), <span class="ui r">Markierten entfernen</span> fragt nach und legt vorher eine Kopie der Liste an. Verwalter sehen zusätzlich das Protokoll, die Sicherung, die Update-Einstellungen und die Module. Alle anderen bekommen eine aufgeräumte Oberfläche; das Update per goldenem Knopf geht für alle.</p>
   <h3 id="zugang">Module eintragen (Zugangsdatei)</h3>
   <p>Module aus einem privaten Repository bekommt man mit einem Nur-Lese-Token des Herausgebers. Am einfachsten über die Zugangsdatei <code>*.humodule</code>, die alle Repositories und den Token enthält:</p>

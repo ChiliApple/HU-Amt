@@ -48,6 +48,31 @@ function Update-HUAdminView {
     try { Update-HUAbMainStatus } catch { }
 }
 
+# Erststart: Gibt es noch keine Verwalter-Liste und hat niemand das Herausgeber-Zertifikat, sieht niemand die Verwaltung.
+# Dann einmal fragen, ob dieser Benutzer Verwalter wird. Wer Nein sagt, wird nicht mehr gefragt (je Benutzer gemerkt).
+# Sobald die Liste besteht, kommt die Frage fuer niemanden mehr. Rueckgabe: $true, wenn eingetragen.
+function Test-HUFirstVerwalterNeeded {
+    if ($null -ne (Get-HUVerwalterList)) { return $false }
+    if (Test-HUVerwalter) { return $false }
+    if ((Get-HUStateValue 'verwalterGefragt' $false) -eq $true) { return $false }
+    return $true
+}
+function Request-HUFirstVerwalter {
+    if (-not (Test-HUFirstVerwalterNeeded)) { return $false }
+    $q = "In dieser Installation ist noch niemand Verwalter.`n`nVerwalter sehen Protokoll, Sicherung, Update-Einstellungen und Module und tragen weitere Verwalter ein.`n`nSoll $([char]0x201E)$($script:UserName)$([char]0x201C) Verwalter werden?"
+    if (-not (Confirm-HU $q 'Verwalter' -Owner $script:Window)) {
+        Set-HUStateValue 'verwalterGefragt' $true; Save-HUUIState
+        Write-HULogInfo 'Verwalter: Erststart-Frage abgelehnt'
+        return $false
+    }
+    $why = Save-HUVerwalterList @("$($script:UserName)")
+    if ($why) { Show-HUMessage "Verwalter nicht gespeichert:`n$why" -Icon Warning -Owner $script:Window; return $false }
+    $script:IsVerwalter = $null
+    Update-HUAdminView
+    Write-HULogOK "Verwalter beim Erststart eingetragen: $($script:UserName)"
+    return $true
+}
+
 function Open-HUSettings([string]$Tab = '') {
     [void](Show-HUSettingsDialog -Tab $Tab)
 }

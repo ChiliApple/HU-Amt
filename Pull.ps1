@@ -31,6 +31,9 @@
     Lokale Daten bleiben unangetastet: Data\ (alle Daten, Benutzer, Token), Addons\, AddonsDev\, bin\, Config\update.json,
     Config\installed.json, Config\powershell-host.txt, HU-Amt.exe.
     Token (nur fuer private Repos): Umgebungsvariable HU_GITHUB_TOKEN oder Data\Benutzer\<Name>\Token\GitHub.xml (DPAPI).
+
+    Erstinstallation: Wer installiert, wird Verwalter (Data\Verwalter.txt mit dem Windows-Benutzernamen), aber nur,
+    wenn es noch keine Installation und keine Verwalter-Liste gibt. Ein Update aendert die Liste nie.
 .NOTES
     Erstinstallation: Pull.ps1 allein in einen neuen Ordner legen (z. B. auf der Netzfreigabe), dann
         Rechtsklick auf Pull.ps1 > "Mit PowerShell ausfuehren"
@@ -213,6 +216,8 @@ if (-not $Target) {
     else { $Target = Join-Path $env:USERPROFILE 'Desktop\HU-Amt'; $mode = 'Erstinstallation (Desktop)' }
 } else { $mode = 'Ziel per -Target' }
 $Target = $Target.TrimEnd('\')
+# Erstinstallation = im Ziel liegt noch kein Programm (dann wird, wer installiert, Verwalter - siehe Schritt 7)
+$isFirstInstall = -not (Test-Path -LiteralPath (Join-Path $Target 'Main.ps1'))
 
 # --- Quelle, Kanal, Signaturpflicht ---
 $cfgDir = Join-Path $Target 'Config'
@@ -506,6 +511,18 @@ try {
         Check = $verified; Date = (Get-Date).ToString('yyyy-MM-dd HH:mm'); Files = $ok; FileList = $newFiles
     } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $instFile -Encoding UTF8
 } catch { }
+# --- 7. Erstinstallation: wer installiert, wird Verwalter (nur ohne bestehende Liste; ein Update aendert sie nie)
+if ($isFirstInstall -and $repl -eq 0) {
+    $admFile = Join-Path $Target 'Data\Verwalter.txt'
+    if (-not (Test-Path -LiteralPath $admFile) -and "$env:USERNAME".Trim()) {
+        try {
+            $admDir = Split-Path -Parent $admFile
+            if (-not (Test-Path -LiteralPath $admDir)) { [void](New-Item -ItemType Directory -Path $admDir -Force) }
+            [IO.File]::WriteAllText($admFile, "# Verwalter: ein Windows-Benutzername je Zeile`r`n$("$env:USERNAME".Trim())`r`n", (New-Object System.Text.UTF8Encoding $true))
+            Write-Host "Verwalter:  $env:USERNAME (Erstinstallation)" -ForegroundColor Gray
+        } catch { Write-Host "Verwalter-Liste nicht angelegt: $($_.Exception.Message)" -ForegroundColor Yellow }
+    }
+}
 Write-Host "`n=== Pull fertig === $ok Dateien ($verified)$(if ($repl) { " | $repl NICHT ersetzt" })" -ForegroundColor Cyan
 if ($NoStart) { if ($repl) { exit 1 } else { exit 0 } }
 if ($repl -eq 0) {

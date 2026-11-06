@@ -361,6 +361,8 @@ $script:OnContentRendered = {
         $script:SmokeState.Steps = '(Zeitgeber gestartet)'
         return
     }
+    # Erststart ohne Verwalter: einmal fragen, ob dieser Benutzer Verwalter wird
+    try { [void](Request-HUFirstVerwalter) } catch { Write-HULogWarn "Verwalter: $($_.Exception.Message)" }
     # Sicherung: Stand in der Kopfzeile, Automatik (beim Start und stuendlich, wenn faellig)
     try { Update-HUAbMainStatus; Start-HUAppBackupScheduler } catch { Write-HULogWarn "Sicherung: $($_.Exception.Message)" }
     # Update-Pruefung im Hintergrund (Knopf wird gold), Module im Hintergrund aktualisieren

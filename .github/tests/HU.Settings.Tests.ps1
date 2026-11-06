@@ -51,6 +51,46 @@ Describe 'Verwalter' {
     }
 }
 
+Describe 'Verwalter beim Erststart' {
+    BeforeAll {
+        # Stellvertreter fuer Oberflaeche und Fensterzustand (keine sichtbaren Fenster im Test)
+        $script:Controls = @{}; $script:Window = $null
+        function Get-HUStateValue([string]$Name, $Default = $null) { if ($script:TestState.ContainsKey($Name)) { return $script:TestState[$Name] } return $Default }
+        function Set-HUStateValue([string]$Name, $Value) { $script:TestState[$Name] = $Value }
+        function Save-HUUIState { }
+        function Confirm-HU { param([string]$Text, [string]$Title, [switch]$Warning, $Owner) $script:Asked++; return $script:Answer }
+        function Show-HUMessage { param($Text, $Icon, $Owner) }
+        function Write-HULogInfo([string]$m) { }
+        function Write-HULogOK([string]$m) { }
+    }
+    BeforeEach {
+        $script:IsVerwalter = $null; $script:TestState = @{}; $script:Asked = 0
+        Remove-Item -LiteralPath (Get-HUVerwalterFile) -Force -ErrorAction SilentlyContinue
+    }
+
+    It 'ohne Liste und ohne Zertifikat: Frage kommt, Ja traegt den Benutzer ein' {
+        $script:Answer = $true
+        Request-HUFirstVerwalter | Should -BeTrue
+        $script:Asked | Should -Be 1
+        @(Get-HUVerwalterList) | Should -Be @('anna')
+        Test-HUVerwalter | Should -BeTrue
+    }
+    It 'Nein: keine Liste, und dieser Benutzer wird nicht mehr gefragt' {
+        $script:Answer = $false
+        Request-HUFirstVerwalter | Should -BeFalse
+        Get-HUVerwalterList | Should -BeNullOrEmpty
+        Request-HUFirstVerwalter | Should -BeFalse
+        $script:Asked | Should -Be 1
+    }
+    It 'bestehende Liste: keine Frage, auch wenn der Benutzer fehlt' {
+        Save-HUVerwalterList @('bernd') | Should -Be ''
+        $script:IsVerwalter = $null; $script:Answer = $true
+        Request-HUFirstVerwalter | Should -BeFalse
+        $script:Asked | Should -Be 0
+        @(Get-HUVerwalterList) | Should -Be @('bernd')
+    }
+}
+
 Describe 'Hilfe' {
     BeforeAll {
         $script:Mod = Join-Path $script:AppRoot 'Modules\Beispiel'
