@@ -203,7 +203,17 @@ function Write-HUFileAtomic {
     try {
         $fs = New-Object IO.FileStream($tmp, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
         try { $fs.Write($Bytes, 0, $Bytes.Length); $fs.Flush($true) } finally { $fs.Dispose() }
-        if ($Overwrite -and (Test-Path -LiteralPath $full)) { [IO.File]::Replace($tmp, $full, [NullString]::Value) }   # $null kaeme als '' an
+        if ($Overwrite -and (Test-Path -LiteralPath $full)) {
+            # Replace braucht WRITE_DAC (Microsoft Learn, ReplaceFileW). Manche Netzfreigaben verweigern das trotz NTFS-Vollzugriff:
+            # dann die Datei normal ueberschreiben (Inhalt kommt aus der fertig geschriebenen Temp-Datei).
+            try { [IO.File]::Replace($tmp, $full, [NullString]::Value) }   # $null kaeme als '' an
+            catch {
+                $ex = $_.Exception
+                if ($ex -is [System.Management.Automation.MethodInvocationException] -and $ex.InnerException) { $ex = $ex.InnerException }
+                if ($ex -isnot [System.UnauthorizedAccessException]) { throw }
+                [IO.File]::Copy($tmp, $full, $true)
+            }
+        }
         else { [IO.File]::Move($tmp, $full) }
     } finally { if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue } }
     return $full
