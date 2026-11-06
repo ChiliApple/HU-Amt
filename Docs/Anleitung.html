@@ -101,6 +101,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <div class="card g"><b>🧾 Kostenzuordnung</b>Rechnungen (Strom, Telefon …) auf Kostenstellen verteilen, Excel-Liste, Archiv und Übersicht je Kostenart.</div>
     <div class="card b"><b>🔍 Texterkennung</b>Gescannte PDFs durchsuchbar machen, sinnvoll benennen und ablegen.</div>
     <div class="card t"><b>📑 PDF-Werkzeuge</b>Zusammenfügen, teilen, Seiten, schwärzen, verkleinern, Bilder zu PDF, Stempel und Notiz.</div>
+    <div class="card p"><b>🚗 Reisen</b>Dienstreisen erfassen, Kilometergeld und Tagesgebühren rechnen, Abrechnung als PDF einreichen.</div>
     <div class="card m"><b>💡 Ideen &amp; Wünsche</b>Was es gibt und was kommt, abstimmen und Wünsche melden.</div>
     <div class="card p"><b>💾 Sicherung</b>Alle Einstellungen und Daten verschlüsselt, auf Wunsch täglich.</div>
     <div class="card r"><b>🔄 Update</b>Signierte Versionen per Knopf, für Programm und Module.</div>
@@ -184,15 +185,23 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li><span class="ui b">Verarbeitung starten</span>: Je Rechnung erscheinen Kacheln (Rechnungsnummer, Format, Positionen, Zugeordnet, Netto, Differenz) und eine Tabelle der Positionen. Positionen ohne Kostenstelle stehen orange als <i>Nicht zugeordnet</i>.</li>
     <li><span class="ui g">Excel exportieren …</span>: ohne Rückfrage in den Export-Ordner (Standard <code>Downloads\Kostenzuordnung</code>), auf Wunsch <i>Nach dem Export in Excel öffnen</i>. Die Datei hat das Blatt <i>Zusammenfassung</i> und je Rechnung ein eigenes Blatt.</li>
   </ol>
-  <p>Eingelesen werden zwei Formate von Stromrechnungen: Rechnungen mit Zählpunkten und Sammelrechnungen mit Anlagennummern. Zuordnungen für Telefon (per Rufnummer) lassen sich schon anlegen; das Einlesen von Telefonrechnungen folgt.</p>
+  <p>Eingelesen werden zwei Formate von Stromrechnungen (Rechnungen mit Zählpunkten, Sammelrechnungen mit Anlagennummern) und Telefonrechnungen mit einer Summe je Rufnummer. Welche Formate das Modul genau kennt, steht in seiner Hilfe (<kbd>F1</kbd> im Reiter).</p>
+  <h3 id="eg-telefon">Telefonrechnungen</h3>
+  <ol class="steps">
+    <li>Eine gescannte Rechnung zuerst in die <a href="#ocr">Texterkennung</a> ziehen, dann an die Kostenzuordnung weitergeben. Eine PDF mit Text geht direkt.</li>
+    <li>Je Rufnummer gilt die Summe ohne USt. als Netto; Brutto ist Netto mal dem Steuersatz der Rechnung. Rundungsreste kommen auf die größte Position, damit die Summe dem Rechnungsbetrag entspricht.</li>
+    <li>Die Kostenstelle kommt über die Rufnummer aus den Zuordnungen der Kostenart Telefon. Verglichen werden nur die Ziffern, Leerzeichen und Schrägstriche spielen keine Rolle.</li>
+  </ol>
+  <div class="note"><b class="h">Unlesbarer Betrag</b>Konnte die Texterkennung genau einen Betrag nicht lesen, errechnet das Modul ihn aus dem Rechnungsbetrag minus allen anderen und schreibt einen Hinweis in die Zeile. Fehlen mehrere Beträge, rechnet es nichts aus: Die Lücke bleibt als Differenz sichtbar.</div>
+  <p>Im Excel-Export heißt die Spalte bei Telefonrechnungen <i>Rufnummer</i>, bei Strom wie bisher <i>Anlagennummer</i>.</p>
   <h3 id="eg-kst">Kostenstellen</h3>
-  <p><span class="ui">📋 Kostenstellen …</span> öffnet den Editor mit den Reitern <b>Zuordnungen</b> (Kostenart, Art ZP/Anlage/Rufnummer, Nummer, Kostenstelle, Bezeichnung), <b>Kostenstellen</b> (Bezeichnung, Haushaltsstelle; löschen nur ohne Zuordnung) und <b>Kostenarten</b> (Strom und Telefon vorgegeben, umbenennen, neue anlegen, z. B. Wasser; löschen nur ohne Zuordnung). Doppelklick oder <kbd>F2</kbd> bearbeitet eine Zelle, dazu in jedem Reiter <span class="ui">Zeile hinzufügen</span>, <span class="ui">Zeile löschen</span> und <span class="ui">Suchen</span>. <span class="ui">Excel importieren …</span> zeigt vorher, was neu, entfernt oder geändert ist; <span class="ui">Excel exportieren …</span> schreibt die Liste hinaus. <span class="ui g">Speichern</span> nur für Verwalter: doppelte Nummern oder fehlende Angaben sperren das Speichern, die bisherige Liste wird vorher gesichert.</p>
+  <p><span class="ui">📋 Kostenstellen …</span> öffnet den Editor mit den Reitern <b>Zuordnungen</b> (Kostenart, Art ZP/Anlage/Rufnummer, Nummer, Kostenstelle, Bezeichnung), <b>Kostenstellen</b> (Bezeichnung, Haushaltsstelle; löschen nur ohne Zuordnung) und <b>Kostenarten</b> (Strom und Telefon vorgegeben, umbenennen, neue anlegen, z. B. Wasser; löschen nur ohne Zuordnung). Doppelklick oder <kbd>F2</kbd> bearbeitet eine Zelle, dazu in jedem Reiter <span class="ui">Zeile hinzufügen</span>, <span class="ui">Zeile löschen</span> und <span class="ui">Suchen</span>. <span class="ui">Excel importieren …</span> zeigt vorher, was neu, entfernt oder geändert ist, und ersetzt nur die Kostenarten, die in der Datei stehen: Eine reine Telefon-Liste lässt die Strom-Zuordnungen stehen; <span class="ui">Excel exportieren …</span> schreibt die Liste hinaus. <span class="ui g">Speichern</span> nur für Verwalter: doppelte Nummern oder fehlende Angaben sperren das Speichern, die bisherige Liste wird vorher gesichert.</p>
   <h3 id="eg-archiv">Archiv und Lücken</h3>
   <ul>
     <li>Jede verarbeitete Rechnung kommt ins Archiv, nach Jahr geordnet. Dieselbe Rechnung noch einmal ersetzt die alte.</li>
     <li><span class="ui">📥 Bestand einlesen …</span>: einen Ordner samt Unterordnern übernehmen, PDFs in Paketen zu 20, abbrechbar. Danach eine Liste, was nicht ging.</li>
     <li><span class="ui">🔎 Lücken …</span> zeigt fehlende Monate je Zählpunkt bzw. Anlage, z. B. „fehlt: März 2026“. Ändert nichts.</li>
-    <li>Alte Excel-Exporte übernimmt <span class="ui">Aus Excel übernehmen …</span> oder Hineinziehen.</li>
+    <li>Alte Excel-Exporte übernimmt <span class="ui">Aus Excel übernehmen …</span> oder Hineinziehen. Erkannt wird die Spalte <i>Rufnummer</i>, bei älteren Exporten <i>Anlagennummer</i>.</li>
     <li><span class="ui r">Entfernen</span> (nur Verwalter) legt die Rechnung in <code>_Entfernt</code>.</li>
   </ul>
   <h3 id="eg-uebersicht">Übersicht</h3>
@@ -272,8 +281,31 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <div class="note warn"><b class="h">Gut zu wissen</b>Die PDF-Werkzeuge nutzen die Werkzeuge der Texterkennung. Fehlen sie, ist <span class="ui">Speichern</span> gesperrt und nennt den Grund. Kein HEIC. Auf geschwärzten Seiten gehen Formularfelder und Links verloren.</div>
 </section>
 
+<section id="reisen">
+  <h2><span class="n">7</span>Reiseabrechnung</h2>
+  <p>Reiter <span class="ui">🚗 Reisen</span>: Dienstreisen erfassen, Reisekosten und Tagesgebühren rechnen lassen und die Abrechnung als PDF einreichen. Jeder sieht seine eigenen Reisen; Verwalter wählen oben eine Person oder „Alle Bediensteten“.</p>
+  <h3 id="reisen-einst">Einrichten (Verwalter)</h3>
+  <p><span class="ui">⚙ Einstellungen</span> im Reiter: Kopfzeile für das PDF, Dienststelle, Kilometergeld, Tagesgebühren mit Staffel nach Dauer und Mindestentfernung, Nächtigung, Kürzung für Mahlzeiten, Frist für das Einreichen und Standardstrecken. Neue Sätze ab einem Stichtag kommen mit <span class="ui">Neuer Stand</span>, der alte bleibt für frühere Reisen. Vorgegeben sind Werte nach Landes-Reisegebührenrecht; die Sätze der eigenen Gemeinde trägst du selbst ein. <span class="ui">Probe</span> rechnet ein Beispiel vor dem Speichern.</p>
+  <h3 id="reisen-neu">Reise erfassen</h3>
+  <ol class="steps">
+    <li><span class="ui b">➕ Neue Reise</span>: Beginn und Ende mit Kalender 📅 und Uhrzeit, Ziel, Zweck.</li>
+    <li>Entfernung einfach eintragen (Pflicht, sie zählt für Mindestentfernung und Staffel) oder eine Standardstrecke wählen. <span class="ui">Route ansehen</span> öffnet die Strecke im Browser; mit einem eigenen Schlüssel für openrouteservice rechnet <span class="ui">Entfernung berechnen</span> sie aus.</li>
+    <li>Verkehrsmittel, Mitfahrer, Mahlzeiten, Nächtigung und Nebenkosten angeben. Rechts steht die Rechnung, sie ändert sich mit jeder Eingabe.</li>
+    <li>Belege (PDF oder Bild) hineinziehen, <span class="ui g">Speichern</span>. <span class="ui">Kopieren</span> legt dieselbe Reise an einem anderen Tag an.</li>
+  </ol>
+  <h3 id="reisen-abrechnung">Abrechnung</h3>
+  <ul>
+    <li><span class="ui">Abrechnung</span>: Monat wählen, <span class="ui b">Einreichen und PDF</span>. Eingereichte Reisen sind festgehalten und lassen sich nicht mehr ändern. <span class="ui">PDF erstellen</span> macht nur das PDF, ohne einzureichen. Einreichen kann nur, wer die Reise gemacht hat.</li>
+    <li>Das PDF hat eine Übersicht aller Reisen, die Rechnung je Reise, Bild-Belege als eigene Seiten und Felder für die Unterschriften. Sind Reisen noch offen, steht unter dem Titel „Entwurf, nicht eingereicht“.</li>
+    <li><span class="ui">Mit PDF-Belegen zusammenfügen</span> gibt die Abrechnung samt PDF-Belegen an die <a href="#pdf">PDF-Werkzeuge</a>.</li>
+    <li>Verwalter setzen eine Reise auf <i>abgerechnet</i> oder <i>ausbezahlt</i> oder geben sie mit Grund zurück; dann ist sie wieder bearbeitbar und der Reiter zeigt einen Hinweis.</li>
+    <li>Dazu eine Jahresübersicht als PDF und eine CSV-Datei für andere Programme.</li>
+  </ul>
+  <div class="note warn"><b class="h">Grenzen</b>Die vorgegebenen Sätze sind ein Startwert, keine Rechtsauskunft: Prüfe sie gegen die Vorgaben deiner Gemeinde. PDF-Belege werden nicht in die Abrechnung eingebettet, dafür gibt es das Zusammenfügen. Die Entfernung berechnen geht nur mit eigenem Schlüssel und Internet.</div>
+</section>
+
 <section id="roadmap">
-  <h2><span class="n">7</span>Ideen &amp; Wünsche</h2>
+  <h2><span class="n">8</span>Ideen &amp; Wünsche</h2>
   <p>Reiter <span class="ui">💡 Ideen &amp; Wünsche</span>: Was es gibt, was kommt und woran gerade gearbeitet wird. Mit 👍 zeigst du, was du auch brauchst.</p>
   <figure><a href="screenshot-ideen.png"><img src="screenshot-ideen.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-ideen.png'" style="max-width:620px;width:100%" alt="Ideen und Wünsche"></a><figcaption>Liste mit Status und Abstimmung, darunter die eigenen Wünsche.</figcaption></figure>
   <ul>
@@ -293,7 +325,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="update">
-  <h2><span class="n">8</span>Update</h2>
+  <h2><span class="n">9</span>Update</h2>
   <p>Beim Start sucht HU-Amt im Hintergrund nach Updates; bei einer neuen Version wird <span class="ui">Update</span> gold. Klick: HU-Amt schließt sich, <code>Pull.ps1</code> lädt die neue Version ganz, prüft jede Datei gegen die Prüfsummen-Liste und die Signatur des Herausgebers und ersetzt erst dann. Bei einem Fehler bleibt alles, wie es war. Danach startet HU-Amt neu. <code>Data\</code> und lokale Einstellungen werden nie angefasst.</p>
   <table>
     <tr><th>Rechtsklick auf Update</th><th>Wirkung</th></tr>
@@ -308,7 +340,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="support">
-  <h2><span class="n">9</span>Hilfe und Support</h2>
+  <h2><span class="n">10</span>Hilfe und Support</h2>
   <p><kbd>F1</kbd> oder <span class="ui">?</span> öffnet die Hilfe zum aktuellen Reiter, Rechtsklick auf <span class="ui">?</span> die Übersicht.</p>
   <ol class="steps">
     <li><span class="ui">🛟 Support</span>: aufschreiben, was passiert ist (Schritte, Fehlermeldung, erwartetes Ergebnis).</li>
@@ -319,7 +351,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="ordner">
-  <h2><span class="n">10</span>Was passiert mit deinen Dateien</h2>
+  <h2><span class="n">11</span>Was passiert mit deinen Dateien</h2>
   <p class="lead">Hier steht, was HU-Amt selbst mit Dateien macht. Was ein Modul mit seinen Dateien tut (Rechnungen, Scans, PDFs), steht in der Hilfe des Moduls (<kbd>F1</kbd> im Reiter) unter „Was passiert mit deinen Dateien“.</p>
 
   <h3 id="ordner-wo">Wo liegt was</h3>
@@ -390,7 +422,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="tasten">
-  <h2><span class="n">11</span>Tastenkürzel</h2>
+  <h2><span class="n">12</span>Tastenkürzel</h2>
   <table>
     <tr><th>Taste</th><th>Wirkung</th></tr>
     <tr><td><kbd>F1</kbd></td><td>Hilfe zum aktuellen Reiter</td></tr>

@@ -8,6 +8,8 @@
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#094771"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White"/>
     <Style x:Key="DarkButton" TargetType="Button">
+        <!-- Standardfarbe, falls ein Knopf keinen eigenen Hintergrund setzt (sonst hellgrau mit weisser Schrift) -->
+        <Setter Property="Background" Value="#555555"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Padding" Value="14,6"/>

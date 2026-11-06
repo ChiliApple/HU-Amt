@@ -1,5 +1,19 @@
 ﻿# Changelog
 
+## v0.1.4
+
+### 📖 Hilfe
+- **Neues Kapitel Reiseabrechnung:** Die Anleitung beschreibt den Reiter „🚗 Reisen“: einrichten, Reise erfassen, abrechnen und einreichen.
+  - Einstieg und Funktionen zeigen das Modul ebenfalls.
+- **Telefonrechnungen in der Kostenzuordnung:** Die Anleitung erklärt den Weg über die Texterkennung, die Zuordnung über die Rufnummer und was bei einem unlesbaren Betrag passiert.
+  - Dazu: Der Excel-Import ersetzt nur die Kostenarten der Datei, die Spalte im Export heißt bei Telefon „Rufnummer“.
+
+### 🎨 Oberfläche
+- **Knöpfe ohne eigene Farbe gut lesbar:** Setzt ein Modul an einem Knopf keine Farbe, ist er jetzt dunkelgrau statt hellgrau mit weißer Schrift.
+
+### ✅ Qualität
+- 108 Tests.
+
 ## v0.1.3
 
 ### 📦 Installation
