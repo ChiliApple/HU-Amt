@@ -1,5 +1,20 @@
 ﻿# Changelog
 
+## v0.1.6
+
+### 🔐 Verwalter
+- **Erster Verwalter bei der Installation:** Wer HU-Amt mit `Pull.ps1` neu installiert, ist automatisch Verwalter.
+  - Bisher war nach einer neuen Installation niemand Verwalter, auch der Reiter zum Eintragen fehlte.
+  - Ein Update ändert die Verwalter-Liste nie.
+- **Frage beim ersten Start:** Gibt es noch keinen Verwalter, fragt HU-Amt einmal, ob du Verwalter werden willst.
+  - Wer Nein sagt, wird nicht mehr gefragt. Sobald jemand eingetragen ist, kommt die Frage für niemanden mehr.
+
+### 📖 Hilfe
+- **Einrichten ohne Umweg:** Anleitung, Einstieg und README beschreiben den ersten Verwalter neu.
+
+### ✅ Qualität
+- 111 Tests.
+
 ## v0.1.5
 
 ### 💾 Speichern

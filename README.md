@@ -38,7 +38,7 @@ Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe, fü
 
 1. Einen neuen Ordner anlegen, auch auf einer Netzfreigabe, nur `Pull.ps1` hineinlegen und mit Rechtsklick › **Mit PowerShell ausführen** starten. HU-Amt kommt in genau diesen Ordner.
 2. **Start-HU-Amt.cmd** → beim ersten Start Desktop-Symbol und Taskleiste wählen
-3. Als Verwalter: **Einstellungen › Verwalter › Mich hinzufügen**, dann die Zugangsdatei `*.humodule` ins Fenster ziehen
+3. Wer installiert, ist automatisch Verwalter (sonst fragt HU-Amt beim ersten Start). Dann die Zugangsdatei `*.humodule` ins Fenster ziehen. Weitere Verwalter unter **Einstellungen › Verwalter**.
 
 Was das Programm kann und wie es geht:
 
