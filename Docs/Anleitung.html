@@ -283,20 +283,20 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 
 <section id="reisen">
   <h2><span class="n">7</span>Reiseabrechnung</h2>
-  <p>Reiter <span class="ui">🚗 Reisen</span>: Dienstreisen erfassen, Reisekosten und Tagesgebühren rechnen lassen und die Abrechnung als PDF einreichen. Jeder sieht nur seine eigenen Reisen, Verwalter alle.</p>
+  <p>Reiter <span class="ui">🚗 Reisen</span>: Dienstreisen erfassen, Reisekosten und Tagesgebühren rechnen lassen und die Abrechnung als PDF einreichen. Jeder sieht seine eigenen Reisen; Verwalter wählen oben eine Person oder „Alle Bediensteten“.</p>
   <h3 id="reisen-einst">Einrichten (Verwalter)</h3>
-  <p><span class="ui">⚙ Einstellungen</span> im Reiter: Kopfzeile für das PDF, Dienststelle, Kilometergeld, Tagesgebühren mit Staffel nach Dauer und Mindestentfernung, Nächtigung, Kürzung für Mahlzeiten, Frist für das Einreichen und Standardstrecken. Vorgegeben sind Werte nach Landes-Reisegebührenrecht; die Sätze der eigenen Gemeinde trägst du selbst ein. <span class="ui">Probe</span> rechnet ein Beispiel vor dem Speichern.</p>
+  <p><span class="ui">⚙ Einstellungen</span> im Reiter: Kopfzeile für das PDF, Dienststelle, Kilometergeld, Tagesgebühren mit Staffel nach Dauer und Mindestentfernung, Nächtigung, Kürzung für Mahlzeiten, Frist für das Einreichen und Standardstrecken. Neue Sätze ab einem Stichtag kommen mit <span class="ui">Neuer Stand</span>, der alte bleibt für frühere Reisen. Vorgegeben sind Werte nach Landes-Reisegebührenrecht; die Sätze der eigenen Gemeinde trägst du selbst ein. <span class="ui">Probe</span> rechnet ein Beispiel vor dem Speichern.</p>
   <h3 id="reisen-neu">Reise erfassen</h3>
   <ol class="steps">
-    <li><span class="ui b">Neue Reise</span>: Beginn und Ende mit Kalender 📅 und Uhrzeit, Ziel, Zweck.</li>
+    <li><span class="ui b">➕ Neue Reise</span>: Beginn und Ende mit Kalender 📅 und Uhrzeit, Ziel, Zweck.</li>
     <li>Entfernung einfach eintragen (Pflicht, sie zählt für Mindestentfernung und Staffel) oder eine Standardstrecke wählen. <span class="ui">Route ansehen</span> öffnet die Strecke im Browser; mit einem eigenen Schlüssel für openrouteservice rechnet <span class="ui">Entfernung berechnen</span> sie aus.</li>
     <li>Verkehrsmittel, Mitfahrer, Mahlzeiten, Nächtigung und Nebenkosten angeben. Rechts steht die Rechnung, sie ändert sich mit jeder Eingabe.</li>
     <li>Belege (PDF oder Bild) hineinziehen, <span class="ui g">Speichern</span>. <span class="ui">Kopieren</span> legt dieselbe Reise an einem anderen Tag an.</li>
   </ol>
   <h3 id="reisen-abrechnung">Abrechnung</h3>
   <ul>
-    <li><span class="ui">Abrechnung</span>: Reisen eines Zeitraums wählen, <span class="ui b">Einreichen</span> und PDF erstellen. Eingereichte Reisen sind eingefroren. Einreichen kann nur, wer die Reise gemacht hat.</li>
-    <li>Das PDF hat eine Übersicht aller Reisen, die Rechnung je Reise, Bild-Belege als eigene Seiten und Felder für die Unterschriften. Ein noch nicht eingereichter Stand ist als Entwurf gekennzeichnet.</li>
+    <li><span class="ui">Abrechnung</span>: Monat wählen, <span class="ui b">Einreichen und PDF</span>. Eingereichte Reisen sind festgehalten und lassen sich nicht mehr ändern. <span class="ui">PDF erstellen</span> macht nur das PDF, ohne einzureichen. Einreichen kann nur, wer die Reise gemacht hat.</li>
+    <li>Das PDF hat eine Übersicht aller Reisen, die Rechnung je Reise, Bild-Belege als eigene Seiten und Felder für die Unterschriften. Sind Reisen noch offen, steht unter dem Titel „Entwurf, nicht eingereicht“.</li>
     <li><span class="ui">Mit PDF-Belegen zusammenfügen</span> gibt die Abrechnung samt PDF-Belegen an die <a href="#pdf">PDF-Werkzeuge</a>.</li>
     <li>Verwalter setzen eine Reise auf <i>abgerechnet</i> oder <i>ausbezahlt</i> oder geben sie mit Grund zurück; dann ist sie wieder bearbeitbar und der Reiter zeigt einen Hinweis.</li>
     <li>Dazu eine Jahresübersicht als PDF und eine CSV-Datei für andere Programme.</li>
