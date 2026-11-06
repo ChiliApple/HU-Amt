@@ -145,12 +145,12 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </nav>
   </div>
   <h1>Alles, was HU-Amt <em>kann</em> – auf einer Seite.</h1>
-  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen auf Kostenstellen verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
+  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen auf Kostenstellen verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Dienstreisen abrechnen, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
   <div class="promise">
     <span>Windows 10 / 11</span><span>PowerShell 5.1 und 7</span><span>Ohne Installation</span><span>Selbst-Update aus GitHub</span><span>Signierte Releases</span>
   </div>
   <div class="stats" aria-label="Kennzahlen">
-    <div style="--c: var(--blue)"><b>4</b><span>Module als Reiter</span></div>
+    <div style="--c: var(--blue)"><b>5</b><span>Module als Reiter</span></div>
     <div style="--c: var(--yellow)"><b>8</b><span>PDF-Werkzeuge</span></div>
     <div style="--c: var(--green)"><b>1</b><span>Ordner für alle, auch auf der Freigabe</span></div>
     <div style="--c: var(--peach)"><b>AES-256</b><span>verschlüsselte Sicherung</span></div>
@@ -194,6 +194,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     <a href="#eg" style="--c: var(--yellow)">Kostenzuordnung</a>
     <a href="#ocr" style="--c: var(--blue)">Texterkennung</a>
     <a href="#pdf" style="--c: var(--teal)">PDF-Werkzeuge</a>
+    <a href="#reisen" style="--c: var(--green)">Reisen</a>
     <a href="#roadmap" style="--c: var(--mauve)">Ideen &amp; Wünsche</a>
     <a href="#fenster" style="--c: var(--blue)">Hauptfenster</a>
     <a href="#update" style="--c: var(--peach)">Update</a>
@@ -206,11 +207,12 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <div class="cats">
     <div class="col">
     <article class="cat" id="eg" style="--c: var(--yellow)">
-      <div class="cat-head"><span class="chip">🧾 Kostenzuordnung</span><h3>Kostenzuordnung</h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-head"><span class="chip">🧾 Kostenzuordnung</span><h3>Kostenzuordnung</h3><span class="count">Modul 0.1.3</span></div>
       <div class="cat-body">
         <div class="group"><h4>Rechnungen</h4>
           <ul>
-            <li>PDF-Rechnungen hineinziehen, Strom in zwei Formaten (Zählpunkte, Anlagennummern); Telefonrechnungen folgen</li>
+            <li>PDF-Rechnungen hineinziehen, Strom in zwei Formaten (Zählpunkte, Anlagennummern) und Telefonrechnungen je Rufnummer <span class="new">neu</span></li>
+            <li>Gescannte Rechnungen erst durch die Texterkennung, dann weitergeben; ein unlesbarer Einzelbetrag wird aus dem Rechnungsbetrag errechnet und markiert</li>
             <li>Kacheln je Rechnung: Positionen, Zugeordnet, Netto, Differenz</li>
             <li>Positionen ohne Kostenstelle orange als „Nicht zugeordnet“</li>
             <li>Excel-Export mit Zusammenfassung und je Rechnung einem Blatt, Dateiname mit Platzhaltern</li>
@@ -221,7 +223,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
           <ul>
             <li>Zuordnungen (Zählpunkt, Anlage, Rufnummer), Kostenstellen mit Haushaltsstelle und Kostenarten in einem Editor, Zeilen hinzufügen und löschen</li>
             <li>Kostenarten Strom und Telefon vorgegeben, umbenennen oder neue anlegen</li>
-            <li>Excel-Import mit Vorschau, was neu, geändert oder entfernt ist</li>
+            <li>Excel-Import mit Vorschau, was neu, geändert oder entfernt ist; ersetzt nur die Kostenarten der Datei</li>
             <li>Speichern nur für Verwalter, mit Prüfung und Sicherung der alten Liste</li>
           </ul>
         </div>
@@ -232,6 +234,29 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
             <li>Immer genau eine Kostenart ausgewertet, keine Summe über mehrere</li>
             <li>Seitenleiste live: Netto zum Vorjahr, Verlauf je Monat, Top 5</li>
             <li>Große Übersicht: Top 10, Vorjahresvergleich, Anteile, Rechnungen – druckbar</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="cat" id="reisen" style="--c: var(--green)">
+      <div class="cat-head"><span class="chip">🚗 Reisen</span><h3>Reiseabrechnung <span class="new">neu</span></h3><span class="count">Modul 0.1.0</span></div>
+      <div class="cat-body">
+        <div class="group"><h4>Erfassen</h4>
+          <ul>
+            <li>Mehrere Reisen, Beginn und Ende mit Kalender und Uhrzeit</li>
+            <li>Entfernung von Hand, als Standardstrecke oder mit eigenem Schlüssel berechnet; Route im Browser ansehen</li>
+            <li>Rechnung live: Kilometergeld, Tagesgebühr nach Staffel, Kürzung für Mahlzeiten, Nächtigung, Nebenkosten</li>
+            <li>Belege als PDF oder Bild hineinziehen, Reise auf einen anderen Tag kopieren</li>
+          </ul>
+        </div>
+        <div class="group"><h4>Abrechnen</h4>
+          <ul>
+            <li>Einreichen mit PDF: Übersicht, Rechnung je Reise, Bild-Belege, Unterschriftsfelder</li>
+            <li>PDF-Belege über die PDF-Werkzeuge anhängen</li>
+            <li>Verwalter: abgerechnet, ausbezahlt oder mit Grund zurück</li>
+            <li>Jahresübersicht als PDF, CSV für andere Programme</li>
+            <li>Sätze, Staffel und Frist in den Einstellungen, mit Probe-Rechnung</li>
           </ul>
         </div>
       </div>

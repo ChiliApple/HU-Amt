@@ -143,7 +143,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </nav>
   </div>
   <h1>Die Werkzeuge fürs Amt – <em>ein</em> Fenster.</h1>
-  <p class="lead">Rechnungen verbuchen, Scans durchsuchbar machen, PDFs zusammenfügen, schwärzen oder stempeln: In der Gemeindeverwaltung sind das oft fünf verschiedene Programme. HU-Amt legt sie als Reiter in ein Fenster – für alle Bediensteten, von einer Netzfreigabe aus. Diese Seite zeigt <b>typische Situationen aus dem Alltag</b>: was du tust und was am Ende herauskommt.</p>
+  <p class="lead">Rechnungen verbuchen, Scans durchsuchbar machen, PDFs zusammenfügen, schwärzen oder stempeln, Dienstreisen abrechnen: In der Gemeindeverwaltung sind das oft fünf verschiedene Programme. HU-Amt legt sie als Reiter in ein Fenster – für alle Bediensteten, von einer Netzfreigabe aus. Diese Seite zeigt <b>typische Situationen aus dem Alltag</b>: was du tust und was am Ende herauskommt.</p>
   <div class="newhere"><span><b>Neu hier?</b> Herunterladen, auf die Freigabe legen, starten – in etwa 10 Minuten. Die Module trägt der Verwalter mit einer Zugangsdatei ein.</span><a class="go" href="#start">In 10 Minuten startklar ↓</a></div>
   <div class="promise">
     <span>Ohne Installation</span><span>Läuft von der Netzfreigabe</span><span>Keine Lizenz</span><span>Windows 10 / 11, PowerShell 5.1 oder 7</span><span>Signierte Updates</span><span>Hilfe im Tool mit F1</span>
@@ -196,12 +196,13 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <h2>Was steht bei dir gerade an?</h2>
   <p class="sub">Tippe auf die Situation, die zu dir passt.</p>
   <nav class="finder">
-    <a href="#rechnungen" style="--c: var(--yellow)"><b>Die Stromrechnungen sind da</b><small>zuordnen, Excel-Liste, Übersicht</small></a>
+    <a href="#rechnungen" style="--c: var(--yellow)"><b>Die Strom- oder Telefonrechnungen sind da</b><small>zuordnen, Excel-Liste, Übersicht</small></a>
     <a href="#scans" style="--c: var(--blue)"><b>Gescannte Post wiederfinden</b><small>Texterkennung, sinnvolle Dateinamen</small></a>
     <a href="#zusammen" style="--c: var(--teal)"><b>Mehrere PDFs als eine Datei</b><small>zusammenfügen, Seiten ordnen</small></a>
     <a href="#mail" style="--c: var(--green)"><b>Die PDF ist zu groß für die Mail</b><small>verkleinern in drei Stufen</small></a>
     <a href="#schwaerzen" style="--c: var(--red)"><b>Namen müssen raus</b><small>sicher schwärzen</small></a>
     <a href="#stempel" style="--c: var(--peach)"><b>Eingang vermerken</b><small>Eingangsstempel und Notizzettel</small></a>
+    <a href="#reise" style="--c: var(--green)"><b>Ich war dienstlich unterwegs</b><small>Reise erfassen, abrechnen, einreichen</small></a>
     <a href="#wunsch" style="--c: var(--mauve)"><b>Mir fehlt noch etwas</b><small>Ideen &amp; Wünsche, Feedback</small></a>
     <a href="#verwalter" style="--c: var(--blue)"><b>Ich bin der Verwalter</b><small>Freigabe, Module, Sicherung</small></a>
   </nav>
@@ -213,7 +214,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <article class="scn" id="rechnungen" style="--c: var(--yellow)">
     <div class="scn-head">
       <span class="tag">Kostenzuordnung</span>
-      <h3>Die Stromrechnungen sind da</h3>
+      <h3>Die Strom- oder Telefonrechnungen sind da</h3>
       <p class="quote">„Jeden Monat dieselben Rechnungen mit dutzenden Zählpunkten – und jede Position muss auf die richtige Kostenstelle.“</p>
     </div>
     <div class="scn-body">
@@ -221,11 +222,11 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
         <h4>So gehst du vor</h4>
         <ol class="steps">
           <li><span>Reiter <span class="ui">🧾 Kostenzuordnung</span>: oben rechts prüfen, ob die Kostenstellenliste geladen ist (grün).</span></li>
-          <li><span>Die PDF-Rechnungen auf die Ablage ziehen und <span class="ui b">Verarbeitung starten</span>.</span></li>
+          <li><span>Die PDF-Rechnungen auf die Ablage ziehen und <span class="ui b">Verarbeitung starten</span>. Eine gescannte Telefonrechnung zuerst durch die Texterkennung schicken und von dort weitergeben.</span></li>
           <li><span>Je Rechnung zeigen Kacheln Positionen, Zugeordnet, Netto und Differenz. Was keine Kostenstelle hat, steht orange als <i>Nicht zugeordnet</i>.</span></li>
           <li><span>Excel exportieren – ohne Rückfrage in den Export-Ordner, auf Wunsch gleich in Excel öffnen.</span></li>
         </ol>
-        <div class="meta"><span>⏱ Minuten statt Abtippen</span><span>zwei Rechnungsformate</span></div>
+        <div class="meta"><span>⏱ Minuten statt Abtippen</span><span>Strom und Telefon getrennt</span></div>
       </div>
       <div>
         <h4>Was du am Ende hast</h4>
@@ -233,6 +234,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
           <li>Eine Excel-Liste mit Zusammenfassung und je Rechnung einem Blatt</li>
           <li>Jede Rechnung im Archiv, nach Jahr geordnet</li>
           <li>Eine Übersicht mit Vorjahresvergleich, Spitzenverbrauchern und Verlauf je Monat – live, druckbar</li>
+          <li>Telefonkosten je Rufnummer auf der richtigen Kostenstelle, nie mit Strom vermischt</li>
           <li>Fehlende Monate je Zählpunkt auf einen Blick (<span class="ui">🔎 Lücken …</span>)</li>
         </ul>
         <figure class="shot wide"><img src="screenshot-kostenzuordnung.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-kostenzuordnung.png'" alt="Reiter Kostenzuordnung" loading="lazy"><figcaption>Reiter Kostenzuordnung mit Übersicht (Testdaten)</figcaption></figure>
@@ -368,6 +370,35 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
         <ul class="gets">
           <li>Datum, Zeit und Kürzel auf der ersten oder allen Seiten</li>
           <li>Ein Notizzettel, der in Acrobat eine bearbeitbare Anmerkung bleibt</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="reise" style="--c: var(--green)">
+    <div class="scn-head">
+      <span class="tag">Reisen</span>
+      <h3>Ich war dienstlich unterwegs</h3>
+      <p class="quote">„Drei Termine im Monat, jedes Mal Kilometer, Uhrzeiten und Tagesgebühr ausrechnen – und dann noch das Formular.“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Reiter <span class="ui">🚗 Reisen</span> › <span class="ui b">Neue Reise</span>: Beginn und Ende im Kalender wählen, Uhrzeit, Ziel und Zweck.</span></li>
+          <li><span>Entfernung eintragen oder eine Standardstrecke wählen; rechts steht sofort die Rechnung.</span></li>
+          <li><span>Belege als PDF oder Foto hineinziehen und speichern.</span></li>
+          <li><span>Am Monatsende <span class="ui">Abrechnung</span> › <span class="ui b">Einreichen</span>: Das PDF zum Unterschreiben entsteht von selbst.</span></li>
+        </ol>
+        <div class="meta"><span>Sätze stellt der Verwalter ein</span><span>mehrere Reisen in einer Abrechnung</span></div>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Eine Abrechnung als PDF mit Übersicht, Rechnung je Reise und Belegen</li>
+          <li>Kilometergeld und Tagesgebühren nach den Sätzen deiner Gemeinde gerechnet</li>
+          <li>Den Stand jeder Reise: eingereicht, abgerechnet, ausbezahlt oder zurückgegeben mit Grund</li>
+          <li>Eine Jahresübersicht deiner Reisen</li>
         </ul>
       </div>
     </div>
