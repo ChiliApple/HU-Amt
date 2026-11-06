@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## v0.1.5
+
+### 💾 Speichern
+- **Speichern auf Netzfreigaben repariert:** Auf manchen Freigaben kam beim Speichern „Der Zugriff auf den Pfad wurde verweigert“, obwohl der Benutzer Vollzugriff hat.
+  - Betroffen waren alle Daten, die überschrieben werden, z. B. die Einstellungen im Reiter „🚗 Reisen“.
+  - HU-Amt überschreibt die Datei jetzt auf normalem Weg, wenn die Freigabe das Ersetzen nicht erlaubt.
+
+### ✅ Qualität
+- 108 Tests.
+
 ## v0.1.4
 
 ### 📖 Hilfe
