@@ -2,6 +2,7 @@
 # Pester 5: Testmodus (Functions\Core-TestMode.ps1). Kuenstlicher App-Ordner unter TEMP, keine Fenster.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     . (Join-Path $script:Root 'Functions\Core-TestMode.ps1')
 }
@@ -128,6 +129,15 @@ Describe 'Gefuehrter Test (Logik)' {
             $html | Should -Not -Match 'Preis <fehlt>'
             (Split-Path $r.Html -Leaf) | Should -Be 'Testprotokoll_Buchung_20261107-170000.html'
         } finally { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    It 'Oeffnen im StrictMode: keine ungesetzte Variable vor dem Fenster' {
+        $env:HUAMT_TESTMODE = '1'
+        try {
+            . (Join-Path $script:Root 'Functions\UI-TestAssistant.ps1')   # frisch geladen wie beim App-Start
+            function New-HUWindow { throw 'Fenster wuerde jetzt aufgehen' }
+            function Get-HUThemedXaml([string]$Xaml) { $Xaml }
+            { Show-HUTestAssistant -ModuleId 'Buchung' -Scenarios $script:Sc } | Should -Throw '*Fenster wuerde jetzt aufgehen*'
+        } finally { Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue }
     }
     It 'Fenster-XAML ist gueltig' {
         if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') { Set-ItResult -Skipped -Because 'XAML braucht STA'; return }

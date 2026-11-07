@@ -18,11 +18,14 @@
   - Suche nach Name, Firma, Mail oder Ort. vCard-Dateien lassen sich auch ins Fenster ziehen.
   - Übernommen wird nur, was du markierst.
 
+### 🧪 Testmodus
+- **Geführter Test öffnet zuverlässig:** In 0.1.9 brach das Öffnen des Testassistenten ab. Behoben; die Tests des Kerns laufen jetzt wie die App im strengen Modus.
+
 ### ⚠️ Nach dem Update
 - Für das Senden „im Auftrag von“ eines gemeinsamen Postfachs braucht der Benutzer im Exchange das Recht dazu.
 
 ### ✅ Qualität
-- 193 Tests.
+- 194 Tests, alle im strengen Modus wie die App.
 
 ## v0.1.9
 

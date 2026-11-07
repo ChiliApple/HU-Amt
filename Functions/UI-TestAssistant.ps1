@@ -19,6 +19,7 @@
 #>
 
 $script:HUTaNone = [string][char]0x2013   # Gedankenstrich: nicht geprueft
+$script:HUTaWindow = $null; $script:HUTa = $null   # StrictMode der App: vor dem ersten Lesen setzen
 
 # ---------------------------------------------------------------- Logik (ohne Oberflaeche, testbar) ----------------------------------------------------------------
 

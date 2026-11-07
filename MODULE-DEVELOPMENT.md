@@ -134,6 +134,10 @@ $r = Set-HUOutlookAppointment -Folder $einst.Kalender -Key "Buchung:$($b.Id)" -E
 $b.OutlookId = $r.EntryId
 ```
 
+## Tests im strengen Modus
+
+`Main.ps1` läuft mit `Set-StrictMode -Version 1.0`: eine Variable, die gelesen wird, bevor sie gesetzt ist, ist ein Fehler. Die Tests eines Moduls laufen deshalb ebenfalls so (`Set-StrictMode -Version 1.0` am Anfang von `BeforeAll` bzw. im Modultest). Variablen im Skriptbereich (`$script:…`) oben in der Datei mit einem Startwert setzen.
+
 ## Oberfläche: was der Kern für jedes Modul erledigt
 
 - **Verschiebbare Bereiche (GridSplitter):** Der Kern merkt sich in jedem Reiter und in jedem Fenster mit `Restore-HUDialogState`/`Save-HUDialogState` die Zeilen- und Spaltengrößen aller Grids mit Splitter (je Benutzer, ab 0.1.10). **Module bauen dafür nichts Eigenes.** Ein Grid bekommt am besten ein `x:Name`, dann bleibt die Zuordnung auch bei Umbauten stabil.

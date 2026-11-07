@@ -2,6 +2,7 @@
 # Pester 5: verschiebbare Bereiche (GridSplitter) merken, Functions\UI-State.ps1. WPF-Objekte ohne Fenster, nur im STA-Thread.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:Sta = ([Threading.Thread]::CurrentThread.GetApartmentState() -eq 'STA')
     Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase

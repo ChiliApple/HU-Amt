@@ -2,6 +2,7 @@
 # Pester 5: Absender fuer Mails aus Modulen (Functions\UI-Mail.ps1). Ohne Outlook und ohne Fenster: Konten und Dialog sind Stellvertreter.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     Import-Module (Join-Path $script:Root 'Core\HU.Office.psm1') -Force -DisableNameChecking
     . (Join-Path $script:Root 'Functions\Core-TestMode.ps1')

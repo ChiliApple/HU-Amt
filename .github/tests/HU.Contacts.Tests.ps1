@@ -2,6 +2,7 @@
 # Pester 5: Kontakte (Core\HU.Contacts.psm1, Outlook-Kontakte in Core\HU.Office.psm1). Nur kuenstliche Kontakte, kein Outlook.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     Import-Module (Join-Path $script:Root 'Core\HU.Contacts.psm1') -Force -DisableNameChecking
     Import-Module (Join-Path $script:Root 'Core\HU.Office.psm1') -Force -DisableNameChecking

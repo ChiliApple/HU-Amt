@@ -2,6 +2,7 @@
 # Pester 5: Wächter für externe Werkzeuge der Module (.github\waechter). Ohne Netz, nur künstliche Daten unter TEMP.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     . (Join-Path $script:Root '.github\waechter\Waechter.Funktionen.ps1')
     function New-TestModul([hashtable]$Konfig, [hashtable]$Paket = $null, [string]$Req = '') {
