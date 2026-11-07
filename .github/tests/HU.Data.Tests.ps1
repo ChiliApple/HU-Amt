@@ -569,3 +569,97 @@ Describe 'Gemeinsame Einstellungen und Berechtigte' {
         Get-HUUserDisplayName | Should -Not -BeNullOrEmpty
     }
 }
+
+Describe 'Ordner nicht erreichbar (Pruefung 086, KERN-B4)' {
+    BeforeEach {
+        $script:B4 = New-TestDir
+        $script:B4Dir = Join-Path $script:B4 'freigabe\fristen'
+        Set-TestFile (Join-Path $script:B4Dir 'f-00000001.json') '{ "Id": "f-00000001" }'
+        Set-TestFile (Join-Path $script:B4Dir 'f-00000002.json') '{ "Id": "f-00000002" }'
+    }
+    AfterEach { Remove-Item -LiteralPath $script:B4 -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'Elternordner weg (Freigabe kurz weg): Fehler, Zwischenspeicher bleibt und liefert die Datensaetze' {
+        $c = @{}
+        $r = Get-HUDataRecords -Folder $script:B4Dir -Cache $c
+        @($r.Items).Count | Should -Be 2
+        Remove-Item -LiteralPath (Join-Path $script:B4 'freigabe') -Recurse -Force
+        $r2 = Get-HUDataRecords -Folder $script:B4Dir -Cache $c
+        @($r2.Errors) | Should -Contain "Ordner nicht erreichbar: $($script:B4Dir)"
+        @($r2.Items).Count | Should -Be 2
+        $c.Count | Should -Be 2
+        $r2.Weg | Should -Be 0
+        @($r2.Stamps.Keys).Count | Should -Be 2
+    }
+    It 'Laufwerk bzw. Freigabe gibt es nicht: Fehler statt leerer Liste' {
+        $c = @{}
+        $r = Get-HUDataRecords -Folder $script:B4Dir -Cache $c
+        # Zwischenspeicher auf Pfade mit fehlender Wurzel umschreiben: freier Laufwerksbuchstabe und eine Freigabe, die es nicht gibt
+        $drive = @(68..90 | ForEach-Object { [string][char]$_ } | Where-Object { -not (Test-Path -LiteralPath "$($_):\") })[-1]
+        $drive | Should -Not -BeNullOrEmpty
+        # Freigabe auf dem eigenen PC, die es nicht gibt (schnell, ohne Namensaufloesung im Netz)
+        foreach ($p in @("$($drive):\HU\fristen", "\\localhost\hu-test-gibt-es-nicht-$([guid]::NewGuid().ToString('N').Substring(0, 6))`$\fristen")) {
+            $cc = @{}
+            foreach ($k in @($c.Keys)) { $cc[$p + '\' + [IO.Path]::GetFileName($k)] = $c[$k] }
+            $r2 = Get-HUDataRecords -Folder $p -Cache $cc
+            @($r2.Errors) | Should -Contain "Ordner nicht erreichbar: $p"
+            @($r2.Items).Count | Should -Be 2
+            $cc.Count | Should -Be 2
+        }
+        # auch ohne Zwischenspeicher: Fehler, keine stille leere Liste
+        $r3 = Get-HUDataRecords -Folder "$($drive):\HU\fristen" -Cache @{}
+        @($r3.Errors).Count | Should -Be 1
+        @($r3.Items).Count | Should -Be 0
+    }
+    It 'Elternordner da, Ordner fehlt wirklich: leer ohne Fehler, Zwischenspeicher wird geleert' {
+        $c = @{}
+        [void](Get-HUDataRecords -Folder $script:B4Dir -Cache $c)
+        Remove-Item -LiteralPath $script:B4Dir -Recurse -Force
+        $r = Get-HUDataRecords -Folder $script:B4Dir -Cache $c
+        @($r.Errors).Count | Should -Be 0
+        @($r.Items).Count | Should -Be 0
+        $c.Count | Should -Be 0
+        $r.Weg | Should -Be 2
+    }
+    It 'Unterordner, die erst beim ersten Speichern entstehen: leer ohne Fehler' {
+        $r = Get-HUDataRecords -Folder (Join-Path $script:B4 'neu\buchungen\2027') -Cache @{}
+        @($r.Errors).Count | Should -Be 0
+        @($r.Items).Count | Should -Be 0
+    }
+}
+
+Describe 'Zweistellige Jahre (Pruefung 086, KERN-B6)' {
+    It '1.1.35 ist 2035, 1.1.49 ist 2049, 1.1.50 ist 1950 (fest, unabhaengig von Windows)' {
+        (ConvertFrom-HUDateText '1.1.35').Year | Should -Be 2035
+        (ConvertFrom-HUDateText '31.12.49').Year | Should -Be 2049
+        (ConvertFrom-HUDateText '1.1.50').Year | Should -Be 1950
+        (ConvertFrom-HUDateText '1.1.35 8:15').Year | Should -Be 2035
+    }
+    It 'nutzt eine eigene Kultur mit TwoDigitYearMax 2049 statt der des PCs' {
+        InModuleScope HU.Data { $script:HUDataDateCulture.DateTimeFormat.Calendar.TwoDigitYearMax } | Should -Be 2049
+        InModuleScope HU.Data { [object]::ReferenceEquals($script:HUDataDateCulture, [Globalization.CultureInfo]::InvariantCulture) } | Should -BeFalse
+    }
+}
+
+Describe 'Zweideutige Zahl 1.500 (Entscheidung zu ConvertTo-HUDecimal)' {
+    It 'erkennt <In> als zweideutig: <Erg>' -TestCases @(
+        @{ In = '1.500'; Erg = $true }
+        @{ In = '12.250'; Erg = $true }
+        @{ In = '-3.000'; Erg = $true }
+        @{ In = " 1.500 $([char]0x20AC)"; Erg = $true }
+        @{ In = '1.5'; Erg = $false }
+        @{ In = '1.50'; Erg = $false }
+        @{ In = '1234.500'; Erg = $false }
+        @{ In = '1.500,00'; Erg = $false }
+        @{ In = '1.234.567'; Erg = $false }
+        @{ In = '1500'; Erg = $false }
+        @{ In = ''; Erg = $false }
+    ) {
+        param($In, $Erg)
+        Test-HUAmbiguousNumber $In | Should -Be $Erg
+    }
+    It 'ConvertTo-HUDecimal liest Dateien unveraendert (1.500 = 1,5)' {
+        ConvertTo-HUDecimal '1.500' | Should -Be ([decimal]1.5)
+        ConvertTo-HUDecimal '1.500,00' | Should -Be ([decimal]1500)
+    }
+}

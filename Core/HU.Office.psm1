@@ -335,7 +335,8 @@ function Get-HUOutlookContacts {
                         $name = ("$($it.FullName)" -replace '\s+', ' ').Trim(); $firma = ("$($it.CompanyName)").Trim()
                         if (-not $name) { $name = $firma }
                         $mail = "$($it.Email1Address)".Trim()
-                        if ($q -and "$name $firma $mail $city" -notlike "*$q*") { continue }
+                        # IndexOf statt -like: [ ] * ? im Suchtext sind kein Platzhalter (KERN-B7)
+                        if ($q -and "$name $firma $mail $city".IndexOf($q, [StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
                         [pscustomobject]@{ Name = $name; Firma = $firma; Mail = $mail; Telefon = $tel.Trim(); Mobil = "$($it.MobileTelephoneNumber)".Trim()
                             Strasse = ($street -replace '\s+', ' ').Trim(); Plz = $plz.Trim(); Ort = $city.Trim(); Land = $land.Trim(); Quelle = 'Outlook'
                         }
@@ -803,12 +804,16 @@ function Set-HUWordTable($Document, [string]$Placeholder, [object[]]$Rows) {
     -TimeoutSeconds: antwortet Word so lange nicht (z. B. unsichtbarer Dialog), wird genau diese Word-Instanz beendet und
     die Funktion wirft. Laeuft die eigene Instanz nach dem Beenden noch, wird sie ebenfalls beendet. Fremdes Word bleibt unberuehrt.
     Am besten in einem Hintergrund-Auftrag des Kerns aufrufen, damit das Fenster nicht stehen bleibt.
+    Nur .docx und .dotx (ohne Makros). Makros bleiben auch sonst aus: AutomationSecurity = 3
+    (msoAutomationSecurityForceDisable) vor dem Oeffnen; per Automation gestartetes Word hat sonst
+    msoAutomationSecurityLow = alle Makros an (Microsoft Learn, MsoAutomationSecurity).
 #>
 function Invoke-HUWordTemplate {
     param(
         [Parameter(Mandatory)][string]$Template, [string]$PdfPath = '', [string]$DocxPath = '',
         [hashtable]$Values = @{}, [hashtable]$Tables = @{}, [ValidateRange(10, 3600)][int]$TimeoutSeconds = 120
     )
+    Assert-HUWordTemplateExtension $Template
     Assert-HUOfficeLive 'Word'
     if (-not (Test-Path -LiteralPath $Template)) { throw "Vorlage nicht gefunden: $Template" }
     if (-not $PdfPath -and -not $DocxPath) { throw 'Kein Ziel angegeben (-PdfPath oder -DocxPath).' }
@@ -823,6 +828,7 @@ function Invoke-HUWordTemplate {
         $word = New-Object -ComObject Word.Application
         $word.Visible = $false
         $word.DisplayAlerts = 0   # wdAlertsNone
+        $word.AutomationSecurity = 3   # msoAutomationSecurityForceDisable: keine Makros beim Oeffnen per Programm (KERN-B3)
         $docs = $word.Documents
         $doc = $docs.Open($tmp, $false, $false, $false)   # FileName, ConfirmConversions, ReadOnly, AddToRecentFiles
         $wordPid = Get-HUWordProcessId -Document $doc -Before $before
@@ -871,6 +877,14 @@ function Invoke-HUWordTemplate {
         if ($guard) { $guard.Stop() }
         if ($wordPid) { Stop-HUOwnProcess -ProcessId $wordPid -GraceSeconds 15 }
         Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Word-Vorlage nur als .docx oder .dotx (Formate ohne Makros), sonst eine klare Meldung (KERN-B3)
+function Assert-HUWordTemplateExtension([string]$Template) {
+    $ext = [IO.Path]::GetExtension("$Template").ToLowerInvariant()
+    if (@('.docx', '.dotx') -notcontains $ext) {
+        throw "Word-Vorlage muss eine .docx- oder .dotx-Datei sein (ohne Makros), nicht '$ext': $Template"
     }
 }
 

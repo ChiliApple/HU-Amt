@@ -38,7 +38,8 @@ function Test-HUTestDataPath([string]$Path, [string]$AppRoot = $script:AppRoot) 
 
 <#
 .SYNOPSIS
-    Beim Start im Testmodus, vor Protokoll und Modulen: Testbestand anlegen bzw. zuruecksetzen, Verwalter-Liste uebernehmen.
+    Beim Start im Testmodus, vor Protokoll und Modulen: Testbestand anlegen bzw. zuruecksetzen, Verwalter-Liste uebernehmen
+    (bei jedem Start neu).
     Rueckgabe: $true, wenn zurueckgesetzt wurde.
 #>
 function Initialize-HUTestData([string]$AppRoot = $script:AppRoot) {
@@ -58,10 +59,11 @@ function Initialize-HUTestData([string]$AppRoot = $script:AppRoot) {
         }
         $reset = $true
     }
-    # Verwalter bleiben im Test Verwalter (sonst fehlte der Reiter Verwalter und der Weg zurueck)
+    # Verwalter bleiben im Test Verwalter (sonst fehlte der Reiter Verwalter und der Weg zurueck).
+    # Bei jedem Start neu kopieren (KERN-B17): Aenderungen der echten Liste gelten auch im Testmodus.
     $real = Join-Path (Join-Path $AppRoot 'Data') 'Verwalter.txt'
     $test = Join-Path $root 'Verwalter.txt'
-    if ((Test-Path -LiteralPath $real) -and -not (Test-Path -LiteralPath $test)) { Copy-Item -LiteralPath $real -Destination $test }
+    if (Test-Path -LiteralPath $real) { Copy-Item -LiteralPath $real -Destination $test -Force }
     return $reset
 }
 

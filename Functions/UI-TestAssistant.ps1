@@ -174,7 +174,7 @@ function Export-HUTestProtocol {
 #>
 function Show-HUTestAssistant {
     param([Parameter(Mandatory)][string]$ModuleId, [string]$ModuleVersion = '', [Parameter(Mandatory)][object[]]$Scenarios, [string]$Title = '')
-    if (-not (Test-HUTestMode)) { Show-HUMessage 'Den geführten Test gibt es nur im Testmodus (Einstellungen › Verwalter › Testmodus starten).' -Icon Information; return }
+    if (-not (Test-HUTestMode)) { Show-HUMessage 'Den geführten Test gibt es nur im Testmodus (Einstellungen › Verwalter › Testmodus starten).' -Icon Info; return }
     if ($script:HUTaWindow -and $script:HUTaWindow.IsVisible) { [void]$script:HUTaWindow.Activate(); return }
     $run = New-HUTestRun -ModuleId $ModuleId -ModuleVersion $ModuleVersion -Scenarios $Scenarios
     $x = @'
@@ -188,7 +188,7 @@ function Show-HUTestAssistant {
         <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                 <Button x:Name="btnExport" Content="Protokoll speichern" Background="#1565C0" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Protokoll als CSV und HTML im Testbestand speichern und den Ordner öffnen"/>
-                <Button x:Name="btnClose" Content="Schließen" Background="#555555" Style="{StaticResource DarkButton}" ToolTip="Fenster schließen (nicht gespeicherte Ergebnisse gehen verloren)"/>
+                <Button x:Name="btnClose" Content="Schließen" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True" ToolTip="Fenster schließen, auch mit Esc (nicht gespeicherte Ergebnisse gehen verloren)"/>
             </StackPanel>
             <TextBlock x:Name="txtSummary" Foreground="#CCCCCC" VerticalAlignment="Center" TextWrapping="Wrap" ToolTip="Stand des Testlaufs"/>
         </DockPanel>
@@ -204,6 +204,8 @@ function Show-HUTestAssistant {
                     <DataGridTextColumn Header="Mensch" Binding="{Binding Mensch}"/>
                 </DataGrid.Columns>
             </DataGrid>
+            <GridSplitter x:Name="taSplit" Grid.Column="1" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+                          Background="#2D2D30" Cursor="SizeWE" ToolTip="Ziehen, um die Breite von Liste und Schrittansicht zu ändern"/>
             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                     <TextBlock x:Name="txtStepTitle" Style="{StaticResource SectionTitle}" TextWrapping="Wrap"/>
@@ -267,10 +269,31 @@ function Show-HUTestAssistant {
             } catch { Show-HUMessage "Protokoll nicht gespeichert:`n$($_.Exception.Message)" -Icon Error -Owner $t.W }
         })
     $c.btnClose.Add_Click({ $script:HUTa.W.Close() })
+    # Rueckfrage, wenn noch Bestaetigungen offen sind (KERN-U2); Groesse, Lage und Splitter merken
+    $w.Add_Closing({
+            param($s, $e)
+            $t = $script:HUTa
+            $q = Get-HUTestAssistantCloseQuestion $t.Run
+            if ($q -and -not (Confirm-HU $q 'Geführter Test' -Warning -Owner $t.W)) { $e.Cancel = $true; return }
+            try { Save-HUDialogState $t.W 'TestAssistent' } catch { }
+        })
     $w.Add_Closed({ $script:HUTaWindow = $null })
     $script:HUTaWindow = $w
+    try { Restore-HUDialogState $w 'TestAssistent' } catch { }
     Update-HUTestAssistantView
     $w.Show()
+}
+
+<#
+.SYNOPSIS
+    Text der Rueckfrage beim Schliessen, wenn Schritte noch ohne Bestaetigung sind; '' = ohne Rueckfrage schliessen.
+#>
+function Get-HUTestAssistantCloseQuestion($Run) {
+    if (-not $Run) { return '' }
+    $sum = Get-HUTestSummary $Run
+    if ($sum.Offen -le 0) { return '' }
+    $n = $(if ($sum.Offen -eq 1) { '1 Schritt ist' } else { "$($sum.Offen) Schritte sind" })
+    return "$n noch nicht bestätigt.`n`nTrotzdem schließen? Nicht gespeicherte Ergebnisse gehen verloren (vorher $([char]0x201E)Protokoll speichern$([char]0x201C))."
 }
 
 function Update-HUTestAssistantView {

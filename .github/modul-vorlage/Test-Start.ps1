@@ -3,7 +3,7 @@
 .SYNOPSIS
     Starttest der App mit einem Modul in einer frischen Kopie der Test-App (PowerShell 5.1 und 7).
 .DESCRIPTION
-    Zielmaschine: nb001. Vorlage aus dem Kern (.github\modul-vorlage), Module kopieren sie unverändert nach .github\dev.
+    Zielmaschine: Entwicklungs-PC. Vorlage aus dem Kern (.github\modul-vorlage), Module kopieren sie unverändert nach .github\dev.
     - Kopiert die Test-App ohne Data, Addons, AddonsDev und Logs in einen Temp-Ordner, legt nur dieses Modul nach
       AddonsDev\<Modul-Id> und ruft Main.ps1 -SmokeTest auf. So stört kein anderes Modul (z. B. ein zweites, das
       dieselbe Dateiart annimmt), und die Daten der Test-App bleiben unberührt. Die Test-App selbst wird nur gelesen.

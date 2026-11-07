@@ -421,3 +421,147 @@ Describe 'Lade-Kreislauf' {
         { Start-HUBackgroundLoad -Name 'stop' } | Should -Throw
     }
 }
+
+Describe 'Abbrechen ohne Warten (Pruefung 086, KERN-B5)' {
+    BeforeEach { $script:Got = $null }
+    AfterEach {
+        Stop-HUBackgroundJobs -WaitStaSec 0
+        foreach ($n in @($script:HULoads.Keys)) { Unregister-HUBackgroundLoad -Name $n }
+        [void](Wait-HUTest { Complete-HUCtlStops; $script:HUCtlStopping.Count -eq 0 } 15000)
+    }
+
+    It 'Auftrag mit Start-Sleep 30 laeuft in die Zeitueberschreitung, Abholen kehrt sofort zurueck' {
+        Start-HUBackgroundJob -NoTimer -TimeoutSec 1 -Script { Start-Sleep -Seconds 30; 'zu spaet' } -Done { param($Res, $Err, $Ctx) $script:Got = @{ R = $Res; E = $Err } }
+        Start-Sleep -Milliseconds 1300
+        $sw = [Diagnostics.Stopwatch]::StartNew(); Receive-HUBackgroundJobs; $sw.Stop()
+        $script:Got.E | Should -Be 'Zeitüberschreitung'
+        $sw.ElapsedMilliseconds | Should -BeLessThan 1000
+        Get-HUBackgroundJobCount | Should -Be 0
+        Wait-HUTest { Complete-HUCtlStops; $script:HUCtlStopping.Count -eq 0 } 10000 | Should -BeTrue
+    }
+    It 'Auftrag, der den Abbruch erst spaet annimmt (.NET-Aufruf), haelt den Fenster-Thread nicht auf' {
+        Start-HUBackgroundJob -NoTimer -TimeoutSec 1 -Script { [Threading.Thread]::Sleep(4000); 'x' } -Done { param($Res, $Err, $Ctx) $script:Got = @{ E = $Err } }
+        Start-Sleep -Milliseconds 1300
+        $sw = [Diagnostics.Stopwatch]::StartNew(); Receive-HUBackgroundJobs; $sw.Stop()
+        $sw.ElapsedMilliseconds | Should -BeLessThan 1000
+        $script:Got.E | Should -Be 'Zeitüberschreitung'
+        $script:HUCtlStopping.Count | Should -Be 1   # Stop laeuft noch; freigegeben wird im naechsten Takt
+        Wait-HUTest { Complete-HUCtlStops; $script:HUCtlStopping.Count -eq 0 } 10000 | Should -BeTrue
+    }
+    It 'Stop-HUBackgroundJobs kehrt sofort zurueck' {
+        Start-HUBackgroundJob -NoTimer -Owner 'B5' -Script { [Threading.Thread]::Sleep(3000) }
+        Start-Sleep -Milliseconds 300
+        $sw = [Diagnostics.Stopwatch]::StartNew(); Stop-HUBackgroundJobs -Owner 'B5' -WaitStaSec 0; $sw.Stop()
+        $sw.ElapsedMilliseconds | Should -BeLessThan 1000
+        Get-HUBackgroundJobCount -Owner 'B5' | Should -Be 0
+    }
+    It 'Lade-Kreislauf: Zeitueberschreitung und Stop-HUBackgroundLoad kehren sofort zurueck' {
+        Register-HUBackgroundLoad -Name 'haengt' -NoTimer -RefreshSeconds 0 -TimeoutSec 1 -Script { [Threading.Thread]::Sleep(4000); 'x' } `
+            -Done { param($Res) } -Failed { param($Err) $script:Got = $Err } -Start
+        Start-Sleep -Milliseconds 1300
+        $sw = [Diagnostics.Stopwatch]::StartNew(); Receive-HUBackgroundLoad -Name 'haengt'; $sw.Stop()
+        $sw.ElapsedMilliseconds | Should -BeLessThan 1000
+        $script:Got | Should -Be 'Zeitüberschreitung'
+        Register-HUBackgroundLoad -Name 'stopp' -NoTimer -RefreshSeconds 0 -Script { [Threading.Thread]::Sleep(3000); 'x' } -Done { param($Res) } -Start
+        Start-Sleep -Milliseconds 300
+        $sw = [Diagnostics.Stopwatch]::StartNew(); Stop-HUBackgroundLoad -Name 'stopp'; $sw.Stop()
+        $sw.ElapsedMilliseconds | Should -BeLessThan 1000
+        Test-HUBackgroundLoadRunning 'stopp' | Should -BeFalse
+        Wait-HUTest { Complete-HUCtlStops; $script:HUCtlStopping.Count -eq 0 } 10000 | Should -BeTrue
+    }
+    It 'kein synchrones PowerShell.Stop() mehr in den Bausteinen' {
+        $src = [IO.File]::ReadAllText((Join-Path $script:Root 'Functions\UI-Controls.ps1'), [Text.Encoding]::UTF8)
+        $src | Should -Not -Match '\.Ps\.Stop\(\)'
+        $src | Should -Match 'BeginStop\(\$null, \$null\)'
+    }
+}
+
+Describe 'Auswahl mit Standardknopf (Entscheidung Read-HUChoice -DefaultIndex)' {
+    It 'genau der Knopf mit -DefaultIndex ist IsDefault, ohne Angabe keiner' {
+        if (-not $script:Sta) { Set-ItResult -Skipped -Because 'WPF braucht STA'; return }
+        $st = New-HUChoiceDialog -Title 'Probe' -Prompt 'Welche?' -Choices @('A', 'B', 'C') -DefaultIndex 1
+        try { @($st.Buttons | ForEach-Object { $_.IsDefault }) | Should -Be @($false, $true, $false) } finally { $st.Window.Close() }
+        $st2 = New-HUChoiceDialog -Title 'Probe' -Prompt 'Welche?' -Choices @('A', 'B')
+        try { @($st2.Buttons | Where-Object { $_.IsDefault }).Count | Should -Be 0 } finally { $st2.Window.Close() }
+    }
+    It 'Read-HUChoice reicht -DefaultIndex weiter' {
+        (Get-Command Read-HUChoice).Parameters.ContainsKey('DefaultIndex') | Should -BeTrue
+        (Get-Command New-HUChoiceDialog).Parameters['DefaultIndex'].ParameterType | Should -Be ([int])
+    }
+}
+
+Describe 'Betragsfeld mit zweideutiger Eingabe (Entscheidung zu 1.500)' {
+    BeforeAll { Import-Module (Join-Path $script:Root 'Core\HU.Data.psm1') -Force -DisableNameChecking }
+    BeforeEach { $script:Asked = New-Object System.Collections.Generic.List[string]; $script:Answer = -1 }
+    It 'fragt bei 1.500 einmal nach und liefert die gewaehlte Zahl' {
+        function Read-HUChoice { param([string]$Title, [string]$Prompt, [string[]]$Choices, $Owner, [string[]]$ToolTips, [int]$DefaultIndex = -1) $script:Asked.Add("$Prompt|$($Choices -join '/')|$DefaultIndex"); $script:Answer }
+        $script:Answer = 0
+        Read-HUNumberInput '1.500' | Should -Be ([decimal]1500)
+        $script:Answer = 1
+        Read-HUNumberInput '1.500' | Should -Be ([decimal]1.5)
+        $script:Answer = -1
+        Read-HUNumberInput '1.500' | Should -BeNullOrEmpty
+        $script:Asked.Count | Should -Be 3
+        $script:Asked[0] | Should -Be 'Meinst du 1.500 (also 1500) oder 1,5?|1.500/1,5|0'
+    }
+    It 'fragt bei eindeutigen Eingaben nicht' {
+        function Read-HUChoice { param([string]$Title, [string]$Prompt, [string[]]$Choices, $Owner, [string[]]$ToolTips, [int]$DefaultIndex = -1) $script:Asked.Add($Prompt); 0 }
+        Read-HUNumberInput '1.500,00' | Should -Be ([decimal]1500)
+        Read-HUNumberInput '1,5' | Should -Be ([decimal]1.5)
+        Read-HUNumberInput '12.5' | Should -Be ([decimal]12.5)
+        Read-HUNumberInput '1500' | Should -Be ([decimal]1500)
+        Read-HUNumberInput '' | Should -BeNullOrEmpty
+        Read-HUNumberInput 'abc' | Should -BeNullOrEmpty
+        $script:Asked.Count | Should -Be 0
+    }
+    It 'mit Format-HUNumberInput danach ist das Feld eindeutig (keine zweite Rueckfrage)' {
+        Test-HUAmbiguousNumber (Format-HUNumberInput ([decimal]1500)) | Should -BeFalse
+    }
+}
+
+Describe 'Kalender: zweistellige Jahre (Pruefung 086, KERN-B6)' {
+    It '1.1.35 ist 2035, 1.1.50 ist 1950' {
+        (ConvertFrom-HUCalendarText '1.1.35').Year | Should -Be 2035
+        (ConvertFrom-HUCalendarText '31.12.49').Year | Should -Be 2049
+        (ConvertFrom-HUCalendarText '1.1.50').Year | Should -Be 1950
+        $script:HUCtlDateCulture.DateTimeFormat.Calendar.TwoDigitYearMax | Should -Be 2049
+    }
+}
+
+Describe 'Meldung mit Symbol Information (Pruefung 086, KERN-U1)' {
+    It 'Show-HUMessage nimmt Information als anderen Namen fuer Info' {
+        $script:Shown = New-Object System.Collections.Generic.List[string]
+        function Show-HUDialogBox { param([string]$Text, [string]$Title, [string]$Mode, [string]$Icon, $Owner) $script:Shown.Add($Icon); 'OK' }
+        { Show-HUMessage 'Probe' -Icon Information } | Should -Not -Throw
+        Show-HUMessage 'Probe' -Icon Info
+        @($script:Shown) | Should -Be @('Info', 'Info')
+    }
+    It 'Kern-Aufrufe nutzen -Icon Info' {
+        $hits = @(Get-ChildItem -LiteralPath (Join-Path $script:Root 'Functions') -Filter *.ps1 | Select-String -Pattern '-Icon Information\b' | ForEach-Object { "$($_.Filename):$($_.LineNumber)" })
+        $hits | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'JSON schreiben mit eindeutiger Temp-Datei (Pruefung 086, KERN-B10)' {
+    BeforeEach {
+        $script:B10 = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtB10-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:B10)
+    }
+    AfterEach { Remove-Item -LiteralPath $script:B10 -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'schreibt ohne BOM, ersetzt, legt .bak an und laesst keine Temp-Datei liegen' {
+        $f = Join-Path $script:B10 'probe.json'
+        Write-HUJsonFile -Path $f -Object ([pscustomobject]@{ A = 1 })
+        Write-HUJsonFile -Path $f -Object ([pscustomobject]@{ A = 2 }) -Backup
+        ([IO.File]::ReadAllText($f) | ConvertFrom-Json).A | Should -Be 2
+        ([IO.File]::ReadAllText("$f.bak") | ConvertFrom-Json).A | Should -Be 1
+        [IO.File]::ReadAllBytes($f)[0] | Should -Be ([byte][char]'{')
+        @(Get-ChildItem -LiteralPath $script:B10 -Force | Where-Object { $_.Name -like '*.tmp' }).Count | Should -Be 0
+    }
+    It 'eine fremde probe.json.tmp (alter fester Name) wird nicht benutzt und bleibt' {
+        $f = Join-Path $script:B10 'probe.json'
+        [IO.File]::WriteAllText("$f.tmp", 'fremd')
+        Write-HUJsonFile -Path $f -Object ([pscustomobject]@{ A = 3 })
+        [IO.File]::ReadAllText("$f.tmp") | Should -Be 'fremd'
+        ([IO.File]::ReadAllText($f) | ConvertFrom-Json).A | Should -Be 3
+    }
+}

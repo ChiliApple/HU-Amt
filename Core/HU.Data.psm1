@@ -24,6 +24,11 @@ Set-StrictMode -Version 1.0
 # ---------------------------------------------------------------- Startwerte ----------------------------------------------------------------
 
 $script:HUDataInv = [Globalization.CultureInfo]::InvariantCulture
+# Datum lesen: zweistellige Jahre fest bis 2049 (KERN-B6), unabhaengig von der Windows-Einstellung des PCs
+$script:HUDataDateCulture = [Globalization.CultureInfo]([Globalization.CultureInfo]::InvariantCulture.Clone())
+$script:HUDataDateCal = New-Object Globalization.GregorianCalendar
+$script:HUDataDateCal.TwoDigitYearMax = 2049
+$script:HUDataDateCulture.DateTimeFormat.Calendar = $script:HUDataDateCal
 $script:HUDataNum = [Globalization.NumberFormatInfo]([Globalization.CultureInfo]::InvariantCulture.NumberFormat.Clone())
 $script:HUDataNum.NumberDecimalSeparator = ','
 $script:HUDataNum.NumberGroupSeparator = '.'
@@ -346,6 +351,20 @@ function Get-HUNextNumber {
 
 # ================================================================ Datensaetze mit Zwischenspeicher ================================================================
 
+# Fehlt ein Ordner wirklich (dann leer) oder ist er nur nicht erreichbar (KERN-B4)?
+#   - Wurzel (Laufwerk oder \\server\freigabe) nicht da: nicht erreichbar.
+#   - Elternordner da: der Ordner fehlt wirklich.
+#   - Elternordner fehlt: nicht erreichbar, wenn der Zwischenspeicher dort schon Datensaetze kennt (-Known).
+#     Ohne bekannte Datensaetze fehlt er wirklich (z. B. Unterordner, die erst beim ersten Speichern entstehen).
+function Test-HUDataFolderMissing([string]$Dir, [bool]$Known = $false) {
+    $full = [IO.Path]::GetFullPath($Dir)
+    $root = [IO.Path]::GetPathRoot($full)
+    if ($root -and -not [IO.Directory]::Exists($root)) { return $false }
+    $parent = [IO.Path]::GetDirectoryName($full.TrimEnd('\', '/'))
+    if (-not $parent -or [IO.Directory]::Exists($parent)) { return $true }
+    return (-not $Known)
+}
+
 <#
 .SYNOPSIS
     Alle Datensaetze (eine JSON-Datei je Datensatz) aus einem oder mehreren Ordnern lesen, nur Geaendertes neu.
@@ -358,6 +377,9 @@ function Get-HUNextNumber {
     -NamePattern: Regex fuer den Dateinamen ohne .json (z. B. '^f-[a-z0-9]{8}$'); andere Dateien werden uebergangen.
     Dateien mit Punkt am Anfang (Temp-Dateien) werden uebergangen. Ist eine Datei gerade nicht lesbar, bleibt der alte
     Stand aus dem Zwischenspeicher. Verschwundene Dateien fallen aus dem Zwischenspeicher (nur in den gelesenen Ordnern).
+    Ist ein Ordner nicht erreichbar (Wurzel weg, oder Elternordner weg und der Zwischenspeicher kennt dort Datensaetze),
+    kommt in Errors "Ordner nicht erreichbar: <Pfad>", der Zwischenspeicher bleibt und seine Datensaetze kommen als Items.
+    Leer (ohne Fehler) nur, wenn der Ordner wirklich fehlt (Elternordner da, oder noch nie Datensaetze dort).
     Rueckgabe: Items, Stamps (Pfad -> Stand), Errors, Cache, Gelesen, Neu, Weg, Ms.
 #>
 function Get-HUDataRecords {
@@ -383,6 +405,15 @@ function Get-HUDataRecords {
         if ([IO.Directory]::Exists($dir)) {
             try { $files = @((New-Object IO.DirectoryInfo $dir).GetFiles($Filter) | Sort-Object Name) }
             catch { $errors.Add("Ordner nicht lesbar: $($_.Exception.Message)"); continue }
+        }
+        elseif (-not (Test-HUDataFolderMissing $dir (@($Cache.Keys | Where-Object { "$_".StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0))) {
+            # KERN-B4: Freigabe kurz weg o. Ae. -> melden, Zwischenspeicher behalten und dessen Stand liefern
+            $errors.Add("Ordner nicht erreichbar: $dir")
+            foreach ($k in @($Cache.Keys | Where-Object { "$_".StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) } | Sort-Object)) {
+                $stamps[$k] = $Cache[$k].Stamp
+                $items.Add($Cache[$k].Item)
+            }
+            continue
         }
         foreach ($fi in $files) {
             if ($fi.Name.StartsWith('.')) { continue }
@@ -441,6 +472,17 @@ function ConvertTo-HUDecimal($Value, [decimal]$Default = 0) {
     $d = [decimal]0
     if ([decimal]::TryParse($t, [Globalization.NumberStyles]::Number, $script:HUDataInv, [ref]$d)) { return $d }
     return $Default
+}
+
+<#
+.SYNOPSIS
+    Ist die Eingabe zweideutig? Genau ein Punkt mit genau drei Ziffern danach, kein Komma (1.500, 12.250, -3.000):
+    ConvertTo-HUDecimal liest das als 1,5, gemeint sein kann aber 1500. Fuer Eingabefelder (Rueckfrage mit
+    Read-HUNumberInput im Fenster); Daten aus Dateien liest ConvertTo-HUDecimal unveraendert.
+#>
+function Test-HUAmbiguousNumber([string]$Text) {
+    $t = ("$Text" -replace ('[\s' + $script:HUDataEuro + ']'), '').Trim()
+    return ($t -match '^[+-]?\d{1,3}\.\d{3}$')
 }
 
 <#
@@ -504,7 +546,7 @@ function ConvertFrom-HUDateText($Text, [switch]$DateOnly) {
         $t = "$Text".Trim()
         if (-not $t) { return $null }
         $x = [datetime]::MinValue
-        if ([datetime]::TryParseExact($t, $script:HUDataDateFormats, $script:HUDataInv, [Globalization.DateTimeStyles]::None, [ref]$x)) { $d = $x }
+        if ([datetime]::TryParseExact($t, $script:HUDataDateFormats, $script:HUDataDateCulture, [Globalization.DateTimeStyles]::None, [ref]$x)) { $d = $x }
         elseif ($t -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}' -and [datetime]::TryParse($t, $script:HUDataInv, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$x)) {
             # ISO mit Bruchteil oder Zone (z. B. von ConvertTo-Json unter PowerShell 7): als Ortszeit
             $d = $(if ($x.Kind -eq [DateTimeKind]::Utc) { $x.ToLocalTime() } else { $x })
@@ -948,7 +990,7 @@ Export-ModuleMember -Function Get-HUNowText, ConvertTo-HUTimeText, Get-HUFileSta
     Wait-HUDataFileLock, Write-HUDataFile, Save-HUDataFile,
     New-HUDataId, Test-HUDataId, New-HUShortId, Test-HUShortId, Get-HUNextNumber,
     Get-HUDataRecords,
-    ConvertTo-HUDecimal, Test-HUNumberText, Get-HURound, Format-HUEuro, Format-HUNumber, Format-HUKm,
+    ConvertTo-HUDecimal, Test-HUNumberText, Test-HUAmbiguousNumber, Get-HURound, Format-HUEuro, Format-HUNumber, Format-HUKm,
     ConvertFrom-HUDateText, ConvertTo-HUDateText, ConvertFrom-HUClockText, Format-HUDate, Format-HUTime,
     New-HUHistoryEntry, Add-HUHistoryEntry, ConvertTo-HUHistoryEntry, Compare-HURecordFields, Get-HUFieldChangeText,
     Test-HUAttachment, Add-HUAttachment, Get-HUAttachments, Get-HUAttachmentDisplayName, Remove-HUAttachment,

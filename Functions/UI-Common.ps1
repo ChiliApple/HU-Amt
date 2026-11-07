@@ -628,7 +628,8 @@ function Update-HUToastPositions {
 }
 
 function Show-HUMessage {
-    param([string]$Text, [string]$Title = $script:App.title, [ValidateSet('Info', 'Warning', 'Error')][string]$Icon = 'Info', $Owner = $null)
+    param([string]$Text, [string]$Title = $script:App.title, [ValidateSet('Info', 'Information', 'Warning', 'Error')][string]$Icon = 'Info', $Owner = $null)
+    if ($Icon -eq 'Information') { $Icon = 'Info' }   # Alias wie bei MessageBoxImage (KERN-U1)
     [void](Show-HUDialogBox -Text $Text -Title $Title -Mode 'OK' -Icon $Icon -Owner $Owner)
 }
 
@@ -711,16 +712,26 @@ function Open-HUUrl([string]$Url) {
 }
 
 # JSON schreiben: erst in Temp-Datei, dann ersetzen (nie halb geschriebene Datei); optional Sicherung *.bak
+# KERN-B10: ueber Write-HUFileAtomic (HU.Exchange, eindeutiger Temp-Name). Ist das Modul nicht geladen (z. B. in Tests),
+# eigener eindeutiger Temp-Name; zwei gleichzeitige Schreiber teilen sich so nie eine Temp-Datei.
 function Write-HUJsonFile {
     param([string]$Path, $Object, [int]$Depth = 10, [switch]$Backup)
     $dir = Split-Path $Path -Parent
     if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $json = $Object | ConvertTo-Json -Depth $Depth
-    $tmp = "$Path.tmp"
-    [System.IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding $false))
+    $enc = New-Object System.Text.UTF8Encoding $false
     # Sicherung nur von einer gueltigen Datei (sonst ersetzt eine kaputte Datei die letzte gute Sicherung)
     if ($Backup -and (Test-Path -LiteralPath $Path) -and -not (Read-HUJsonFileChecked $Path).Error) { Copy-Item -LiteralPath $Path -Destination "$Path.bak" -Force }
-    Move-Item -LiteralPath $tmp -Destination $Path -Force
+    if (Get-Command Write-HUFileAtomic -ErrorAction SilentlyContinue) {
+        [void](Write-HUFileAtomic -Path $Path -Text $json -Encoding $enc -Overwrite)
+        return
+    }
+    $full = [IO.Path]::GetFullPath($Path)
+    $tmp = Join-Path (Split-Path -Parent $full) ('.~' + [IO.Path]::GetFileName($full) + '.' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.tmp')
+    try {
+        [System.IO.File]::WriteAllText($tmp, $json, $enc)
+        Move-Item -LiteralPath $tmp -Destination $full -Force
+    } finally { if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue } }
 }
 # wie Read-HUJsonFile, unterscheidet aber 'fehlt' (Data $null, Error '') von 'nicht lesbar' (Error gesetzt)
 function Read-HUJsonFileChecked([string]$Path) {

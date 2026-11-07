@@ -23,6 +23,11 @@ Set-StrictMode -Version 1.0
 
 $script:HUExEncodings = @('utf8bom', 'utf8', 'windows-1252')
 $script:HUExTypes = @('text', 'number', 'date')
+# Datumsformate fuer Format-HUExValue: oesterreichisch (d.M.yyyy, mit Uhrzeit) und ISO (mit Uhrzeit, Bruchteil, Zone)
+$script:HUExDateFormats = [string[]]@(
+    'd.M.yyyy', 'd.M.yyyy H:mm', 'd.M.yyyy H:mm:ss',
+    'yyyy-MM-dd', 'yyyy-MM-dd HH:mm', 'yyyy-MM-dd HH:mm:ss', 'yyyy-MM-ddTHH:mm', 'yyyy-MM-ddTHH:mm:ss',
+    'yyyy-MM-ddTHH:mm:ss.FFFFFFF', 'yyyy-MM-ddTHH:mm:ssK', 'yyyy-MM-ddTHH:mm:ss.FFFFFFFK')
 
 # ---------------------------------------------------------------- Kodierung und Profil ----------------------------------------------------------------
 
@@ -130,6 +135,33 @@ function Get-HUExNumberFormat([string]$Decimal) {
     return $nf
 }
 
+# Zahl aus Text (KERN-B1): Schreibweise wie in Oesterreich zuerst.
+#   - Mit Komma: Komma = Dezimalzeichen, Punkt = Tausender, nur in Dreiergruppen (1.234,56 / 12,50 / -1,5).
+#   - Ohne Komma, hoechstens ein Punkt: Punkt = Dezimalzeichen (1.5 / 1234.56 aus Programmdaten, wie ConvertTo-HUDecimal).
+#   - Ohne Komma, mehrere Punkte in Dreiergruppen: Tausender (1.234.567).
+#   - Alles andere (z. B. 1,234.56 oder 1.2,5) ist keine Zahl.
+function ConvertFrom-HUExNumberText([string]$Text) {
+    $t = "$Text".Trim()
+    $d = [decimal]0
+    if ($t -match '^[+-]?\d+(\.\d+)?$') {
+        if ([decimal]::TryParse($t, [Globalization.NumberStyles]::AllowLeadingSign -bor [Globalization.NumberStyles]::AllowDecimalPoint, [Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $d }
+    }
+    elseif ($t -match '^[+-]?(\d+|\d{1,3}(\.\d{3})+)(,\d+)?$') {
+        $inv = $t.Replace('.', '').Replace(',', '.')
+        if ([decimal]::TryParse($inv, [Globalization.NumberStyles]::AllowLeadingSign -bor [Globalization.NumberStyles]::AllowDecimalPoint, [Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $d }
+    }
+    throw "'$Text' ist keine Zahl."
+}
+
+# Datum aus Text (KERN-B1): nur feste Formate aus $script:HUExDateFormats, kein freies TryParse.
+function ConvertFrom-HUExDateText([string]$Text) {
+    $t = "$Text".Trim()
+    $x = [datetime]::MinValue
+    # [string[]] ausdruecklich: ein Array-Literal bindet sonst an die Ueberladung mit einem einzelnen Format
+    if ([datetime]::TryParseExact($t, $script:HUExDateFormats, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$x)) { return $x }
+    throw "'$Text' ist kein Datum."
+}
+
 function Format-HUExValue($Value, [string]$Type, $TableProfile) {
     if ($null -eq $Value) { return '' }
     switch ($Type) {
@@ -137,20 +169,13 @@ function Format-HUExValue($Value, [string]$Type, $TableProfile) {
             if ("$Value" -eq '') { return '' }
             $nf = Get-HUExNumberFormat $TableProfile.DecimalSeparator
             $d = [decimal]0
-            if ($Value -is [string]) {
-                if (-not [decimal]::TryParse($Value.Trim(), [Globalization.NumberStyles]::Number, [Globalization.CultureInfo]::InvariantCulture, [ref]$d) -and
-                    -not [decimal]::TryParse($Value.Trim(), [Globalization.NumberStyles]::Number, (Get-HUExNumberFormat ','), [ref]$d)) { throw "'$Value' ist keine Zahl." }
-            } else { $d = [decimal]$Value }
+            if ($Value -is [string]) { $d = ConvertFrom-HUExNumberText $Value }
+            else { $d = [decimal]$Value }
             return $d.ToString('0.############################', $nf)
         }
         'date' {
             if ("$Value" -eq '') { return '' }
-            $dt = if ($Value -is [datetime]) { $Value } else {
-                $x = [datetime]::MinValue
-                if (-not [datetime]::TryParse("$Value", [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$x) -and
-                    -not [datetime]::TryParseExact("$Value", @('dd.MM.yyyy', 'd.M.yyyy', 'dd.MM.yyyy HH:mm'), [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$x)) { throw "'$Value' ist kein Datum." }
-                $x
-            }
+            $dt = if ($Value -is [datetime]) { $Value } else { ConvertFrom-HUExDateText "$Value" }
             return $dt.ToString($TableProfile.DateFormat, [Globalization.CultureInfo]::InvariantCulture)
         }
         default { return "$Value" }
@@ -211,6 +236,8 @@ function Write-HUFileAtomic {
                 $ex = $_.Exception
                 if ($ex -is [System.Management.Automation.MethodInvocationException] -and $ex.InnerException) { $ex = $ex.InnerException }
                 if ($ex -isnot [System.UnauthorizedAccessException]) { throw }
+                # KERN-B10: bewusst so gelassen. Copy ist nicht atomar (ein Abbruch mitten im Kopieren kann eine halbe Datei
+                # hinterlassen), aber ohne WRITE_DAC gibt es keinen atomaren Weg; die vollstaendige Temp-Datei ist die Quelle.
                 [IO.File]::Copy($tmp, $full, $true)
             }
         }

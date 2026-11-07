@@ -90,7 +90,7 @@ function Show-HUMailSenderDialog {
 #>
 function Select-HUMailSender {
     param($Current = $null, $Owner = $null)
-    if (Test-HUTestMode) { Show-HUMessage 'Im Testmodus ist Outlook gesperrt. Den Absender bitte außerhalb des Testmodus einstellen.' -Icon Information -Owner $Owner; return $null }
+    if (Test-HUTestMode) { Show-HUMessage 'Im Testmodus ist Outlook gesperrt. Den Absender bitte außerhalb des Testmodus einstellen.' -Icon Info -Owner $Owner; return $null }
     $accs = @(); try { if (Test-HUOutlookClassic) { $accs = @(Get-HUOutlookAccounts) } } catch { }
     $r = Show-HUMailSenderDialog -Accounts $accs -ForSettings -Current $Current -Owner $Owner
     if (-not $r) { return $null }

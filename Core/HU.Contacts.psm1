@@ -88,6 +88,27 @@ function Split-HUVCardValue([string]$Value) {
     return @($parts | ForEach-Object { ConvertFrom-HUVCardEscape $_ })
 }
 
+# Weiche QP-Umbrueche zusammenfuegen (Text mit `n): nur, wenn die Eigenschaft der Zeile Quoted-Printable ist.
+# Eingerueckte Folgezeilen (RFC-Faltung) gehoeren zur Eigenschaft davor.
+function Join-HUVCardSoftBreaks([string]$Raw) {
+    $out = New-Object System.Collections.Generic.List[string]
+    $buf = $null; $lastQp = $false
+    foreach ($line in $Raw -split "`n") {
+        if ($null -ne $buf) { $buf += $line }
+        else {
+            $buf = $line
+            if ($line -notmatch '^[ \t]') {
+                $ci = $line.IndexOf(':')
+                $lastQp = ($ci -gt 0 -and $line.Substring(0, $ci) -match '(?i)(^|;)\s*(encoding\s*=\s*)?quoted-printable\s*(;|$)')
+            }
+        }
+        if ($lastQp -and $buf.EndsWith('=')) { $buf = $buf.Substring(0, $buf.Length - 1); continue }
+        $out.Add($buf); $buf = $null
+    }
+    if ($null -ne $buf) { $out.Add($buf) }
+    return ($out -join "`n")
+}
+
 <#
 .SYNOPSIS
     vCard-Text (eine oder mehrere Karten) in Kontakt-Objekte umwandeln.
@@ -95,8 +116,9 @@ function Split-HUVCardValue([string]$Value) {
 function ConvertFrom-HUVCard {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Text, [string]$Quelle = 'vCard')
     $raw = $Text -replace "`r`n", "`n" -replace "`r", "`n"
-    # Quoted-Printable: weiche Umbrueche (= am Zeilenende) zuerst zusammenfuegen
-    $raw = [regex]::Replace($raw, "=`n", '')
+    # Quoted-Printable: weiche Umbrueche (= am Zeilenende) zuerst zusammenfuegen, aber nur bei Eigenschaften mit
+    # ENCODING=QUOTED-PRINTABLE (KERN-B2). Base64 (z. B. PHOTO) endet oft auf = und darf nicht mit der Folgezeile verschmelzen.
+    $raw = Join-HUVCardSoftBreaks $raw
     # Entfalten: Zeilenumbruch + ein Leerzeichen/Tab (RFC 6350 3.2)
     $raw = [regex]::Replace($raw, "`n[ `t]", '')
     $out = New-Object System.Collections.Generic.List[object]
@@ -164,7 +186,8 @@ function Find-HUContact {
     param([object[]]$Contacts = @(), [string]$Search = '')
     $s = "$Search".Trim()
     if (-not $s) { return @($Contacts) }
-    return @($Contacts | Where-Object { "$($_.Name) $($_.Firma) $($_.Mail) $($_.Ort)" -like "*$s*" })
+    # IndexOf statt -like: Zeichen wie [ ] * ? im Suchtext sind kein Platzhalter (KERN-B7)
+    return @($Contacts | Where-Object { "$($_.Name) $($_.Firma) $($_.Mail) $($_.Ort)".IndexOf($s, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
 }
 
 Export-ModuleMember -Function New-HUContact, ConvertFrom-HUVCard, Import-HUVCardFile, Find-HUContact

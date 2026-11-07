@@ -316,8 +316,8 @@ Describe 'Vorlage Deploy-Dev' {
         { & $script:Deploy -App $script:App -ErlaubteNamen @() 6>$null 3>$null } | Should -Throw '*Testseite.pdf*'
     }
     It 'nimmt -ModulId und -Quelle ohne addon.json-Id' {
-        & $script:Deploy -App $script:App -ModulId 'Anderer_Name' -Quelle $script:Repo 6>$null
-        Test-Path -LiteralPath (Join-Path $script:App 'AddonsDev\Anderer_Name\Addon.ps1') | Should -BeTrue
+        & $script:Deploy -App $script:App -ModulId 'AndererName' -Quelle $script:Repo 6>$null
+        Test-Path -LiteralPath (Join-Path $script:App 'AddonsDev\AndererName\Addon.ps1') | Should -BeTrue
         { & $script:Deploy -App $script:App -ModulId '..\raus' 6>$null } | Should -Throw '*Modul-Id*'
     }
     It 'bricht ab, wenn keine Test-App im Ziel liegt' {
@@ -378,5 +378,72 @@ Describe 'Vorlage Test-Start' {
         $nachher = @(Get-ChildItem -LiteralPath $script:App2 -Recurse -Force | ForEach-Object { $_.FullName.Substring($script:App2.Length) }) -join '|'
         $nachher | Should -Be $script:AppVorher
         @(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter 'HUAmtStart-Testmodul-*').Count | Should -Be 0
+    }
+}
+
+Describe 'Dateinamen mit Geraetenamen und Endung (Pruefung 086)' {
+    It '<In> wird <Out>' -TestCases @(
+        @{ In = 'CON.txt'; Out = '_CON.txt' }
+        @{ In = 'nul.json'; Out = '_nul.json' }
+        @{ In = 'Com1.tar.gz'; Out = '_Com1.tar.gz' }
+        @{ In = 'LPT9.pdf'; Out = '_LPT9.pdf' }
+        @{ In = 'aux'; Out = '_aux' }
+        @{ In = 'CONTRA.txt'; Out = 'CONTRA.txt' }
+        @{ In = 'Bericht CON.txt'; Out = 'Bericht CON.txt' }
+        @{ In = 'NULL.json'; Out = 'NULL.json' }
+    ) {
+        param($In, $Out)
+        ConvertTo-HUSafeFileName $In | Should -Be $Out
+        ConvertTo-HUSafeFileName $In -KeepSeparators | Should -Be $Out
+    }
+}
+
+Describe 'Vorlage Deploy-Dev: Modul-Id und Kodierung (Pruefung 086, KERN-B15)' {
+    BeforeEach {
+        $script:D = New-TestDir 'HUAmtVorlageB15'
+        $script:App = Join-Path $script:D 'App'
+        $script:Repo = Join-Path $script:D 'Repo'
+        New-FakeApp $script:App
+        $script:Dev = New-FakeRepo $script:Repo
+        $script:Deploy = Join-Path $script:Dev 'Deploy-Dev.ps1'
+    }
+    AfterEach { Remove-Item -LiteralPath $script:D -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'lehnt Modul-Id <Id> ab (Regel wie Test-HUAddonId)' -TestCases @(@{ Id = 'Test_Modul' }, @{ Id = '1Modul' }, @{ Id = 'Mod-ul' }, @{ Id = 'M' }, @{ Id = ('A' * 32) }) {
+        param($Id)
+        { & $script:Deploy -App $script:App -ModulId $Id 6>$null } | Should -Throw '*Ungültige Modul-Id*'
+        Test-Path -LiteralPath (Join-Path $script:App "AddonsDev\$Id") | Should -BeFalse
+    }
+    It 'Regel stimmt mit Test-HUAddonId im Kern ueberein' {
+        $kern = [regex]::Match([IO.File]::ReadAllText((Join-Path $script:Root 'Functions\Core-Addons.ps1'), [Text.Encoding]::UTF8), "function Test-HUAddonId[^\r\n]*-cmatch '([^']+)'").Groups[1].Value
+        $vorlage = [regex]::Match([IO.File]::ReadAllText((Join-Path $script:Vorlage 'Deploy-Dev.ps1'), [Text.Encoding]::UTF8), "ModulId -cnotmatch '([^']+)'").Groups[1].Value
+        $kern | Should -Not -BeNullOrEmpty
+        $vorlage | Should -Be $kern
+    }
+    It 'schreibt eine Datei, die kein gueltiges UTF-8 ist, nicht um und meldet sie' {
+        $ansi = Join-Path $script:Repo 'Teil\ansi.txt'
+        $bytes = [byte[]](0x47, 0x72, 0xFC, 0x6E, 0x0A)   # "Grün" in Windows-1252 mit LF
+        [IO.File]::WriteAllBytes($ansi, $bytes)
+        $warn = @(& $script:Deploy -App $script:App 6>$null 3>&1 | Where-Object { $_ -is [System.Management.Automation.WarningRecord] })
+        @($warn | Where-Object { "$_" -match 'Teil\\ansi\.txt' }).Count | Should -Be 1
+        [Convert]::ToBase64String([IO.File]::ReadAllBytes($ansi)) | Should -Be ([Convert]::ToBase64String($bytes))
+        # gueltige Dateien werden weiter formatiert und das Modul kopiert
+        Test-Bom (Join-Path $script:Repo 'Addon.ps1') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $script:App 'AddonsDev\Testmodul\Teil\ansi.txt') | Should -BeTrue
+    }
+    It 'gueltiges UTF-8 mit Umlauten wird auf BOM und CRLF gebracht, Text bleibt' {
+        $f = Join-Path $script:Repo 'Teil\umlaut.md'
+        [IO.File]::WriteAllText($f, "Grün`nÄnderung`n", $script:Utf8)
+        & $script:Deploy -App $script:App 6>$null 3>$null
+        Test-Bom $f | Should -BeTrue
+        [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | Should -Be "Grün`r`nÄnderung`r`n"
+    }
+}
+
+Describe 'Oeffentliches Repo: neutrale Angaben (Pruefung 086, KERN-B19)' {
+    It 'kein Entwickler-PC-Name in Vorlagen, Waechter und Doku' {
+        $hits = @(Get-ChildItem -LiteralPath (Join-Path $script:Root '.github') -Recurse -File -Include *.ps1, *.md, *.yml, *.json |
+                Where-Object { $_.FullName -notmatch '\\tests\\' } | Select-String -Pattern '\bnb\d{3}\b' | ForEach-Object { "$($_.Filename):$($_.LineNumber)" })
+        $hits | Should -BeNullOrEmpty
     }
 }

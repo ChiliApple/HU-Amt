@@ -3,9 +3,10 @@
 .SYNOPSIS
     Kopiert ein Modul zum Entwickeln in die Test-App (AddonsDev, ohne Signatur).
 .DESCRIPTION
-    Zielmaschine: nb001. Vorlage aus dem Kern (.github\modul-vorlage), Module kopieren sie unverändert nach .github\dev.
+    Zielmaschine: Entwicklungs-PC. Vorlage aus dem Kern (.github\modul-vorlage), Module kopieren sie unverändert nach .github\dev.
     - Eigene Textdateien des Moduls werden vorher auf UTF-8 mit BOM und CRLF gebracht (.yml und .py bleiben unberührt,
-      dafür gibt es Format-Dateien.ps1).
+      dafür gibt es Format-Dateien.ps1). Eine Datei, die kein gültiges UTF-8 ist (z. B. ANSI mit Umlauten), wird nicht
+      umgeschrieben, sondern gemeldet (Warnung); UTF-16 mit BOM wird umgewandelt.
     - Quelle: Hauptordner des Repos (das Modul), ohne Einträge, die mit "." beginnen (.git, .github, .gitignore ...).
     - Ziel: <App>\AddonsDev\<Modul-Id> (wird ersetzt).
     - Bricht ab, wenn die Test-App läuft (Prozess mit <App>\Main.ps1 in der Befehlszeile, ohne Starttests) oder eine
@@ -14,7 +15,8 @@
     - Einstellungen je Modul ohne Parameter: .github\dev\modul-dev.json neben diesem Skript (siehe LIESMICH.md).
       Angegebene Parameter gehen vor.
 .PARAMETER ModulId
-    Ordnername unter AddonsDev. Leer = "id" aus addon.json der Quelle.
+    Ordnername unter AddonsDev. Leer = "id" aus addon.json der Quelle. Regel wie im Kern (Test-HUAddonId): Buchstabe, dann
+    1 bis 30 Buchstaben oder Ziffern.
 .PARAMETER Quelle
     Modulordner. Leer = Hauptordner des Repos (zwei Ebenen über diesem Skript).
 .PARAMETER App
@@ -85,7 +87,7 @@ if (-not $ModulId) {
     if (-not (Test-Path -LiteralPath $af)) { throw "Keine addon.json in $Quelle. Bitte -ModulId und -Quelle angeben." }
     $ModulId = "$((Read-JsonDatei $af).id)"
 }
-if ($ModulId -notmatch '^[A-Za-z0-9][A-Za-z0-9_\-]*$') { throw "Ungültige Modul-Id '$ModulId'." }
+if ($ModulId -cnotmatch '^[A-Za-z][A-Za-z0-9]{1,30}$') { throw "Ungültige Modul-Id '$ModulId' (Buchstabe, dann 1 bis 30 Buchstaben oder Ziffern)." }
 if (-not (Test-Path -LiteralPath (Join-Path $App 'Main.ps1'))) { throw "Keine Test-App in $App (Main.ps1 fehlt)." }
 $App = (Resolve-Path -LiteralPath $App).ProviderPath.TrimEnd('\')
 $verbEnd = @($VerboteneEndungen | ForEach-Object { "$_".ToLowerInvariant() })
@@ -93,16 +95,23 @@ $verbEnd = @($VerboteneEndungen | ForEach-Object { "$_".ToLowerInvariant() })
 # --- Textdateien auf UTF-8 mit BOM und CRLF ---
 if (-not $OhneFormat) {
     $bom = New-Object System.Text.UTF8Encoding $true
+    $strikt = New-Object System.Text.UTF8Encoding($false, $true)   # wirft bei ungueltigen Bytes statt sie zu ersetzen
     # Achtung: -Include wirkt in PS 5.1 nicht zusammen mit -LiteralPath, deshalb nach Endung filtern
     $textExt = '.ps1', '.psm1', '.xaml', '.json', '.md', '.html', '.txt'
     foreach ($f in @(Get-ChildItem -LiteralPath $Quelle -Recurse -File -Force)) {
         $rel = $f.FullName.Substring($Quelle.Length + 1)
         if ($textExt -notcontains $f.Extension.ToLowerInvariant() -or $rel -match '^\.git\\') { continue }
         if ($FormatAusschluss -and $rel -match $FormatAusschluss) { continue }
-        $t = [IO.File]::ReadAllText($f.FullName, [Text.Encoding]::UTF8)
-        $n = ($t -replace "`r`n", "`n") -replace "`n", "`r`n"
         $bytes = [IO.File]::ReadAllBytes($f.FullName)
         $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+        $utf16 = $bytes.Length -ge 2 -and (($bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) -or ($bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF))
+        if ($utf16) { $t = [IO.File]::ReadAllText($f.FullName) }   # eindeutig dank BOM
+        else {
+            $off = $(if ($hasBom) { 3 } else { 0 })
+            try { $t = $strikt.GetString($bytes, $off, $bytes.Length - $off) }
+            catch { Write-Warning "Kein gültiges UTF-8, nicht umgeschrieben: $rel (bitte als UTF-8 speichern)"; continue }
+        }
+        $n = ($t -replace "`r`n", "`n") -replace "`n", "`r`n"
         if ($n -ne $t -or -not $hasBom) { [IO.File]::WriteAllText($f.FullName, $n, $bom); Write-Host "BOM/CRLF: $rel" }
     }
 }

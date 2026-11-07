@@ -115,3 +115,56 @@ Describe 'Uebergabeordner' {
         { Get-HUHandoverFolder $script:Data '..\x' } | Should -Throw
     }
 }
+
+Describe 'Werte aus Text (Pruefung 086, KERN-B1)' {
+    BeforeAll { $script:Pr = New-HUTableProfile }
+    It 'Zahl <In> wird <Out>' -TestCases @(
+        @{ In = '1,5'; Out = '1,5' }
+        @{ In = '12,50'; Out = '12,5' }
+        @{ In = '1.234,56'; Out = '1234,56' }
+        @{ In = '-1.234.567,8'; Out = '-1234567,8' }
+        @{ In = ' 7 '; Out = '7' }
+        @{ In = '1.5'; Out = '1,5' }
+        @{ In = '1234.56'; Out = '1234,56' }
+        @{ In = '1.234.567'; Out = '1234567' }
+    ) {
+        param($In, $Out)
+        InModuleScope HU.Exchange -Parameters @{ V = $In; P = $script:Pr } { param($V, $P) Format-HUExValue $V 'number' $P } | Should -Be $Out
+    }
+    It 'Zahl <In> ist keine Zahl' -TestCases @(@{ In = '1,234.56' }, @{ In = '1.2,5' }, @{ In = 'abc' }, @{ In = '1,5,6' }) {
+        param($In)
+        { InModuleScope HU.Exchange -Parameters @{ V = $In; P = $script:Pr } { param($V, $P) Format-HUExValue $V 'number' $P } } | Should -Throw '*keine Zahl*'
+    }
+    It '[decimal] und [double] bleiben, wie sie sind' {
+        InModuleScope HU.Exchange -Parameters @{ P = $script:Pr } { param($P) Format-HUExValue ([decimal]1234.5) 'number' $P } | Should -Be '1234,5'
+        InModuleScope HU.Exchange -Parameters @{ P = $script:Pr } { param($P) Format-HUExValue 0.25 'number' $P } | Should -Be '0,25'
+    }
+    It 'Datum <In> wird <Out>' -TestCases @(
+        @{ In = '05.11.2026'; Out = '05.11.2026' }
+        @{ In = '13.11.2026'; Out = '13.11.2026' }
+        @{ In = '5.1.2026'; Out = '05.01.2026' }
+        @{ In = '05.11.2026 14:30'; Out = '05.11.2026' }
+        @{ In = '2026-11-05'; Out = '05.11.2026' }
+        @{ In = '2026-11-05T14:30:00'; Out = '05.11.2026' }
+        @{ In = '2026-11-05 14:30'; Out = '05.11.2026' }
+        @{ In = '2026-11-05T14:30:00.1234567'; Out = '05.11.2026' }
+    ) {
+        param($In, $Out)
+        InModuleScope HU.Exchange -Parameters @{ V = $In; P = $script:Pr } { param($V, $P) Format-HUExValue $V 'date' $P } | Should -Be $Out
+    }
+    It 'Datum <In> ist kein Datum (kein freies Lesen)' -TestCases @(@{ In = '11/05/2026' }, @{ In = '32.01.2026' }, @{ In = 'morgen' }, @{ In = '05.13.2026' }) {
+        param($In)
+        { InModuleScope HU.Exchange -Parameters @{ V = $In; P = $script:Pr } { param($V, $P) Format-HUExValue $V 'date' $P } } | Should -Throw '*kein Datum*'
+    }
+    It '[datetime] bleibt' {
+        InModuleScope HU.Exchange -Parameters @{ P = $script:Pr } { param($P) Format-HUExValue ([datetime]'2026-11-05') 'date' $P } | Should -Be '05.11.2026'
+    }
+    It 'Export ueber das Profil: 1,5 bleibt 1,5 und 05.11.2026 bleibt der 5. November' {
+        $dir = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtB1-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        try {
+            $p = New-HUTableProfile -Columns @(@{ Name = 'Betrag'; Type = 'number' }, @{ Name = 'Datum'; Type = 'date' })
+            $f = Export-HUTable -Rows @([pscustomobject]@{ Betrag = '1,5'; Datum = '05.11.2026' }) -TableProfile $p -Path (Join-Path $dir 'b1.csv')
+            ([IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) -split "`r`n")[1] | Should -Be '1,5;05.11.2026'
+        } finally { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}

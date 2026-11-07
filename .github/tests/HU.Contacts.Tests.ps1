@@ -98,3 +98,43 @@ Describe 'Fenster Kontakt uebernehmen' {
         $w.FindName('btnVcf') | Should -Not -BeNullOrEmpty
     }
 }
+
+Describe 'vCard: Base64 mit = am Zeilenende (Pruefung 086, KERN-B2)' {
+    It 'PHOTO <Photo> laesst END:VCARD und die naechste Karte stehen' -TestCases @(@{ Photo = 'abcde=' }, @{ Photo = 'abcde==' }) {
+        param($Photo)
+        foreach ($v in '3.0', '4.0') {
+            $t = "BEGIN:VCARD`r`nVERSION:$v`r`nFN:Erste Person`r`nPHOTO;ENCODING=b;TYPE=JPEG:$Photo`r`nEND:VCARD`r`nBEGIN:VCARD`r`nVERSION:$v`r`nFN:Zweite Person`r`nEMAIL:zwei@beispiel.invalid`r`nEND:VCARD`r`n"
+            $k = @(ConvertFrom-HUVCard -Text $t)
+            $k.Count | Should -Be 2
+            $k[0].Name | Should -Be 'Erste Person'
+            $k[1].Mail | Should -Be 'zwei@beispiel.invalid'
+        }
+    }
+    It 'gefaltetes Base64 mit = vor der Faltung bleibt eine Eigenschaft' {
+        $t = "BEGIN:VCARD`r`nVERSION:3.0`r`nFN:Gefaltet`r`nPHOTO;ENCODING=b:abc=`r`n def==`r`nEMAIL:f@beispiel.invalid`r`nEND:VCARD`r`n"
+        $k = @(ConvertFrom-HUVCard -Text $t)
+        $k.Count | Should -Be 1
+        $k[0].Mail | Should -Be 'f@beispiel.invalid'
+    }
+    It 'Quoted-Printable mit weichem Umbruch wird weiter zusammengefuegt' {
+        $t = "BEGIN:VCARD`r`nVERSION:2.1`r`nN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:M=C3=BCller;J=`r`n=C3=BCrgen`r`nNOTE;QUOTED-PRINTABLE:a=`r`nb`r`nEND:VCARD`r`n"
+        $k = @(ConvertFrom-HUVCard -Text $t)
+        $k.Count | Should -Be 1
+        $k[0].Name | Should -Be 'Jürgen Müller'
+    }
+}
+
+Describe 'Suche mit Sonderzeichen (Pruefung 086, KERN-B7)' {
+    It 'eckige Klammer und Stern sind kein Platzhalter' {
+        $c = @((New-HUContact -Name 'Verein [Kassa]' -Mail 'k@beispiel.invalid'), (New-HUContact -Name 'Anderer Verein' -Mail 'a@beispiel.invalid'))
+        @(Find-HUContact -Contacts $c -Search '[').Count | Should -Be 1
+        @(Find-HUContact -Contacts $c -Search '[kassa]')[0].Name | Should -Be 'Verein [Kassa]'
+        @(Find-HUContact -Contacts $c -Search '*').Count | Should -Be 0
+        @(Find-HUContact -Contacts $c -Search 'VEREIN').Count | Should -Be 2
+    }
+    It 'Outlook-Kontaktsuche nutzt IndexOf statt -like' {
+        $src = [IO.File]::ReadAllText((Join-Path $script:Root 'Core\HU.Office.psm1'), [Text.Encoding]::UTF8)
+        $src | Should -Not -Match '-notlike "\*\$q\*"'
+        $src | Should -Match '\$city"\.IndexOf\(\$q, \[StringComparison\]::OrdinalIgnoreCase\)'
+    }
+}
