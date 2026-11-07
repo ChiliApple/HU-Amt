@@ -100,12 +100,17 @@ Module bauen keine eigenen COM-Aufrufe, sondern nutzen den Kern (`Core\HU.Office
 - `Open-HUOutlook` / `Close-HUOutlook $s` oder `Invoke-HUOutlook { param($s) ... }`: eine Sitzung für viele Einträge, z. B. beim Abgleich am Start. Alle folgenden Funktionen nehmen `-Session`; ohne sie öffnen und schließen sie selbst.
   - Outlook wird nur beendet, wenn es vorher nicht lief und kein Fenster offen ist.
   - Lehnt Outlook beim kalten Start oder kurz nach dem Beenden Aufrufe ab (`RPC_E_CALL_REJECTED` u. a.), wiederholt `Open-HUOutlook` bis `-TimeoutSeconds` (Standard 30). Ab Kern 0.1.8.
-- `Select-HUOutlookFolder -Type Calendar|Tasks`: Ordner im Outlook-Dialog wählen, auch einen gemeinsamen Kalender. Rückgabe `Name`, `Path`, `EntryId`, `StoreId`, `Type` oder `$null` bei Abbruch. Diese Angabe speichert das Modul in seinen Einstellungen und gibt sie als `-Folder` weiter. Leer = Standardordner des Benutzers.
+- `Select-HUOutlookFolder -Type Calendar|Tasks`: Ordner im Outlook-Dialog wählen (ab 0.1.10 kommt der Dialog nach vorne), auch einen gemeinsamen Kalender. Rückgabe `Name`, `Path`, `EntryId`, `StoreId`, `Type` oder `$null` bei Abbruch. Diese Angabe speichert das Modul in seinen Einstellungen und gibt sie als `-Folder` weiter. Leer = Standardordner des Benutzers.
 - `Set-HUOutlookAppointment -Folder -Key [-EntryId] -Subject -Start [-End] [-AllDay] [-Location] [-Body] [-ReminderMinutes] [-BusyStatus] [-Categories]`: anlegen oder denselben Termin ändern. Rückgabe `EntryId`, `StoreId`, `Created`.
 - `Set-HUOutlookTask -Folder -Key [-EntryId] -Subject -DueDate [-StartDate] [-ReminderTime] [-Body] [-Categories]`: dasselbe für Aufgaben.
 - `Complete-HUOutlookItem -Type Task|Appointment -Key`: Aufgabe erledigt (`MarkComplete`), Termin ohne Erinnerung und mit „Erledigt: “ im Betreff.
 - `Remove-HUOutlookItem -Type Task|Appointment -Key`: löschen, z. B. bei Storno.
-- `Show-HUMail -To -Cc -Subject -Body -Attachments`: Mail anzeigen. Rückgabe `Way` (`outlook`, `mailto`, `fehler`) und `Message`.
+- `Show-HUModuleMail -ModuleId -Sender <Angabe> -To -Cc -Subject -Body -Attachments` (ab 0.1.10): Mail anzeigen mit Absender. **Module nehmen diese Funktion.**
+  - `-Sender`: Absender aus den Einstellungen des Moduls, `@{ Address; Mode }` mit `Mode` = `konto` (Konto im Outlook-Profil), `imAuftrag` (gemeinsames Postfach) oder `auto`. Leer: Bei einem Konto wird es genommen, bei mehreren fragt HU-Amt und merkt die Wahl auf Wunsch je Benutzer.
+  - Fehlt das eingestellte Konto auf dem PC, fragt HU-Amt nach. Bei Abbruch ist `Way` = `abgebrochen`.
+  - Für die Einstellungsseite: `Select-HUMailSender -Current <Angabe>` öffnet die Auswahl und gibt die Angabe zum Speichern zurück (`$null` bei Abbruch, `Address` leer = jeder wählt selbst).
+- `Show-HUMail -From -FromMode`: die Grundfunktion darunter. Rückgabe `Way` (`outlook`, `mailto`, `fehler`, `testmodus`), `Message` und `From`. Mit festem Absender weicht sie nie auf `mailto:` aus.
+- `Get-HUOutlookAccounts`: Mailkonten im Outlook-Profil (`Address`, `Name`, `Exchange`). Gemeinsame Postfächer ohne eigenes Konto stehen dort nicht.
 
 **Ohne Outlook**
 

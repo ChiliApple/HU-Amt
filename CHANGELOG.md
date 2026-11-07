@@ -1,5 +1,20 @@
 ﻿# Changelog
 
+## v0.1.10
+
+### 📨 Outlook und Word
+- **Absender für Mails aus Modulen:** Module können einstellen, von welchem Mailkonto ihre Mails kommen, auch von einem gemeinsamen Postfach („im Auftrag von“).
+  - Ist nichts eingestellt und hat jemand mehrere Konten im Outlook, fragt HU-Amt einmal nach dem Konto. Auf Wunsch merkt es sich die Wahl je Benutzer.
+  - Fehlt das eingestellte Konto auf einem PC, fragt HU-Amt nach, statt still ein anderes zu nehmen.
+  - Die Mail wird weiterhin nur angezeigt. Im Feld „Von“ steht der Absender und lässt sich vor dem Senden ändern.
+- **Outlook-Ordnerauswahl im Vordergrund:** Der Dialog „Ordner auswählen“ erscheint jetzt vor HU-Amt statt dahinter.
+
+### ⚠️ Nach dem Update
+- Für das Senden „im Auftrag von“ eines gemeinsamen Postfachs braucht der Benutzer im Exchange das Recht dazu.
+
+### ✅ Qualität
+- 180 Tests.
+
 ## v0.1.9
 
 ### 🧪 Testmodus

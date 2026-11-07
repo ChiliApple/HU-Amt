@@ -89,6 +89,12 @@ function Assert-HUOfficeLive([string]$What) {
     if (Test-HUOfficeTestMode) { throw "Testmodus: $What ist gesperrt (keine echten Outlook-, Word- oder Mail-Aktionen)." }
 }
 
+# COM-Eigenschaft mit einem Objekt setzen. Direkte Zuweisung klappt nicht in jeder PowerShell-Version zuverlaessig, darum InvokeMember.
+function Set-HUComProperty($Target, [string]$Name, $Value) {
+    try { [void]$Target.GetType().InvokeMember($Name, [Reflection.BindingFlags]::SetProperty, $null, $Target, @($Value)) }
+    catch { $Target.$Name = $Value }
+}
+
 function Assert-HUOfficeKey([string]$Key) {
     if (-not (Test-HUOfficeKey $Key)) { throw "Ungueltiger Schluessel '$Key' (erlaubt: Buchstaben, Ziffern und : . _ -, hoechstens 120 Zeichen)." }
 }
@@ -231,6 +237,90 @@ function Get-HUOutlookFolder {
     return $Session.Namespace.GetDefaultFolder($script:HUOfDefaultFolder[$spec.Type])
 }
 
+# Dialoge von Outlook (z. B. PickFolder) gehen oft hinter dem HU-Amt-Fenster auf, waehrend HU-Amt auf sie wartet.
+# Darum: Outlook darf in den Vordergrund (AllowSetForegroundWindow, wir sind gerade vorne), und ein kurzer Waechter in einem
+# eigenen Runspace holt das erste sichtbare Dialogfenster (#32770) des Outlook-Prozesses nach vorne (SetForegroundWindow).
+function Initialize-HUOfficeWin32 {
+    if ('HUOffice.Front' -as [type]) { return }
+    Add-Type -Namespace HUOffice -Name Front -MemberDefinition @'
+public delegate bool EnumProc(System.IntPtr h, System.IntPtr l);
+[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, System.IntPtr l);
+[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(System.IntPtr h, out uint pid);
+[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool IsWindowVisible(System.IntPtr h);
+[System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern int GetClassName(System.IntPtr h, System.Text.StringBuilder s, int n);
+[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h);
+[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(uint pid);
+public static System.IntPtr FindDialog(uint pid) {
+    System.IntPtr found = System.IntPtr.Zero;
+    EnumWindows(delegate (System.IntPtr h, System.IntPtr l) {
+        uint p; GetWindowThreadProcessId(h, out p);
+        if (p != pid || !IsWindowVisible(h)) return true;
+        var c = new System.Text.StringBuilder(64); GetClassName(h, c, 64);
+        if (c.ToString() == "#32770") { found = h; return false; }
+        return true; }, System.IntPtr.Zero);
+    return found;
+}
+'@
+}
+
+function Start-HUOutlookDialogFront {
+    param($Session, [int]$Seconds = 30)
+    try {
+        $procId = 0
+        if ($Session -and $Session.PSObject.Properties['ProcessId'] -and [int]$Session.ProcessId -gt 0) { $procId = [int]$Session.ProcessId }
+        if (-not $procId) { $p = @(Get-Process -Name OUTLOOK -ErrorAction SilentlyContinue); if ($p.Count -ge 1) { $procId = [int]$p[0].Id } }
+        if (-not $procId) { return $null }
+        Initialize-HUOfficeWin32
+        [void][HUOffice.Front]::AllowSetForegroundWindow([uint32]$procId)
+        $ps = [powershell]::Create()
+        [void]$ps.AddScript({
+                param($procId, $sec)
+                for ($i = 0; $i -lt ($sec * 5); $i++) {
+                    $h = [HUOffice.Front]::FindDialog([uint32]$procId)
+                    if ($h -ne [IntPtr]::Zero) { [void][HUOffice.Front]::SetForegroundWindow($h); return }
+                    Start-Sleep -Milliseconds 200
+                }
+            }).AddArgument($procId).AddArgument($Seconds)
+        return [pscustomobject]@{ PS = $ps; Handle = $ps.BeginInvoke() }
+    } catch { return $null }
+}
+
+function Stop-HUOutlookDialogFront($Guard) {
+    if (-not $Guard) { return }
+    try { $Guard.PS.Stop() } catch { }
+    try { $Guard.PS.Dispose() } catch { }
+}
+
+<#
+.SYNOPSIS
+    Mailkonten im Outlook-Profil dieses PCs (Namespace.Accounts): Address (SMTP), Name, Exchange.
+    Gemeinsame Postfaecher ohne eigenes Konto stehen hier nicht; dafuer gibt es "im Auftrag" (Show-HUMail -FromMode imAuftrag).
+#>
+function Get-HUOutlookAccounts {
+    param($Session = $null)
+    return @(Use-HUOutlookSession $Session {
+            param($s)
+            $accs = $null
+            try {
+                $accs = $s.Namespace.Accounts
+                foreach ($a in $accs) {
+                    try { [pscustomobject]@{ Address = "$($a.SmtpAddress)"; Name = "$($a.DisplayName)"; Exchange = ([int]$a.AccountType -eq 0) } } finally { Remove-HUComObject $a }
+                }
+            } finally { Remove-HUComObject $accs }
+        })
+}
+
+function Find-HUOutlookAccount($Session, [string]$Address) {
+    $accs = $Session.Namespace.Accounts
+    try {
+        foreach ($a in $accs) {
+            if ("$($a.SmtpAddress)".Trim().Equals($Address.Trim(), [StringComparison]::OrdinalIgnoreCase)) { return $a }
+            Remove-HUComObject $a
+        }
+        return $null
+    } finally { Remove-HUComObject $accs }
+}
+
 <#
 .SYNOPSIS
     Ordner im Outlook-Dialog waehlen (nur im Fenster-Thread). Rueckgabe: Ordnerangabe oder $null bei Abbruch.
@@ -240,7 +330,8 @@ function Select-HUOutlookFolder {
     param([ValidateSet('Calendar', 'Tasks')][string]$Type = 'Calendar', $Session = $null)
     return (Use-HUOutlookSession $Session {
             param($s)
-            $f = $s.Namespace.PickFolder()
+            $guard = Start-HUOutlookDialogFront -Session $s
+            try { $f = $s.Namespace.PickFolder() } finally { Stop-HUOutlookDialogFront $guard }
             if ($null -eq $f) { return $null }
             try {
                 $want = $(if ($Type -eq 'Tasks') { $script:HUOfItemType.Task } else { $script:HUOfItemType.Appointment })
@@ -468,12 +559,14 @@ function New-HUMailtoUri {
 <#
 .SYNOPSIS
     Mail im Outlook anzeigen, nie senden. Ohne Outlook (oder -Mailweg mailto): mailto: ohne Anhang.
-    Rueckgabe: Way (outlook | mailto | fehler | testmodus), Message (Grund fuer den Rueckfall oder Fehler).
+    Rueckgabe: Way (outlook | mailto | fehler | testmodus), Message (Grund fuer den Rueckfall oder Fehler), From (verwendeter Absender).
+    -From: Absender. -FromMode auto (Konto, sonst im Auftrag) | konto (nur ein Konto im Profil) | imAuftrag (gemeinsames Postfach).
     Nur im Fenster-Thread aufrufen (Display).
 #>
 function Show-HUMail {
     param([string[]]$To = @(), [string[]]$Cc = @(), [string]$Subject = '', [string]$Body = '', [string[]]$Attachments = @(),
-        [ValidateSet('auto', 'mailto')][string]$Mailweg = 'auto', [int]$MaxLength = 1800, [string]$TruncatedNote = '(Text gekuerzt.)')
+        [ValidateSet('auto', 'mailto')][string]$Mailweg = 'auto', [int]$MaxLength = 1800, [string]$TruncatedNote = '(Text gekuerzt.)',
+        [string]$From = '', [ValidateSet('auto', 'konto', 'imAuftrag')][string]$FromMode = 'auto')
     $toText = (@($To) | Where-Object { "$_".Trim() } | ForEach-Object { "$_".Trim() }) -join '; '
     $ccText = (@($Cc) | Where-Object { "$_".Trim() } | ForEach-Object { "$_".Trim() }) -join '; '
     if (Test-HUOfficeTestMode) { return [pscustomobject]@{ Way = 'testmodus'; Message = 'Testmodus: Es wurde keine Mail geöffnet.' } }
@@ -487,6 +580,20 @@ function Show-HUMail {
             if ($ccText) { $m.CC = $ccText }
             $m.Subject = $Subject
             $m.Body = $Body
+            $usedFrom = ''
+            if ($From) {
+                # Konto im Profil: ueber dieses Konto senden. Sonst (gemeinsames Postfach) "im Auftrag von" - braucht das Recht im Exchange.
+                $acc = $(if ($FromMode -ne 'imAuftrag') { Find-HUOutlookAccount $s $From } else { $null })
+                if ($acc) {
+                    try { Set-HUComProperty $m 'SendUsingAccount' $acc } finally { Remove-HUComObject $acc }
+                    $usedFrom = "Konto $From"
+                } elseif ($FromMode -eq 'konto') {
+                    throw "Das Mailkonto $From gibt es im Outlook dieses PCs nicht."
+                } else {
+                    $m.SentOnBehalfOfName = $From
+                    $usedFrom = "im Auftrag von $From"
+                }
+            }
             $att = $m.Attachments
             foreach ($a in @($Attachments)) {
                 if (-not "$a") { continue }
@@ -494,9 +601,11 @@ function Show-HUMail {
                 $x = $att.Add($a); Remove-HUComObject $x
             }
             $m.Display($false)
-            return [pscustomobject]@{ Way = 'outlook'; Message = '' }
+            return [pscustomobject]@{ Way = 'outlook'; Message = ''; From = $usedFrom }
         } catch { $errText = $_.Exception.Message }
         finally { Remove-HUComObject @($att, $m); Close-HUOutlook $s }
+        # mit festem Absender nie still auf mailto ausweichen: dort laesst sich kein Absender setzen
+        if ($From) { return [pscustomobject]@{ Way = 'fehler'; Message = "Outlook: $errText"; From = '' } }
     }
     try {
         $note = $TruncatedNote
@@ -780,7 +889,7 @@ function Stop-HUOwnProcess([int]$ProcessId, [int]$GraceSeconds = 15) {
     [void]$ps.BeginInvoke()
 }
 
-Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode,
+Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode, Get-HUOutlookAccounts,
     Open-HUOutlook, Close-HUOutlook, Invoke-HUOutlook, ConvertTo-HUOutlookFolderSpec, Get-HUOutlookFolder, Select-HUOutlookFolder,
     Find-HUOutlookItem, Get-HUOutlookItemKey, Set-HUOutlookAppointment, Set-HUOutlookTask, Complete-HUOutlookItem, Remove-HUOutlookItem,
     New-HUMailtoUri, Show-HUMail, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
