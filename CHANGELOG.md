@@ -17,7 +17,7 @@
 - **Testdaten nicht in der Sicherung:** Der Testbestand wird nie mitgesichert.
 
 ### ✅ Qualität
-- 167 Tests, dazu ein Starttest im Testmodus.
+- 168 Tests, dazu ein Starttest im Testmodus.
 
 ## v0.1.8
 

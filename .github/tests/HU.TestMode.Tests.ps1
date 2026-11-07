@@ -141,3 +141,11 @@ Describe 'Gefuehrter Test (Logik)' {
         $w.FindName('btnPass') | Should -Not -BeNullOrEmpty
     }
 }
+
+Describe 'Zeichen ausserhalb von [char]' {
+    It 'kein [char] mit mehr als 4 Hex-Stellen (Emoji brauchen [char]::ConvertFromUtf32)' {
+        $bad = @(Get-ChildItem -Path $script:Root -Recurse -File -Include *.ps1, *.psm1 | Where-Object { $_.FullName -notmatch '\\(Data|\.git)\\' } |
+                Select-String -Pattern '\[char\]0x[0-9A-Fa-f]{5,}' | Where-Object { $_.Path -notlike '*HU.TestMode.Tests.ps1' } | ForEach-Object { "$($_.Filename):$($_.LineNumber)" })
+        $bad | Should -BeNullOrEmpty
+    }
+}

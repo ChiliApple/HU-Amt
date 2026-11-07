@@ -245,7 +245,7 @@ function Show-HUTestAssistant {
     # Fenster bleibt offen, waehrend die Funktion endet: Zustand im Skriptbereich (Ereignisse laufen im Skriptbereich der App)
     $script:HUTa = @{ Run = $run; Index = 0; C = $c; W = $w }
     $w.Title = $(if ($Title) { $Title } else { "Geführter Test $([char]0x2013) $ModuleId" })
-    $c.txtHead.Text = "$([char]0x1F9EA) TESTMODUS $([char]0x2013) $ModuleId $ModuleVersion" + ': Masken des Moduls bedienen, hier je Schritt bestätigen. Preise und Regeln sind Beispielwerte.'
+    $c.txtHead.Text = "$([char]::ConvertFromUtf32(0x1F9EA)) TESTMODUS $([char]0x2013) $ModuleId $ModuleVersion" + ': Masken des Moduls bedienen, hier je Schritt bestätigen. Preise und Regeln sind Beispielwerte.'
     $c.grdSteps.ItemsSource = $run.Steps
     $c.grdSteps.Add_SelectionChanged({ $t = $script:HUTa; $i = $t.C.grdSteps.SelectedIndex; if ($i -ge 0 -and $i -ne $t.Index) { $t.Index = $i; Update-HUTestAssistantView } })
     $c.btnCheck.Add_Click({ $t = $script:HUTa; [void](Invoke-HUTestCheck $t.Run.Steps[$t.Index]); Update-HUTestAssistantView })
