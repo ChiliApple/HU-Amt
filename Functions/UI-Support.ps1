@@ -63,7 +63,8 @@ function New-HUSupportZip {
     param([string]$Description = '', [hashtable]$Include = @{}, [switch]$NoAnonymize, [string]$Folder = '')
     $map = if ($NoAnonymize) { @() } else { Get-HURedactMap }
     $stamp = Get-Date -Format 'yyyy-MM-dd_HHmm'
-    $root = Join-Path ([IO.Path]::GetTempPath()) "HU-Support_$stamp"
+    # Arbeitsordner eindeutig (zwei Pakete in derselben Minute, z. B. parallele Starttests, loeschten sich sonst gegenseitig)
+    $root = Join-Path ([IO.Path]::GetTempPath()) ("HU-Support_{0}_{1}" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), [guid]::NewGuid().ToString('N').Substring(0, 8))
     if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
     New-Item -ItemType Directory -Path $root -Force | Out-Null
     $utf8 = New-Object System.Text.UTF8Encoding $true

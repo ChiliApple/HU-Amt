@@ -199,6 +199,7 @@ Worauf beim Umstellen zu achten ist:
 - `-GetArguments` von `Register-HUBackgroundLoad` gibt seine Argumente in die Pipeline. Ein Array als ein Argument braucht ein Komma davor (`,[string[]]$x`).
 - Aufträge holt der Kern mit eigenem Zeitgeber ab; `Start-HUBackgroundJob` im Fenster-Thread aufrufen.
 - `ConvertFrom-HUDateText` behält die Uhrzeit; nur das Datum mit `-DateOnly`.
+- `HU.Data` lädt `HU.Paths` und `HU.Exchange` nur für sich selbst. Wer in einem eigenen Runspace oder Prozess `Unlock-HUDataFile`, `Get-HULockInfoText` o. ä. direkt aufruft, importiert `HU.Paths` selbst. In der App und in `Start-HUJob` ist es schon geladen.
 - `Get-HUPdfBytes` ohne `-Producer` schreibt nur „HU-Amt“ in die Dokumenteigenschaften.
 - `Get-HUFreeFilePath` legt die Datei nicht an. Schreiben mehrere PCs gleichzeitig in denselben Ordner, mit `CreateNew` anlegen und bei Fehler neu suchen.
 
