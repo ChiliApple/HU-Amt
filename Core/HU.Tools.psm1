@@ -125,7 +125,7 @@ function Invoke-HUNativeProcess {
     Gueltiger Windows-Dateiname aus einem Text (ohne Endung uebergeben).
 .DESCRIPTION
     Ersetzt \ / : * ? " < > | und Steuerzeichen durch _, fasst Leerraum und __ zusammen, kuerzt auf -MaxLength,
-    schneidet Leerzeichen, Punkte, _ und - am Rand ab, setzt _ vor reservierte Geraetenamen (CON, PRN, AUX, NUL, COM1-9, LPT1-9).
+    schneidet Leerzeichen, Punkte, _ und - am Rand ab, setzt _ vor reservierte Geraetenamen (CON, PRN, AUX, NUL, COM1-9, LPT1-9), auch mit Endung (CON.txt -> _CON.txt).
     Standard: "A _ B" wird zu "A_B".
     -KeepSeparators: einfachere Regel - Leerzeichen um _ bleiben, - am Rand bleibt, nur Doppel-Leerzeichen werden eins.
     -Fallback: Name, wenn nichts uebrig bleibt (wird ebenfalls bereinigt), sonst "Dokument".
@@ -146,7 +146,8 @@ function ConvertTo-HUSafeFileName([string]$Name, [string]$Fallback = 'Dokument',
     if ($MaxLength -gt 0 -and $n.Length -gt $MaxLength) { $n = $n.Substring(0, $MaxLength).Trim($trim) }
     if (-not $n) { $n = ("$Fallback" -replace $bad, '_').Trim(' ', '.') }
     if (-not $n) { $n = 'Dokument' }
-    if ($n -match '^(?i)(CON|PRN|AUX|NUL|COM\d|LPT\d)$') { $n = "_$n" }
+    # auch mit Endung reserviert (CON.txt, nul.json): Windows wertet nur den Teil vor dem ersten Punkt
+    if ($n -match '^(?i)(CON|PRN|AUX|NUL|COM\d|LPT\d)(\..*)?$') { $n = "_$n" }
     return $n
 }
 

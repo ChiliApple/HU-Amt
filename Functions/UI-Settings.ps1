@@ -167,6 +167,13 @@ function Show-HUSettingsDialog {
         $c.txtAdminInfo.Text = $(if ($st.Names.Count) { "$($st.Names.Count) Verwalter. Gespeichert wird mit $([char]0x201E)Speichern$([char]0x201C)." } else { 'Noch keine Liste: Verwalter ist nur, wer das Herausgeber-Zertifikat hat.' })
     }
     & $fillAdm
+    # Rechte der Verwalter-Liste (NTFS): Warnzeile mit Details im Tooltip; nicht lesbar = still "nicht pruefbar"
+    $aclInfo = $null
+    try { $aclInfo = Test-HUVerwalterAcl -DataRoot $script:DataRoot } catch { $aclInfo = $null }
+    if ($aclInfo) {
+        $c.txtAdminAcl.Text = $aclInfo.Text; $c.txtAdminAcl.ToolTip = $aclInfo.ToolTip
+        if ($aclInfo.Status -eq 'Warnung') { $c.txtAdminAcl.Foreground = Get-HUBrush '#FFB74D' }
+    } else { $c.txtAdminAcl.Visibility = 'Collapsed' }
     $addName = { param($n) $n = "$n".Trim(); if (-not $n) { return }; if (@($st.Names | Where-Object { $_ -ieq $n }).Count) { return }; [void]$st.Names.Add($n); $st.Changed = $true; & $fillAdm }
     $c.btnAdminAdd.Add_Click({ & $addName $c.txtAdminName.Text; $c.txtAdminName.Text = '' })
     $c.btnAdminMe.Add_Click({ & $addName $script:UserName })

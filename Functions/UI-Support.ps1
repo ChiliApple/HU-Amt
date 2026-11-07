@@ -4,7 +4,7 @@
     Support wie in der Vorlage: sammelt Protokolle und Einstellungen (anonymisiert) in ein ZIP und oeffnet eine E-Mail
     oder ein GitHub-Issue.
 .DESCRIPTION
-    Anonymisiert werden: E-Mail-Adressen, GUIDs, IP-Adressen, Tokens, Windows-Benutzer-, Computer- und Domaenenname,
+    Anonymisiert werden: E-Mail-Adressen, GUIDs, IP-Adressen, Tokens, UNC-Pfade (Server und Freigabe), Windows-Benutzer-, Computer- und Domaenenname,
     der Programmordner (-> <Programmordner>, z. B. ein Netzordner mit dem Namen der Dienststelle).
     Nie enthalten: Daten der Module (Data\<Id>\), Zugangsdaten der Module, Kennwoerter, Sicherungen, Fensterzustand anderer Benutzer.
     Der Inhalt kann vor dem Senden angesehen werden ("ZIP erstellen und ansehen").
@@ -31,6 +31,10 @@ function ConvertTo-HURedacted([string]$Text, [object[]]$Map = @()) {
     $t = [regex]::Replace($t, '(?i)(sig|secret|password|passwort|kennwort|token|key)=([^&\s"]+)', '$1=<entfernt>')
     $t = [regex]::Replace($t, '[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}', '<mail>')
     foreach ($m in @($Map | Sort-Object { "$($_.From)".Length } -Descending)) { $t = [regex]::Replace($t, [regex]::Escape("$($m.From)"), "$($m.To)", 'IgnoreCase') }
+    # UNC-Pfade allgemein (KERN-U3): \\server\freigabe\ -> \\<server>\<freigabe>\ (nach der Liste, damit der Programmordner
+    # <Programmordner> bleibt). Auch in JSON doppelt geschrieben (\\\\server\\freigabe). \\?\ und \\.\ bleiben.
+    # Nur am Anfang, nach Leerraum, Anfuehrungszeichen, = ( [ , ; - sonst waere C:\\Users\\x (JSON) ein Treffer.
+    $t = [regex]::Replace($t, '(?<![^\s"''=(\[,;])(\\{4}|\\{2})(?![?.]\\)([^\\/\s"''<>|:*?]+)(\\{1,2})([^\\/\s"''<>|:*?]+)', '$1<server>$3<freigabe>')
     $t = [regex]::Replace($t, '(?i)\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b', '$1-****')
     $t = [regex]::Replace($t, '\b(?:\d{1,3}\.){3}\d{1,3}\b', '<ip>')
     return $t

@@ -134,3 +134,31 @@ Describe 'Support' {
         $t | Should -Not -Match '123456789abc'
     }
 }
+
+Describe 'Support: UNC-Pfade (Pruefung 086, KERN-U3)' {
+    BeforeAll {
+        $script:AppRoot = '\\srv-probe\apps\HU-Amt'
+        . (Join-Path $script:Root 'Functions\UI-Support.ps1')
+    }
+    It 'ersetzt Server und Freigabe in <In>' -TestCases @(
+        @{ In = 'Fehler in \\fs01\Gemeinde\Belege\2026\a.pdf'; Out = 'Fehler in \\<server>\<freigabe>\Belege\2026\a.pdf' }
+        @{ In = 'Pfad "\\203.0.113.9\daten$\x.json"'; Out = 'Pfad "\\<server>\<freigabe>\x.json"' }
+        @{ In = '{"Ordner":"\\\\fs01\\Gemeinde\\Eingang"}'; Out = '{"Ordner":"\\\\<server>\\<freigabe>\\Eingang"}' }
+        @{ In = '\\fs01\Gemeinde'; Out = '\\<server>\<freigabe>' }
+    ) {
+        param($In, $Out)
+        ConvertTo-HURedacted $In | Should -Be $Out
+    }
+    It 'laesst lokale Pfade, \\?\ und \\.\ stehen' -TestCases @(
+        @{ In = 'C:\Tools\x.log' }
+        @{ In = '{"Pfad":"C:\\Users\\Public\\x"}' }
+        @{ In = '\\?\C:\lang\pfad' }
+        @{ In = '\\.\pipe\probe' }
+    ) {
+        param($In)
+        ConvertTo-HURedacted $In | Should -Be $In
+    }
+    It 'Programmordner auf einer Freigabe bleibt <Programmordner>' {
+        ConvertTo-HURedacted '\\srv-probe\apps\HU-Amt\Main.ps1' (Get-HURedactMap) | Should -Be '<Programmordner>\Main.ps1'
+    }
+}

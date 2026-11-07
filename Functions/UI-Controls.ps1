@@ -9,7 +9,7 @@
     Kalender         Add-HUCalendar (Popup an TextBox + Knopf, Umschalt+Pfeil = Jahr), Get-HUMonthName,
                      Get-HUCalendarDays, ConvertFrom-HUCalendarText
     Uhrzeit, Zahl    Initialize-HUTimeCombo, Get-HUTimeSlots, Format-HUNumberInput
-    Dialoge          Read-HUText (New-HUTextDialog), Read-HUChoice (New-HUChoiceDialog)
+    Dialoge          Read-HUText (New-HUTextDialog), Read-HUChoice (New-HUChoiceDialog, -DefaultIndex), Read-HUNumberInput
     Hintergrund      Start-HUBackgroundJob, Receive-HUBackgroundJobs, Stop-HUBackgroundJobs, Get-HUBackgroundJobCount
     Lade-Kreislauf   Register-HUBackgroundLoad, Start-HUBackgroundLoad, Receive-HUBackgroundLoad,
                      Stop-HUBackgroundLoad, Unregister-HUBackgroundLoad, Test-HUBackgroundLoadRunning
@@ -24,6 +24,11 @@
 # Strict Mode: Skriptvariablen beim Laden anlegen
 $script:HUCtlDe = [Globalization.CultureInfo]::GetCultureInfo('de-AT')
 $script:HUCtlInv = [Globalization.CultureInfo]::InvariantCulture
+# Datum lesen: zweistellige Jahre fest bis 2049 (KERN-B6), unabhaengig von der Windows-Einstellung des PCs
+$script:HUCtlDateCulture = [Globalization.CultureInfo]([Globalization.CultureInfo]::InvariantCulture.Clone())
+$script:HUCtlDateCal = New-Object Globalization.GregorianCalendar
+$script:HUCtlDateCal.TwoDigitYearMax = 2049
+$script:HUCtlDateCulture.DateTimeFormat.Calendar = $script:HUCtlDateCal
 # Zahlen wie in Oesterreich geschrieben (1.234,56); Windows liefert fuer de-AT je nach Version ein Leerzeichen als Tausendertrenner
 $script:HUCtlNum = [Globalization.NumberFormatInfo]$script:HUCtlDe.NumberFormat.Clone()
 $script:HUCtlNum.NumberDecimalSeparator = ','; $script:HUCtlNum.NumberGroupSeparator = '.'
@@ -31,6 +36,9 @@ $script:HUBgJobs = New-Object System.Collections.Generic.List[object]
 $script:HUBgJobTimer = $null
 $script:HUBgJobNr = 0
 $script:HULoads = @{}
+# Abgebrochene Auftraege, deren Stop noch laeuft (KERN-B5): Freigabe erst, wenn Stop fertig ist
+$script:HUCtlStopping = New-Object System.Collections.Generic.List[object]
+$script:HUCtlStopTimer = $null
 
 # ---------------------------------------------------------------------------------------------
 # Interne Hilfen
@@ -172,7 +180,7 @@ function ConvertFrom-HUCalendarText($Text) {
     if ($t.Length -gt 10 -and $t -match '^\d{4}-\d{2}-\d{2}') { $t = $t.Substring(0, 10) }
     $d = [datetime]::MinValue
     $fmt = [string[]]@('d.M.yyyy', 'dd.MM.yyyy', 'd.M.yy', 'dd.MM.yy', 'yyyy-MM-dd')
-    if ([datetime]::TryParseExact($t, $fmt, $script:HUCtlInv, [Globalization.DateTimeStyles]::None, [ref]$d)) { return $d.Date }
+    if ([datetime]::TryParseExact($t, $fmt, $script:HUCtlDateCulture, [Globalization.DateTimeStyles]::None, [ref]$d)) { return $d.Date }
     return $null
 }
 <#
@@ -460,7 +468,7 @@ function Read-HUText {
 #>
 function New-HUChoiceDialog {
     param([string]$Title = '', [string]$Prompt = '', [string[]]$Choices = @(), $Owner = $null, [string[]]$ToolTips = @(),
-        [string]$CancelText = 'Abbrechen', [string]$CancelToolTip = 'Nichts ändern', [switch]$NoCancel, [string]$StateKey = '')
+        [string]$CancelText = 'Abbrechen', [string]$CancelToolTip = 'Nichts ändern', [switch]$NoCancel, [string]$StateKey = '', [int]$DefaultIndex = -1)
     $d = New-HUWindow -XamlText (Get-HUThemedXaml $script:HUCtlChoiceXaml)
     $w = $d.Window; $c = $d.C
     $w.Title = $Title
@@ -474,6 +482,7 @@ function New-HUChoiceDialog {
         $b.Content = $Choices[$i]; $b.Tag = @{ I = $i; S = $st }; $b.Margin = '0,0,8,0'; $b.Padding = '14,4'
         $b.Background = Get-HUBrush $(if ($i -eq 0) { '#1976D2' } else { '#3E3E42' })
         $b.ToolTip = $(if ($i -lt @($ToolTips).Count -and "$($ToolTips[$i])") { "$($ToolTips[$i])" } else { "$($Choices[$i])" })
+        if ($i -eq $DefaultIndex) { $b.IsDefault = $true }   # Enter waehlt diesen Knopf; ohne -DefaultIndex keiner
         $b.Add_Click({ param($s, $e) $t = $s.Tag; $t.S.Index = [int]$t.I; try { $t.S.Window.DialogResult = $true } catch { } })
         [void]$c.chButtons.Children.Add($b); $st.Buttons.Add($b)
     }
@@ -494,16 +503,45 @@ function New-HUChoiceDialog {
 }
 <#
 .SYNOPSIS
-    Rueckfrage mit mehreren Knoepfen.
+    Rueckfrage mit mehreren Knoepfen. -DefaultIndex: dieser Knopf reagiert auf Enter (IsDefault); ohne Angabe keiner.
 .OUTPUTS
     Nummer des Knopfs (0, 1, ...) oder -1 (Abbrechen, Esc, Fenster geschlossen).
 #>
 function Read-HUChoice {
     param([string]$Title = '', [string]$Prompt = '', [string[]]$Choices = @(), $Owner = $null, [string[]]$ToolTips = @(),
-        [string]$CancelText = 'Abbrechen', [string]$CancelToolTip = 'Nichts ändern', [switch]$NoCancel, [string]$StateKey = '')
+        [string]$CancelText = 'Abbrechen', [string]$CancelToolTip = 'Nichts ändern', [switch]$NoCancel, [string]$StateKey = '', [int]$DefaultIndex = -1)
     $st = New-HUChoiceDialog @PSBoundParameters
     [void]$st.Window.ShowDialog()
     return [int]$st.Index
+}
+
+<#
+.SYNOPSIS
+    Betrag aus einem Eingabefeld lesen. Bei zweideutiger Eingabe (Test-HUAmbiguousNumber, z. B. 1.500) einmal nachfragen:
+    "Meinst du 1.500 (tausendfuenfhundert) oder 1,5?". Sonst wie ConvertTo-HUDecimal (HU.Data).
+.DESCRIPTION
+    Gedacht fuer LostFocus oder Speichern eines Betragsfelds; danach das Feld mit Format-HUNumberInput neu schreiben,
+    dann ist es eindeutig (1500 bzw. 1,5) und es wird nicht noch einmal gefragt.
+.OUTPUTS
+    [decimal], oder $null bei leerem Feld, keiner Zahl oder Abbruch der Rueckfrage.
+#>
+function Read-HUNumberInput {
+    param([string]$Text, $Owner = $null, [string]$Title = 'Betrag prüfen')
+    $t = "$Text".Trim()
+    if (-not $t -or -not (Test-HUNumberText $t)) { return $null }
+    if (Test-HUAmbiguousNumber $t) {
+        $clean = ($t -replace '[^\d.+-]', '')
+        $big = [decimal]::Parse($clean.Replace('.', ''), [Globalization.CultureInfo]::InvariantCulture)
+        $small = [decimal]::Parse($clean, [Globalization.CultureInfo]::InvariantCulture)
+        $bigText = $big.ToString('#,##0', $script:HUCtlNum); $smallText = $small.ToString('0.###', $script:HUCtlNum)
+        $words = " (also $($big.ToString('0', $script:HUCtlInv)))"
+        $i = Read-HUChoice -Title $Title -Prompt "Meinst du $bigText$words oder $($smallText)?" -Choices @($bigText, $smallText) -Owner $Owner `
+            -ToolTips @("Punkt als Tausendertrenner: $bigText", "Punkt als Komma: $smallText") -DefaultIndex 0
+        if ($i -eq 0) { return $big }
+        if ($i -eq 1) { return $small }
+        return $null
+    }
+    return (ConvertTo-HUDecimal $t)
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -562,9 +600,47 @@ function Start-HUBackgroundJobTimer {
     if (-not $script:HUBgJobTimer.IsEnabled) { $script:HUBgJobTimer.Start() }
 }
 function Close-HUBackgroundJob($Job, [switch]$Stop) {
-    if ($Stop) { try { $Job.Ps.Stop() } catch { } }
+    if ($Stop) { Stop-HUCtlPipeline $Job.Ps $Job.Rs; return }
     try { $Job.Ps.Dispose() } catch { }
     try { if ($Job.Rs) { $Job.Rs.Dispose() } } catch { }
+}
+<#
+.SYNOPSIS
+    Auftrag abbrechen, ohne den Fenster-Thread zu blockieren (KERN-B5, wie Core-Async): BeginStop statt Stop.
+    PowerShell und Runspace werden erst freigegeben, wenn der Stop fertig ist (Complete-HUCtlStops im naechsten Takt).
+    Kein Skriptblock als Rueckruf: der liefe in einem Thread ohne Runspace.
+#>
+function Stop-HUCtlPipeline($Ps, $Rs = $null) {
+    if (-not $Ps) { return }
+    $h = $null
+    try { $h = $Ps.BeginStop($null, $null) } catch { $h = $null }
+    $script:HUCtlStopping.Add([pscustomobject]@{ Ps = $Ps; Rs = $Rs; Handle = $h })
+    Complete-HUCtlStops
+    if ($script:HUCtlStopping.Count) { Start-HUCtlStopTimer }
+}
+<#
+.SYNOPSIS
+    Fertig abgebrochene Auftraege freigeben (vom Zeitgeber, ohne Zeitgeber selbst aufrufen).
+#>
+function Complete-HUCtlStops {
+    foreach ($x in $script:HUCtlStopping.ToArray()) {
+        if ($x.Handle -and -not $x.Handle.IsCompleted) { continue }
+        [void]$script:HUCtlStopping.Remove($x)
+        if ($x.Handle) { try { $x.Ps.EndStop($x.Handle) } catch { } }
+        try { $x.Ps.Dispose() } catch { }
+        try { if ($x.Rs) { $x.Rs.Dispose() } } catch { }
+    }
+}
+function Start-HUCtlStopTimer {
+    try {
+        if (-not $script:HUCtlStopTimer) {
+            $t = New-Object System.Windows.Threading.DispatcherTimer
+            $t.Interval = [TimeSpan]::FromMilliseconds(250)
+            $t.Add_Tick({ param($s, $e) Complete-HUCtlStops; if (-not $script:HUCtlStopping.Count) { $s.Stop() } })
+            $script:HUCtlStopTimer = $t
+        }
+        if (-not $script:HUCtlStopTimer.IsEnabled) { $script:HUCtlStopTimer.Start() }
+    } catch { }   # ohne WPF (Hintergrund, Test): freigegeben wird beim naechsten Complete-HUCtlStops
 }
 function Invoke-HUBackgroundDone($Job, $Result, [string]$ErrorText) {
     if (-not $Job.Done) { return }
@@ -719,8 +795,7 @@ function Receive-HUBackgroundLoad([string]$Name = '') {
     if (-not $j.Handle.IsCompleted) {
         if ($l.Timeout -gt 0 -and ((Get-Date) - $j.Start).TotalSeconds -gt $l.Timeout) {
             $l.Job = $null
-            try { $j.Ps.Stop() } catch { }
-            try { $j.Ps.Dispose() } catch { }
+            Stop-HUCtlPipeline $j.Ps
             Set-HUCtlBusy $l.Dot $false
             Write-HUCtlWarn "$($l.Prefix): Laden dauert zu lange (Freigabe erreichbar?)"
             if ($l.Failed) { try { & $l.Failed 'Zeitüberschreitung' } catch { } }
@@ -762,8 +837,7 @@ function Stop-HUBackgroundLoad([Parameter(Mandatory)][string]$Name) {
     $j = $l.Job
     $l.Job = $null; $l.Queued = $false
     if ($j) {
-        try { $j.Ps.Stop() } catch { }
-        try { $j.Ps.Dispose() } catch { }
+        Stop-HUCtlPipeline $j.Ps
         Set-HUCtlBusy $l.Dot $false
     }
 }

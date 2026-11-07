@@ -381,3 +381,22 @@ Describe 'Betrieb' {
         $t.TrimEnd() | Should -Match 'ConvertFrom-HUXlsxRange$'
     }
 }
+
+Describe 'Zeilengrenze vor dem Auffuellen (Pruefung 086, KERN-B8)' {
+    It 'Zeile 1048576 nach Zeile 1 mit -MaxRows 10: kein Auffuellen bis dorthin' {
+        $p = Join-Path $script:Tmp 'b8-weit-unten.xlsx'
+        New-TestXlsx $p ('<sheetData><row r="1">' + (S 'A1' 'Kopf') + '</row><row r="1048576">' + (S 'A1048576' 'weit unten') + '</row></sheetData>')
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $bl = @(Read-HUXlsx ([IO.File]::ReadAllBytes($p)) -MaxRows 10)[0]
+        $sw.Stop()
+        $bl.Rows.Count | Should -Be 1
+        $sw.ElapsedMilliseconds | Should -BeLessThan 5000
+    }
+    It 'Luecken innerhalb der Grenze werden weiter aufgefuellt' {
+        $p = Join-Path $script:Tmp 'b8-luecke.xlsx'
+        New-TestXlsx $p ('<sheetData><row r="1">' + (S 'A1' 'Kopf') + '</row><row r="4">' + (S 'A4' 'vier') + '</row><row r="20">' + (S 'A20' 'zwanzig') + '</row></sheetData>')
+        $bl = @(Read-HUXlsx ([IO.File]::ReadAllBytes($p)) -MaxRows 10)[0]
+        $bl.Rows.Count | Should -Be 4
+        $bl.Rows[3][0] | Should -Be 'vier'
+    }
+}

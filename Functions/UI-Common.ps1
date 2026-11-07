@@ -232,7 +232,7 @@ function New-HUWindow([string]$Name, [string]$XamlText = '') {
     return @{ Window = $w; C = $c }
 }
 
-# Spaltenbreiten GLOBAL (Udo 24.10.): jede Text-Spalte jeder Tabelle ist so breit wie ihr Inhalt bzw. Kopf (+ Zellabstand
+# Spaltenbreiten GLOBAL (Festlegung 24.10.): jede Text-Spalte jeder Tabelle ist so breit wie ihr Inhalt bzw. Kopf (+ Zellabstand
 # 6/12 aus dem Theme) - nie abgeschnitten, nie aufgeblaeht. Feste Pixelbreiten und Stern-Breiten (Rest fuellen) werden
 # zu "Auto". Greift ueber einen Klassen-Handler beim Laden jeder DataGrid und auch fuer Spalten, die der Code spaeter
 # hinzufuegt (Breite wird danach im Hintergrund nachgezogen, damit eine im Code gesetzte Breite nicht gewinnt).
@@ -273,7 +273,7 @@ function Set-HUDiffRowTint($Row, [switch]$Retry) {
     try {
         if ($null -eq $Row) { return }
         if ($null -eq $script:HUDiffTintBrush) { $b = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#3A321F')); $b.Freeze(); $script:HUDiffTintBrush = $b }
-        # nur in Fenstern, die aufgehen (Detail/Ergebnis) - nicht im Hauptfenster (Udo 25.10.)
+        # nur in Fenstern, die aufgehen (Detail/Ergebnis) - nicht im Hauptfenster (Festlegung 25.10.)
         $win = [System.Windows.Window]::GetWindow($Row)
         if ($null -eq $win) {
             # LoadingRow kommt, bevor die Zeile im Fenster haengt -> einmal nachholen, sobald sie geladen ist
@@ -304,7 +304,7 @@ function Set-HUGridFit($Grid) {
         # jede Tabelle nur einmal verdrahten (Tag bleibt unberuehrt - den nutzen andere Fenster selbst)
         foreach ($h in $script:HUGridHookedList) { if ([object]::ReferenceEquals($h, $Grid)) { return } }
         [void]$script:HUGridHookedList.Add($Grid)
-        # GLOBAL (Udo 25.10.): in aufgehenden Fenstern Zeilen mit "abweichend" dezent einfaerben - beim Erzeugen jeder Zeile, auch wiederverwendete
+        # GLOBAL (Festlegung 25.10.): in aufgehenden Fenstern Zeilen mit "abweichend" dezent einfaerben - beim Erzeugen jeder Zeile, auch wiederverwendete
         try {
             $Grid.Add_LoadingRow({ param($s, $e) Set-HUDiffRowTint $e.Row })
             foreach ($it in @($Grid.Items)) { $r = $Grid.ItemContainerGenerator.ContainerFromItem($it); if ($r) { Set-HUDiffRowTint $r } }
@@ -399,7 +399,7 @@ function Set-HUWindowScale($Window) {
 }
 
 # ---------------------------------------------------------------------------------------------
-# Meldungen und Rueckfragen im App-Stil (2.5.9, Udo: global, sauber, Scrollbalken erst bei viel Text)
+# Meldungen und Rueckfragen im App-Stil (2.5.9, Festlegung: global, sauber, Scrollbalken erst bei viel Text)
 # Ersetzt die Windows-MessageBox; faellt nur zurueck, wenn das App-Design nicht ladbar ist (z. B. ganz am Start).
 # Mode: OK | YesNo | YesNoCancel. Icon: Info | Warning | Error | Question. Rueckgabe: 'OK' | 'Yes' | 'No' | 'Cancel'.
 # Schliessen (X, Esc): OK -> 'OK', YesNo -> 'No', YesNoCancel -> 'Cancel'.
@@ -628,7 +628,8 @@ function Update-HUToastPositions {
 }
 
 function Show-HUMessage {
-    param([string]$Text, [string]$Title = $script:App.title, [ValidateSet('Info', 'Warning', 'Error')][string]$Icon = 'Info', $Owner = $null)
+    param([string]$Text, [string]$Title = $script:App.title, [ValidateSet('Info', 'Information', 'Warning', 'Error')][string]$Icon = 'Info', $Owner = $null)
+    if ($Icon -eq 'Information') { $Icon = 'Info' }   # Alias wie bei MessageBoxImage (KERN-U1)
     [void](Show-HUDialogBox -Text $Text -Title $Title -Mode 'OK' -Icon $Icon -Owner $Owner)
 }
 
@@ -711,16 +712,26 @@ function Open-HUUrl([string]$Url) {
 }
 
 # JSON schreiben: erst in Temp-Datei, dann ersetzen (nie halb geschriebene Datei); optional Sicherung *.bak
+# KERN-B10: ueber Write-HUFileAtomic (HU.Exchange, eindeutiger Temp-Name). Ist das Modul nicht geladen (z. B. in Tests),
+# eigener eindeutiger Temp-Name; zwei gleichzeitige Schreiber teilen sich so nie eine Temp-Datei.
 function Write-HUJsonFile {
     param([string]$Path, $Object, [int]$Depth = 10, [switch]$Backup)
     $dir = Split-Path $Path -Parent
     if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $json = $Object | ConvertTo-Json -Depth $Depth
-    $tmp = "$Path.tmp"
-    [System.IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding $false))
+    $enc = New-Object System.Text.UTF8Encoding $false
     # Sicherung nur von einer gueltigen Datei (sonst ersetzt eine kaputte Datei die letzte gute Sicherung)
     if ($Backup -and (Test-Path -LiteralPath $Path) -and -not (Read-HUJsonFileChecked $Path).Error) { Copy-Item -LiteralPath $Path -Destination "$Path.bak" -Force }
-    Move-Item -LiteralPath $tmp -Destination $Path -Force
+    if (Get-Command Write-HUFileAtomic -ErrorAction SilentlyContinue) {
+        [void](Write-HUFileAtomic -Path $Path -Text $json -Encoding $enc -Overwrite)
+        return
+    }
+    $full = [IO.Path]::GetFullPath($Path)
+    $tmp = Join-Path (Split-Path -Parent $full) ('.~' + [IO.Path]::GetFileName($full) + '.' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.tmp')
+    try {
+        [System.IO.File]::WriteAllText($tmp, $json, $enc)
+        Move-Item -LiteralPath $tmp -Destination $full -Force
+    } finally { if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue } }
 }
 # wie Read-HUJsonFile, unterscheidet aber 'fehlt' (Data $null, Error '') von 'nicht lesbar' (Error gesetzt)
 function Read-HUJsonFileChecked([string]$Path) {

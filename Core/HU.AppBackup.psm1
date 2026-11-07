@@ -595,7 +595,7 @@ function Remove-HUAppBackupPassword([string]$DataRoot) { Remove-Item -LiteralPat
 function Test-HUAppBackupDue {
     <#
         Automatik faellig? $Mode 'aus'|'taeglich'|'woechentlich', $Last = Zeitpunkt der letzten erfolgreichen Sicherung.
-        Nach Kalendertagen (Udo 27.10.): taeglich = heute noch keine Sicherung, woechentlich = seit 7 Kalendertagen keine.
+        Nach Kalendertagen (Festlegung 27.10.): taeglich = heute noch keine Sicherung, woechentlich = seit 7 Kalendertagen keine.
         So bleibt der Zeitpunkt stabil - beim ersten Start des Tages bzw. kurz nach Mitternacht, wenn die App durchlaeuft.
     #>
     param([string]$Mode, [object]$Last, [datetime]$Now = (Get-Date))

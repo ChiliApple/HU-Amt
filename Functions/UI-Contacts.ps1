@@ -70,7 +70,7 @@ function Select-HUContact {
         }
         & $refresh
         if ($err.Count) { Show-HUMessage ("Nicht gelesen:`n" + ($err -join "`n")) -Icon Warning -Owner $w }
-        elseif ($n -eq 0) { Show-HUMessage 'In der Datei war kein Kontakt.' -Icon Information -Owner $w }
+        elseif ($n -eq 0) { Show-HUMessage 'In der Datei war kein Kontakt.' -Icon Info -Owner $w }
     }
     $c.txtSearch.Add_TextChanged({ & $refresh })
     $c.btnOutlook.Add_Click({
@@ -92,7 +92,7 @@ function Select-HUContact {
     $w.Add_Drop({ param($s, $e) if ($e.Data.GetDataPresent([System.Windows.DataFormats]::FileDrop)) { & $addVcf @($e.Data.GetData([System.Windows.DataFormats]::FileDrop)) } })
     $take = {
         $sel = @($c.grd.SelectedItems)
-        if (-not $sel.Count) { Show-HUMessage 'Bitte einen Kontakt markieren.' -Icon Information -Owner $w; return }
+        if (-not $sel.Count) { Show-HUMessage 'Bitte einen Kontakt markieren.' -Icon Info -Owner $w; return }
         $st.R = $sel; $w.Close()
     }
     $c.btnOk.Add_Click({ & $take })

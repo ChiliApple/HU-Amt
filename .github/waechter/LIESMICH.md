@@ -52,7 +52,7 @@ Die Teams-Nachricht kommt nur aus diesem Lauf auf GitHub, nie von einer installi
 | `ignorieren` | geprüfte Fehlalarme: `[{ "id": "CVE-…", "grund": "…" }]` |
 | `download` | Muster `…{version}…`, prüft, ob es die neue Version als fertiges Paket gibt |
 
-Prüfen ohne Netz (Zielmaschine nb001), vom Kern-Klon aus:
+Prüfen ohne Netz (Zielmaschine Entwicklungs-PC), vom Kern-Klon aus:
 
 ```
 powershell.exe -File .github\waechter\Waechter.ps1 -Wurzel ..\<Modul-Klon> -Pruefen

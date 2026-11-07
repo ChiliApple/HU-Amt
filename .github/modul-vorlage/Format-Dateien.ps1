@@ -3,7 +3,7 @@
 .SYNOPSIS
     Bringt die eigenen Textdateien des Moduls auf UTF-8 mit BOM und CRLF (.yml und .py ohne BOM, mit LF).
 .NOTES
-    Zielmaschine: nb001. Wird vor jedem Commit und von Deploy-Dev.ps1 (gleiche Regel) gebraucht.
+    Zielmaschine: Entwicklungs-PC. Wird vor jedem Commit und von Deploy-Dev.ps1 (gleiche Regel) gebraucht.
     Beachtet aus .github\dev\modul-dev.json (neben diesem Skript): "formatAusschluss" (Regex auf den relativen Pfad,
     Standard wie Deploy-Dev: ^\.github\\dev\\Werkzeuge\\) und "ohneFormat": true (dann aendert es nichts).
 #>

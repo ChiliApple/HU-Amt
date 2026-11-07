@@ -213,7 +213,10 @@ function Read-HUXlsx {
             foreach ($row in (ConvertTo-HUImportXml $xml -Leerraum).DocumentElement.SelectNodes("./*[local-name()='sheetData']/*[local-name()='row']")) {
                 # leere Zeilen stehen nicht in der Datei: mit der Zeilennummer auffuellen, damit Luecken erhalten bleiben
                 $rn = 0
-                if ([int]::TryParse($row.GetAttribute('r'), [ref]$rn)) { $ri = $rn - 1; while ($rows.Count -lt $ri) { $rows.Add([string[]]@()) } } else { $ri++ }
+                if ([int]::TryParse($row.GetAttribute('r'), [ref]$rn)) { $ri = $rn - 1 } else { $ri++ }
+                # Grenze vor dem Auffuellen pruefen (KERN-B8): sonst fuellt r="1048576" erst eine Million leerer Zeilen auf
+                if ($grenze -gt 0 -and $ri -ge $grenze) { break }
+                while ($rows.Count -lt $ri) { $rows.Add([string[]]@()) }
                 if ($grenze -gt 0 -and $rows.Count -ge $grenze) { break }
                 if ($SheetJs -and -not $row.IsEmpty) { if ($ri -lt $g[0]) { $g[0] = $ri }; if ($ri -gt $g[2]) { $g[2] = $ri } }
                 $text = @{}; $max = -1; $next = 0

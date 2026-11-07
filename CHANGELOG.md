@@ -1,5 +1,51 @@
 ﻿# Changelog
 
+## v0.1.12
+
+### 📤 Datei-Austausch
+- **Beträge und Datum richtig in Listen für andere Programme:** Zahlen und Datumswerte aus Texten werden jetzt österreichisch gelesen.
+  - „1,5“ bleibt 1,5 (bisher 15), „12,50“ bleibt 12,50, „1.234,56“ klappt jetzt.
+  - „05.11.2026“ bleibt der 5. November (bisher 11. Mai), „13.11.2026“ geht jetzt.
+  - Was weder eine Zahl noch ein Datum ist, bricht mit Zeile und Spalte ab, statt still falsch zu landen.
+
+### 💾 Daten auf der Freigabe
+- **Kurz weg heißt nicht leer:** Ist die Freigabe kurz nicht erreichbar, zeigen Module weiter den letzten Stand und melden „Ordner nicht erreichbar“, statt eine leere Liste zu zeigen.
+- **Dateinamen wie „CON.txt“:** Namen, die Windows für Geräte reserviert, bekommen auch mit Endung einen Unterstrich davor.
+
+### 🔐 Rechte
+- **Rechte der Verwalter-Liste:** Unter Einstellungen › Verwalter zeigt HU-Amt eine Warnzeile, wenn alle Benutzer die Verwalter-Liste ändern oder im Ordner Data alles löschen dürfen. Details stehen im Tooltip.
+  - Beim Start steht die Warnung nur im Protokoll, normale Benutzer sehen nichts.
+  - Die Freigaberechte selbst kann HU-Amt nicht sehen, das steht auch im Hinweis.
+  - Empfohlene Rechte für Freigabe, Data und Verwalter.txt stehen in der Anleitung unter „Rechte auf der Freigabe“.
+
+### 📨 Outlook und Word
+- **Word-Vorlagen ohne Makros:** Vorlagen müssen .docx oder .dotx sein, sonst kommt eine klare Meldung. Makros bleiben beim Füllen immer aus.
+- **Kontaktsuche mit Sonderzeichen:** Suchtexte mit „[“ oder „*“ finden jetzt, was drinsteht, statt einen Fehler zu werfen.
+
+### 👥 Kontakte
+- **vCard mit Foto:** Kontakte nach einem Foto gehen beim Einlesen nicht mehr verloren.
+
+### 📊 Excel und CSV
+- **Große Excel-Dateien:** Eine einzelne Zeile weit unten im Blatt bremst das Einlesen nicht mehr aus.
+
+### 🎨 Oberfläche
+- **Kein Hängen beim Abbrechen:** Bricht HU-Amt einen Auftrag ab, der nicht antwortet, bleibt das Fenster bedienbar.
+- **Zweistellige Jahre:** „1.1.35“ ist auf jedem PC der 1.1.2035, unabhängig von der Windows-Einstellung.
+- **Rückfrage bei 1.500:** Module können in Betragsfeldern nachfragen, ob 1.500 (also 1500) oder 1,5 gemeint ist.
+- **Standardknopf in Auswahlfenstern:** Module können festlegen, welcher Knopf auf Enter reagiert.
+- **Hinweise öffnen zuverlässig:** Einige Hinweise brachen wegen eines falschen Symbols ab.
+
+### 🧪 Testmodus
+- **Geführter Test:** Die Trennlinie zwischen Liste und Schritt lässt sich verschieben, Größe und Lage bleiben erhalten, Esc schließt.
+  - Sind noch Schritte unbestätigt, fragt das Fenster vor dem Schließen nach.
+- **Verwalter im Testmodus:** Die Verwalter-Liste wird bei jedem Start des Testmodus neu übernommen.
+
+### 🛟 Support
+- **Netzpfade unkenntlich:** Im Support-Paket werden Server und Freigabe in Netzpfaden durch Platzhalter ersetzt.
+
+### ✅ Qualität
+- 472 Tests, alle im strengen Modus wie die App.
+
 ## v0.1.11
 
 ### 🧩 Module

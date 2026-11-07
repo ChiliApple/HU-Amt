@@ -159,3 +159,67 @@ Describe 'Zeichen ausserhalb von [char]' {
         $bad | Should -BeNullOrEmpty
     }
 }
+
+Describe 'Verwalter-Liste im Testmodus (Pruefung 086, KERN-B17)' {
+    BeforeEach {
+        $script:App = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtTm17-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Data') -Force)
+        [IO.File]::WriteAllText((Join-Path $script:App 'Data\Verwalter.txt'), "anna`r`n")
+        $script:T = Join-Path $script:App 'Data\_Test'
+    }
+    AfterEach { Remove-Item -LiteralPath $script:App -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'kopiert Verwalter.txt bei jedem Start neu' {
+        [void](Initialize-HUTestData -AppRoot $script:App)
+        [IO.File]::ReadAllText((Join-Path $script:T 'Verwalter.txt')) | Should -Match 'anna'
+        [IO.File]::WriteAllText((Join-Path $script:App 'Data\Verwalter.txt'), "berta`r`n")
+        [void](Initialize-HUTestData -AppRoot $script:App)
+        $t = [IO.File]::ReadAllText((Join-Path $script:T 'Verwalter.txt'))
+        $t | Should -Match 'berta'
+        $t | Should -Not -Match 'anna'
+    }
+}
+
+Describe 'Gefuehrter Test: Fenster (Pruefung 086, KERN-U1/U2)' {
+    BeforeAll {
+        Import-Module (Join-Path $script:Root 'Core\HU.Exchange.psm1') -Force -DisableNameChecking
+        . (Join-Path $script:Root 'Functions\UI-TestAssistant.ps1')
+        $script:TaSrc =[IO.File]::ReadAllText((Join-Path $script:Root 'Functions\UI-TestAssistant.ps1'), [Text.Encoding]::UTF8)
+    }
+    It 'Fenster hat einen GridSplitter in der 8-px-Spalte und Schliessen reagiert auf Esc' {
+        if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') { Set-ItResult -Skipped -Because 'XAML braucht STA'; return }
+        Add-Type -AssemblyName PresentationFramework
+        $x = [regex]::Match($script:TaSrc, "(?s)@'\r?\n(<Window.*?</Window>)\r?\n'@").Groups[1].Value
+        $theme = [IO.File]::ReadAllText((Join-Path $script:Root 'XAML\Theme.xaml'), [Text.Encoding]::UTF8)
+        $x = $x.Replace('<!--HU:THEME-->', [regex]::Match($theme, '(?s)<ResourceDictionary[^>]*>(.*)</ResourceDictionary>').Groups[1].Value)
+        $w = [Windows.Markup.XamlReader]::Parse($x)
+        $sp = $w.FindName('taSplit')
+        $sp | Should -BeOfType ([System.Windows.Controls.GridSplitter])
+        [System.Windows.Controls.Grid]::GetColumn($sp) | Should -Be 1
+        $sp.Parent.ColumnDefinitions[1].Width.Value | Should -Be 8
+        $sp.ToolTip | Should -Not -BeNullOrEmpty
+        $w.FindName('btnClose').IsCancel | Should -BeTrue
+    }
+    It 'merkt Groesse und Lage (Restore vor dem Anzeigen, Save beim Schliessen)' {
+        $script:TaSrc | Should -Match "Restore-HUDialogState \`$w 'TestAssistent'"
+        $script:TaSrc | Should -Match "Save-HUDialogState \`$t\.W 'TestAssistent'"
+        $script:TaSrc.IndexOf("Restore-HUDialogState `$w 'TestAssistent'") | Should -BeLessThan $script:TaSrc.IndexOf('$w.Show()')
+    }
+    It 'Rueckfrage beim Schliessen nur, solange Bestaetigungen offen sind' {
+        $sc = @(@{ Name = 'A'; Steps = @(@{ Action = 'x'; Expected = 'y' }, @{ Action = 'z'; Expected = 'w' }) })
+        $run = New-HUTestRun -ModuleId 'Probe' -Scenarios $sc -AppVersion '0.1.12' -UserName 'anna' -PcName 'PC-1'
+        Get-HUTestAssistantCloseQuestion $run | Should -Match '^2 Schritte sind noch nicht bestätigt'
+        [void](Set-HUTestVerdict $run.Steps[0] 'Bestanden')
+        Get-HUTestAssistantCloseQuestion $run | Should -Match '^1 Schritt ist noch nicht bestätigt'
+        [void](Set-HUTestVerdict $run.Steps[1] 'Fehler' 'kaputt')
+        Get-HUTestAssistantCloseQuestion $run | Should -Be ''
+        Get-HUTestAssistantCloseQuestion $null | Should -Be ''
+    }
+    It 'Hinweis ausserhalb des Testmodus nutzt ein gueltiges Symbol' {
+        Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue
+        $script:Icons = New-Object System.Collections.Generic.List[string]
+        function Show-HUMessage { param([string]$Text, [string]$Title, [ValidateSet('Info', 'Information', 'Warning', 'Error')][string]$Icon = 'Info', $Owner = $null) $script:Icons.Add($Icon) }
+        Show-HUTestAssistant -ModuleId 'Probe' -Scenarios @(@{ Name = 'A'; Steps = @(@{ Action = 'x'; Expected = 'y' }) })
+        $script:Icons | Should -Be @('Info')
+    }
+}

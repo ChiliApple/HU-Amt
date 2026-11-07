@@ -152,3 +152,128 @@ Describe 'Regel 3: gemeinsame Datei bearbeiten' {
         Backup-HUDataFile -Path (Join-Path $script:Dir 'fehlt.xlsx') | Should -Be ''
     }
 }
+
+Describe 'Rechte der Verwalter-Liste (Entscheidung Verwalter.txt)' {
+    BeforeAll {
+        $script:Me = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+        $script:Inh = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
+        $script:NoInh = [System.Security.AccessControl.InheritanceFlags]::None
+        $script:NoProp = [System.Security.AccessControl.PropagationFlags]::None
+        # Nur die DACL lesen und schreiben (Set-Acl schreibt auch den Besitzer und braucht dafuer ein Privileg).
+        # PowerShell 7: Erweiterungsmethoden von FileSystemAclExtensions, 5.1: Methoden von FileInfo/DirectoryInfo.
+        function Get-AclTestDacl([string]$Path) {
+            $i = Get-Item -LiteralPath $Path -Force
+            $sec = [System.Security.AccessControl.AccessControlSections]::Access
+            if ($PSVersionTable.PSVersion.Major -ge 6) { return [System.IO.FileSystemAclExtensions]::GetAccessControl($i, $sec) }
+            return $i.GetAccessControl($sec)
+        }
+        function Set-AclTestDacl([string]$Path, $Acl) {
+            $i = Get-Item -LiteralPath $Path -Force
+            if ($PSVersionTable.PSVersion.Major -ge 6) { [System.IO.FileSystemAclExtensions]::SetAccessControl($i, $Acl) } else { $i.SetAccessControl($Acl) }
+        }
+        # nur am eigenen Testordner unter TEMP: Vererbung aus TEMP abschalten, nur der aktuelle Benutzer mit Vollzugriff
+        function New-AclTestDir {
+            $d = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtAcl-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+            [void](New-Item -ItemType Directory -Path $d)
+            $acl = Get-AclTestDacl $d
+            $acl.SetAccessRuleProtection($true, $false)
+            foreach ($r in @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]))) { [void]$acl.RemoveAccessRuleSpecific($r) }
+            $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($script:Me, 'FullControl', $script:Inh, $script:NoProp, 'Allow')))
+            Set-AclTestDacl $d $acl
+            return $d
+        }
+        function Add-AclTestRule([string]$Path, [string]$Sid, [string]$Rights, [switch]$Folder) {
+            $acl = Get-AclTestDacl $Path
+            $inh = $(if ($Folder) { $script:Inh } else { $script:NoInh })
+            $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule((New-Object System.Security.Principal.SecurityIdentifier $Sid), $Rights, $inh, $script:NoProp, 'Allow')))
+            Set-AclTestDacl $Path $acl
+        }
+        function Set-AclTestFileReadOnlyForUsers([string]$File) {
+            # Vererbung an der Datei unterbrechen (geerbte Eintraege als Kopie), dann breite Schreibrechte entfernen, Lesen lassen
+            $acl = Get-AclTestDacl $File
+            $acl.SetAccessRuleProtection($true, $true)
+            Set-AclTestDacl $File $acl
+            $acl = Get-AclTestDacl $File
+            foreach ($r in @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))) {
+                if ($r.IdentityReference.Value -ne $script:Me.Value) { [void]$acl.RemoveAccessRuleSpecific($r) }
+            }
+            $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule((New-Object System.Security.Principal.SecurityIdentifier 'S-1-5-32-545'), 'ReadAndExecute', 'Allow')))
+            Set-AclTestDacl $File $acl
+        }
+    }
+    BeforeEach {
+        $script:Ad = New-AclTestDir
+        $script:Af = Join-Path $script:Ad 'Verwalter.txt'
+        [IO.File]::WriteAllText($script:Af, "anna`r`n")
+    }
+    AfterEach {
+        if ($script:Ad -and (Test-Path -LiteralPath $script:Ad)) { Remove-Item -LiteralPath $script:Ad -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'nur der eigene Benutzer: Ok, und der Hinweis sagt, dass Freigaberechte nicht geprueft sind' {
+        $r = Test-HUVerwalterAcl -DataRoot $script:Ad
+        $r.Status | Should -Be 'Ok'
+        @($r.Funde).Count | Should -Be 0
+        $r.ToolTip | Should -Match 'Freigaberechte \(SMB\).*nicht geprüft'
+    }
+    It 'Schreibrecht <Name> an der Datei (direkt): Warnung' -TestCases @(
+        @{ Name = 'Jeder'; Sid = 'S-1-1-0'; Rights = 'Write' }
+        @{ Name = 'Authentifizierte Benutzer'; Sid = 'S-1-5-11'; Rights = 'Modify' }
+        @{ Name = 'Benutzer'; Sid = 'S-1-5-32-545'; Rights = 'FullControl' }
+        @{ Name = 'Domänen-Benutzer'; Sid = 'S-1-5-21-1111111111-2222222222-3333333333-513'; Rights = 'Write' }
+    ) {
+        param($Name, $Sid, $Rights)
+        Add-AclTestRule $script:Af $Sid $Rights
+        $r = Test-HUVerwalterAcl -DataRoot $script:Ad
+        $r.Status | Should -Be 'Warnung'
+        @($r.Funde | Where-Object { $_ -like "Verwalter.txt*$Name ($Sid, direkt)*" }).Count | Should -Be 1
+        $r.ToolTip | Should -Match 'nicht geprüft'
+    }
+    It 'Aendern fuer Benutzer am Ordner wird an die Datei vererbt: Warnung (geerbt)' {
+        Add-AclTestRule $script:Ad 'S-1-5-32-545' 'Modify' -Folder
+        $r = Test-HUVerwalterAcl -DataRoot $script:Ad
+        $r.Status | Should -Be 'Warnung'
+        @($r.Funde | Where-Object { $_ -like 'Verwalter.txt*Benutzer (S-1-5-32-545, geerbt)*' }).Count | Should -Be 1
+        # Aendern enthaelt kein "Unterordner und Dateien loeschen": kein Fund am Ordner
+        @($r.Funde | Where-Object { $_ -like 'Ordner Data*' }).Count | Should -Be 0
+    }
+    It 'empfohlene Rechte: Data mit Aendern, Datei nur Lesen und Vererbung unterbrochen: Ok' {
+        Add-AclTestRule $script:Ad 'S-1-5-32-545' 'Modify' -Folder
+        Set-AclTestFileReadOnlyForUsers $script:Af
+        $r = Test-HUVerwalterAcl -DataRoot $script:Ad
+        $r.Status | Should -Be 'Ok'
+        (Get-Acl -LiteralPath $script:Af).AreAccessRulesProtected | Should -BeTrue
+    }
+    It 'Vollzugriff am Ordner Data: Warnung, auch wenn die Datei geschuetzt ist' {
+        Set-AclTestFileReadOnlyForUsers $script:Af
+        Add-AclTestRule $script:Ad 'S-1-5-11' 'FullControl' -Folder
+        $r = Test-HUVerwalterAcl -DataRoot $script:Ad
+        $r.Status | Should -Be 'Warnung'
+        @($r.Funde | Where-Object { $_ -like 'Ordner Data mit Vollzugriff*Authentifizierte Benutzer (S-1-5-11, direkt)*' }).Count | Should -Be 1
+        @($r.Funde | Where-Object { $_ -like 'Verwalter.txt*' }).Count | Should -Be 0
+    }
+    It 'nur "Unterordner und Dateien loeschen" am Ordner reicht fuer eine Warnung' {
+        Set-AclTestFileReadOnlyForUsers $script:Af
+        Add-AclTestRule $script:Ad 'S-1-1-0' 'DeleteSubdirectoriesAndFiles, ReadAndExecute' -Folder
+        (Test-HUVerwalterAcl -DataRoot $script:Ad).Status | Should -Be 'Warnung'
+    }
+    It 'Liste fehlt und Benutzer duerfen im Ordner Dateien anlegen: Warnung' {
+        Remove-Item -LiteralPath $script:Af -Force
+        Add-AclTestRule $script:Ad 'S-1-5-32-545' 'Modify' -Folder
+        $r = Test-HUVerwalterAcl -DataRoot $script:Ad
+        $r.Status | Should -Be 'Warnung'
+        @($r.Funde | Where-Object { $_ -like 'Verwalter.txt fehlt*' }).Count | Should -Be 1
+    }
+    It 'Lese-Rechte fuer breite Gruppen sind kein Fund' {
+        Add-AclTestRule $script:Ad 'S-1-1-0' 'ReadAndExecute' -Folder
+        (Test-HUVerwalterAcl -DataRoot $script:Ad).Status | Should -Be 'Ok'
+    }
+    It 'liest ohne Get-Acl (keine Namensaufloesung, die unter 5.1 haengen kann)' {
+        Mock -ModuleName HU.Paths Get-Acl { throw 'Get-Acl darf nicht benutzt werden' }
+        (Test-HUVerwalterAcl -DataRoot $script:Ad).Status | Should -Be 'Ok'
+        Should -Invoke -ModuleName HU.Paths Get-Acl -Times 0 -Exactly
+    }
+    It 'ACL nicht lesbar: still nicht pruefbar' {
+        (Test-HUVerwalterAcl -DataRoot (Join-Path $script:Ad 'gibt-es-nicht')).Status | Should -Be 'NichtPruefbar'
+    }
+}

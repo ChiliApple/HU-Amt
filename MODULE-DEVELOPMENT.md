@@ -125,6 +125,7 @@ Module bauen keine eigenen COM-Aufrufe, sondern nutzen den Kern (`Core\HU.Office
   - Antwortet Word `-TimeoutSeconds` lang nicht (Standard 120, z. B. wegen eines unsichtbaren Dialogs), beendet der Kern genau diese Word-Instanz und meldet einen Fehler. Ein von Hand geöffnetes Word bleibt unberührt.
   - Am besten in einem Hintergrund-Auftrag aufrufen, damit das Fenster nicht stehen bleibt.
   - Rückgabe `Pdf`, `Docx` und `Missing` (Platzhalter, die in der Vorlage fehlen).
+  - Ab 0.1.12 nur `.docx` und `.dotx` (sonst eine klare Fehlermeldung, bevor Word startet). Makros bleiben immer aus: Der Kern setzt vor dem Öffnen `AutomationSecurity = 3` (msoAutomationSecurityForceDisable). Ein per Programm gestartetes Word hätte sonst alle Makros an (Microsoft Learn, `MsoAutomationSecurity`).
 
 Beispiel:
 
@@ -184,7 +185,7 @@ Die Kern-Module (`Core\*.psm1`) laufen auch in einem Hintergrund-Runspace ohne F
 | Baustein | Datei | Wichtigste Funktionen |
 |---|---|---|
 | Datenablage | `Core\HU.Data.psm1` | `Read-HUJson` (mit Wiederholung, `@{Data; Error}`), `Get-HUFileStamp`, `Save-HUDataFile -Build {…}` (Sperre, Warten, Stand-Prüfung, Kopie, atomar), `Wait-HUDataFileLock`, `Write-HUDataFile`, `Get-HUDataRecords` (Zwischenspeicher nach Dateistempel), `New-HUDataId`, `New-HUShortId`, `Get-HUNextNumber`, `Get-HUProp`, `ConvertFrom-HUJsonText` (ohne Datums-Umwandlung) |
-| Zahlen, Euro, Datum | `Core\HU.Data.psm1` | `ConvertTo-HUDecimal`, `Format-HUEuro`, `Format-HUNumber`, `Format-HUKm`, `Get-HURound` (kaufmännisch), `ConvertFrom-HUDateText` (auch Excel-Seriennummer, `-DateOnly`), `ConvertFrom-HUClockText`, `Format-HUDate`, `Format-HUTime`. Tausenderpunkt fest, unter PS 5.1 und 7 gleich. |
+| Zahlen, Euro, Datum | `Core\HU.Data.psm1` | `ConvertTo-HUDecimal`, `Test-HUAmbiguousNumber` (ab 0.1.12), `Format-HUEuro`, `Format-HUNumber`, `Format-HUKm`, `Get-HURound` (kaufmännisch), `ConvertFrom-HUDateText` (auch Excel-Seriennummer, `-DateOnly`), `ConvertFrom-HUClockText`, `Format-HUDate`, `Format-HUTime`. Tausenderpunkt fest, unter PS 5.1 und 7 gleich. |
 | Verlauf | `Core\HU.Data.psm1` | `New-HUHistoryEntry`, `Add-HUHistoryEntry` (`zeit, benutzer, pc, aktion, text, felder`), `Compare-HURecordFields`, `Get-HUFieldChangeText`, `ConvertTo-HUHistoryEntry` (liest alte Felder `von`/`art`) |
 | Anhänge | `Core\HU.Data.psm1` | `Test-HUAttachment`, `Add-HUAttachment` (überschreibt nie, `-TimePrefix`), `Get-HUAttachments`, `Remove-HUAttachment` (nach `_entfernt\`) |
 | Gemeinsame Einstellungen | `Core\HU.Data.psm1` | `Read-HUSettings`, `Save-HUSettings` (`geaendert`, `geaendertVon`), `Merge-HUSettings`, `Test-HUPermittedUser $Liste $Benutzer -IsVerwalter`, `Get-HUUserDisplayName` |
@@ -192,7 +193,7 @@ Die Kern-Module (`Core\*.psm1`) laufen auch in einem Hintergrund-Runspace ohne F
 | Excel und CSV | `Core\HU.Import.psm1` | `Read-HUImportFile`, `Read-HUXlsx [-SheetJs]`, `Read-HUCsv` (Kodierung und Trennzeichen erkannt), `New-HUXlsxBytes` (Excel schreiben, ohne Excel) |
 | Werkzeug-Aufrufe | `Core\HU.Tools.psm1` | `Invoke-HUNativeProcess` (Zeitlimit, Prozessbaum beenden), `ConvertTo-HUProcessArgument`, `Stop-HUProcessTree`, `ConvertTo-HUSafeFileName`, `Get-HUFreeFilePath`, `Get-HUFreeDirectoryPath` |
 | Fenster und Steuerelemente | `Functions\UI-Controls.ps1` | `New-HUModuleWindow` (XAML aus dem Modulordner, Thema, Zustand), `New-HUComboItem`, `Set-HUComboTag`, `Get-HUComboTag`, `Add-HUCalendar` (dunkler Kalender, Umschalt+Pfeil = Jahr), `Initialize-HUTimeCombo`, `Format-HUNumberInput` |
-| Dialoge | `Functions\UI-Controls.ps1` | `Read-HUText` (`$null` bei Abbruch, `-AllowEmpty`, `-Mehrzeilig`), `Read-HUChoice` (Index oder -1) |
+| Dialoge | `Functions\UI-Controls.ps1` | `Read-HUText` (`$null` bei Abbruch, `-AllowEmpty`, `-Mehrzeilig`), `Read-HUChoice` (Index oder -1, ab 0.1.12 `-DefaultIndex`), `Read-HUNumberInput` (ab 0.1.12) |
 | Hintergrund | `Functions\UI-Controls.ps1` | `Start-HUBackgroundJob` (Rückruf `Done($Ergebnis, $Fehler, $Kontext)`, `-Sta` für Outlook, Zeitlimit), `Stop-HUBackgroundJobs -Owner`, `Register-HUBackgroundLoad` (Laden mit Zeitgeber, Abgleich alle n Sekunden, Warteschlange, Punkt für „lädt“) |
 
 Worauf beim Umstellen zu achten ist:
@@ -203,9 +204,68 @@ Worauf beim Umstellen zu achten ist:
 - `Get-HUPdfBytes` ohne `-Producer` schreibt nur „HU-Amt“ in die Dokumenteigenschaften.
 - `Get-HUFreeFilePath` legt die Datei nicht an. Schreiben mehrere PCs gleichzeitig in denselben Ordner, mit `CreateNew` anlegen und bei Fehler neu suchen.
 
+### Geändertes Verhalten ab 0.1.12
+
+- **Zahlen und Datum als Text in Tabellen** (`Export-HUTable`, Spaltentyp `number` bzw. `date`):
+  - Zahl mit Komma: Komma = Dezimalzeichen, Punkt = Tausender in Dreiergruppen (`1,5`, `12,50`, `1.234,56`).
+  - Zahl ohne Komma mit höchstens einem Punkt: Punkt = Dezimalzeichen (`1.5`, `1234.56`, z. B. aus Programmdaten), wie `ConvertTo-HUDecimal`. Mehrere Punkte in Dreiergruppen sind Tausender (`1.234.567`).
+  - Englische Schreibweise mit Komma als Tausender (`1,234.56`) gilt nicht mehr als Zahl und bricht mit Zeile und Spalte ab. Bisher wurde `1,5` still zu 15.
+  - Datum nur in festen Formaten: `d.M.yyyy` (auch mit `H:mm` bzw. `H:mm:ss`) und ISO `yyyy-MM-dd` (mit Uhrzeit, Sekundenbruchteil, Zone). Bisher wurde `05.11.2026` zum 11. Mai.
+  - `[decimal]`, `[double]` und `[datetime]` bleiben, wie sie sind.
+- **`Get-HUDataRecords` bei nicht erreichbarem Ordner:**
+  - Fehlt die Wurzel (Laufwerk bzw. `\\server\freigabe`), oder fehlt der Elternordner und der Zwischenspeicher kennt dort schon Datensätze, kommt in `Errors` „Ordner nicht erreichbar: <Pfad>“.
+  - Der Zwischenspeicher bleibt dann erhalten und seine Datensätze kommen als `Items`. Das Modul zeigt den alten Stand und meldet den Fehler, statt eine leere Liste zu speichern.
+  - Leer ohne Fehler nur, wenn der Ordner wirklich fehlt: Elternordner da, oder dort waren noch nie Datensätze (Unterordner, die erst beim ersten Speichern entstehen).
+- **`ConvertTo-HUSafeFileName`:** Gerätenamen auch mit Endung (`CON.txt` wird `_CON.txt`, `nul.json` wird `_nul.json`).
+- **Abbrechen von Hintergrund-Aufträgen** (Zeitüberschreitung, `Stop-HUBackgroundJobs`, `Stop-HUBackgroundLoad`): kehrt sofort zurück. Der Kern gibt den Auftrag frei, sobald er wirklich steht.
+- **`Show-HUMessage -Icon`:** `Information` geht als anderer Name für `Info`.
+- **`Read-HUChoice -DefaultIndex <n>`:** Dieser Knopf reagiert auf Enter. Ohne Angabe hat wie bisher kein Knopf diese Rolle.
+
+### Betragsfelder: zweideutige Eingabe 1.500
+
+`ConvertTo-HUDecimal '1.500'` ergibt 1,5 (Punkt ohne Komma = Dezimalzeichen). Das bleibt so, Daten aus Dateien werden nicht anders gelesen. Tippt aber jemand in ein Betragsfeld `1.500`, kann 1500 gemeint sein. Dafür gibt es ab 0.1.12:
+
+- `Test-HUAmbiguousNumber <Text>`: `$true` bei genau einem Punkt mit genau drei Ziffern danach und ohne Komma (`1.500`, `12.250`, `-3.000`).
+- `Read-HUNumberInput <Text> [-Owner] [-Title]`: fragt bei solchen Eingaben einmal „Meinst du 1.500 (also 1500) oder 1,5?“ (Enter = 1500) und gibt die gewählte Zahl zurück. Sonst wie `ConvertTo-HUDecimal`. `$null` bei leerem Feld, keiner Zahl oder Abbruch.
+
+Einsatz am Betragsfeld: beim Verlassen des Felds bzw. vor dem Speichern lesen und das Feld neu schreiben. Danach ist der Text eindeutig, es wird nicht noch einmal gefragt.
+
+```powershell
+$c.txtBetrag.Add_LostFocus({
+        param($s, $e)
+        if (-not "$($s.Text)".Trim()) { return }
+        $v = Read-HUNumberInput $s.Text -Owner ([System.Windows.Window]::GetWindow($s))
+        if ($null -ne $v) { $s.Text = Format-HUNumberInput $v } else { $s.Focus() | Out-Null }
+    })
+```
+
+Nur für Eingaben im Fenster. Für Dateien und Hintergrund-Aufträge weiter `ConvertTo-HUDecimal` nehmen, die Rückfrage braucht den Fenster-Thread.
+
 ### Vorlagen für Modul-Repos
 
-`HU-Amt\.github\modul-vorlage\` enthält `Format-Dateien.ps1`, `Test-Start.ps1` und `Deploy-Dev.ps1`. Module kopieren sie **unverändert** nach `.github\dev\`, wie die Wächter-Vorlage. Was nur ein Modul braucht, steht in `.github\dev\modul-dev.json`; Aufbau und Felder in der `LIESMICH.md` dort. `Deploy-Dev.ps1` bricht ab, wenn die Test-App läuft.
+`HU-Amt\.github\modul-vorlage\` enthält `Format-Dateien.ps1`, `Test-Start.ps1` und `Deploy-Dev.ps1`. Module kopieren sie **unverändert** nach `.github\dev\`, wie die Wächter-Vorlage. Was nur ein Modul braucht, steht in `.github\dev\modul-dev.json`; Aufbau und Felder in der `LIESMICH.md` dort. `Deploy-Dev.ps1` bricht ab, wenn die Test-App läuft. Ab 0.1.12 gilt für die Modul-Id dieselbe Regel wie im Kern (Buchstabe, dann 1 bis 30 Buchstaben oder Ziffern), und Dateien, die kein gültiges UTF-8 sind, werden nicht umgeschrieben, sondern als Warnung gemeldet.
+
+## Rechte auf der Freigabe
+
+HU-Amt läuft meist aus einem Netzordner. Wer dort was darf, entscheiden Freigabe- und NTFS-Rechte, nicht die App. Die App kann keine Rechte erzwingen, sie zeigt nur, was ihr auffällt.
+
+Empfehlung:
+
+- **Freigabe (SMB):** „Ändern“ für die Benutzer der App (z. B. eine eigene Gruppe). Die strengeren NTFS-Rechte darunter bestimmen den Rest.
+- **NTFS `Data`:** „Ändern“ für die Benutzer, aber **ohne „Vollzugriff“**.
+  - Warum: Vollzugriff enthält „Unterordner und Dateien löschen“ und „Berechtigungen ändern“. Wer das am Ordner hat, kann jede Datei darin löschen und neu anlegen, auch wenn die Datei selbst geschützt ist.
+- **NTFS `Data\Verwalter.txt`:** „Lesen“ für die Benutzer, „Ändern“ nur für die Verwalter, **Vererbung an dieser Datei unterbrochen**.
+  - Warum: Wer die Liste ändern darf, macht sich selbst zum Verwalter und sieht Protokoll, Sicherung, Update-Einstellungen und Module. Ohne unterbrochene Vererbung bekäme die Datei das „Ändern“ des Ordners.
+
+Was die App prüft (`Test-HUVerwalterAcl`, ab 0.1.12):
+
+- Sie liest die NTFS-Rechte von `Data\Verwalter.txt` und `Data` (auch über UNC) und meldet, wenn breite Gruppen schreiben dürfen: Jeder, Authentifizierte Benutzer, Benutzer, Domänen-Benutzer. Erkannt wird über die SIDs (`S-1-1-0`, `S-1-5-11`, `S-1-5-32-545`, `…-513`), damit es auf deutschem und englischem Windows gleich geht. Geerbte Rechte zählen mit.
+- An der Datei zählen Schreiben, Anhängen, Löschen, Berechtigungen ändern und Besitz übernehmen. Am Ordner zählen „Unterordner und Dateien löschen“, Berechtigungen ändern und Besitz übernehmen (also Vollzugriff, nicht „Ändern“). Fehlt die Liste, zählt am Ordner „Dateien erstellen“.
+- „Verweigern“-Einträge werden nicht verrechnet. Die Prüfung kann deshalb warnen, obwohl ein Verweigern-Eintrag das Recht wieder nimmt.
+- **Freigaberechte (SMB) sieht die App nicht**, sie liegen an der Freigabe und nicht in der NTFS-Liste. Sie werden nicht geprüft, auch nicht, wenn die Zeile „keine breiten Schreibrechte“ zeigt.
+- Der Verwalter sieht das Ergebnis unter Einstellungen › Verwalter als Zeile mit Tooltip. Beim Start steht eine Warnung nur im Protokoll, normale Benutzer bekommen keine Meldung. Lassen sich die Rechte nicht lesen, steht dort still „nicht prüfbar“.
+
+Wer unter `Data` schreiben darf, kann auch Modul-Einstellungen ändern, etwa Ordnerangaben der Texterkennung in `ordner.json` oder gemeinsame Verläufe. Module prüfen deshalb Pfade aus solchen Dateien selbst, bevor sie etwas öffnen oder starten. Die Texterkennung tut das seit 0.1.1. Die App ersetzt also keine sauber gesetzten Freigabe- und NTFS-Rechte.
 
 ## Externe Werkzeuge und Bibliotheken
 

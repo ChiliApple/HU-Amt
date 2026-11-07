@@ -3,7 +3,7 @@
 .SYNOPSIS
     Funktionen des Wächters für externe Werkzeuge und Bibliotheken (neuere Versionen, bekannte Sicherheitslücken, Ende der Pflege).
 .DESCRIPTION
-    Zielmaschine: GitHub-Runner (ubuntu-latest mit pwsh) oder nb001. Läuft unter Windows PowerShell 5.1 und PowerShell 7.
+    Zielmaschine: GitHub-Runner (ubuntu-latest mit pwsh) oder Entwicklungs-PC. Läuft unter Windows PowerShell 5.1 und PowerShell 7.
     Liegt nur im Kern (.github\waechter). Ein Modul liefert nur .github\waechter.json und ruft den Workflow des Kerns auf
     (Vorlage: .github\waechter\Vorlage-Modul.yml). Nichts davon wird mit der App oder einem Modul ausgeliefert.
     Quellen:

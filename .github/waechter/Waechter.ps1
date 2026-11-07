@@ -3,7 +3,7 @@
 .SYNOPSIS
     Wächter für externe Werkzeuge und Bibliotheken eines Moduls: neuere Versionen, bekannte Sicherheitslücken, Ende der Pflege.
 .DESCRIPTION
-    Zielmaschine: GitHub-Runner (wöchentlich über den Workflow des Kerns .github\workflows\waechter.yml) oder nb001 zum Ausprobieren.
+    Zielmaschine: GitHub-Runner (wöchentlich über den Workflow des Kerns .github\workflows\waechter.yml) oder Entwicklungs-PC zum Ausprobieren.
     Läuft unter Windows PowerShell 5.1 und PowerShell 7. Liegt nur im Kern, gilt für alle Module.
     Liest <Modul>\.github\waechter.json, dazu werkzeuge.json und requirements.txt, wenn dort angegeben. Ändert nichts am Modul.
     Schreibt in -Ausgabe:

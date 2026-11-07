@@ -207,6 +207,8 @@
                         </DockPanel>
                     </Border>
                     <TextBlock x:Name="txtAdminInfo" DockPanel.Dock="Bottom" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="txtAdminAcl" DockPanel.Dock="Bottom" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="#9E9E9E"
+                               ToolTip="Wer Data\Verwalter.txt &#xE4;ndern darf (NTFS-Rechte). Freigaberechte sind hier nicht sichtbar."/>
                     <ListBox x:Name="lstAdmins" Style="{StaticResource DarkListBox}" MinHeight="120" ToolTip="Eingetragene Verwalter"/>
                 </DockPanel>
             </TabItem>

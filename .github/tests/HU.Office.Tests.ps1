@@ -332,3 +332,27 @@ Describe 'Erkennung' {
         Test-HUWord | Should -BeOfType [bool]
     }
 }
+
+Describe 'Word-Vorlage ohne Makros (Pruefung 086, KERN-B3)' {
+    It 'lehnt <Ext> mit klarer Meldung ab, bevor Word startet' -TestCases @(@{ Ext = '.docm' }, @{ Ext = '.doc' }, @{ Ext = '.dotm' }, @{ Ext = '.rtf' }, @{ Ext = '' }) {
+        param($Ext)
+        # Vorlage muss nicht existieren: die Endung wird zuerst geprueft (auch vor Testmodus-Sperre und Word-Suche)
+        { Invoke-HUWordTemplate -Template "C:\gibt-es-nicht\vorlage$Ext" -PdfPath 'C:\gibt-es-nicht\x.pdf' } | Should -Throw '*.docx- oder .dotx-Datei*'
+    }
+    It 'laesst .docx und .dotx durch (dann kommt die naechste Pruefung)' -TestCases @(@{ Ext = '.docx' }, @{ Ext = '.DOTX' }) {
+        param($Ext)
+        $env:HUAMT_TESTMODE = '1'
+        try { { Invoke-HUWordTemplate -Template "C:\gibt-es-nicht\vorlage$Ext" -PdfPath 'C:\gibt-es-nicht\x.pdf' } | Should -Throw '*Testmodus*' }
+        finally { Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue }
+    }
+    It 'setzt AutomationSecurity = 3 vor Documents.Open' {
+        $src = [IO.File]::ReadAllText((Join-Path $script:Root 'Core\HU.Office.psm1'), [Text.Encoding]::UTF8)
+        $body = [regex]::Match($src, '(?s)function Invoke-HUWordTemplate \{.*?\n\}').Value
+        $body | Should -Not -BeNullOrEmpty
+        $iSec = $body.IndexOf('$word.AutomationSecurity = 3')
+        $iOpen = $body.IndexOf('$docs.Open(')
+        $iSec | Should -BeGreaterThan 0
+        $iOpen | Should -BeGreaterThan $iSec
+        $body.IndexOf('Assert-HUWordTemplateExtension') | Should -BeLessThan $body.IndexOf('Assert-HUOfficeLive')
+    }
+}

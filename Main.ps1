@@ -410,6 +410,10 @@ $script:OnContentRendered = {
     }
     # Erststart ohne Verwalter: einmal fragen, ob dieser Benutzer Verwalter wird
     if (-not $script:TestModeActive) { try { [void](Request-HUFirstVerwalter) } catch { Write-HULogWarn "Verwalter: $($_.Exception.Message)" } }
+    # Rechte der Verwalter-Liste: nur ins Protokoll (keine Meldung fuer Benutzer); Details sieht der Verwalter in den Einstellungen
+    if (-not $script:TestModeActive) {
+        try { $__acl = Test-HUVerwalterAcl -DataRoot $script:DataRoot; if ($__acl.Status -eq 'Warnung') { Write-HULogWarn "Rechte: $($__acl.Text) $(@($__acl.Funde) -join '; ')" } } catch { }
+    }
     # Sicherung: Stand in der Kopfzeile, Automatik (beim Start und stuendlich, wenn faellig) - nicht im Testmodus
     if (-not $script:TestModeActive) { try { Update-HUAbMainStatus; Start-HUAppBackupScheduler } catch { Write-HULogWarn "Sicherung: $($_.Exception.Message)" } }
     # Update-Pruefung im Hintergrund (Knopf wird gold), Module im Hintergrund aktualisieren

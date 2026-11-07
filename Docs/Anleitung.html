@@ -127,6 +127,15 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li>Vor dem Speichern einer gemeinsamen Liste legt HU-Amt eine Kopie mit Zeitstempel an.</li>
     <li>Update und Wiederherstellen gehen erst, wenn alle anderen HU-Amt geschlossen haben. Die Meldung nennt, wer es noch offen hat.</li>
   </ul>
+  <h3 id="rechte">Rechte auf der Freigabe</h3>
+  <p>Wer auf der Freigabe was darf, legen Freigabe- und NTFS-Rechte fest, nicht HU-Amt. Empfehlung:</p>
+  <ul>
+    <li><b>Freigabe:</b> <i>Ändern</i> für die Benutzer von HU-Amt.</li>
+    <li><b>Ordner <code>Data</code>:</b> <i>Ändern</i> für die Benutzer, aber <b>ohne Vollzugriff</b>. Vollzugriff erlaubt, jede Datei im Ordner zu löschen und neu anzulegen, auch geschützte.</li>
+    <li><b><code>Data\Verwalter.txt</code>:</b> <i>Lesen</i> für die Benutzer, <i>Ändern</i> nur für die Verwalter, Vererbung an dieser Datei unterbrechen. Wer die Liste ändern darf, kann sich selbst zum Verwalter machen.</li>
+    <li>Unter <span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b> zeigt HU-Amt eine Zeile, wenn Jeder, Authentifizierte Benutzer, Benutzer oder Domänen-Benutzer die Liste ändern dürfen (Details im Tooltip). Die Freigaberechte selbst kann HU-Amt nicht sehen und prüft sie nicht.</li>
+    <li>Wer unter <code>Data</code> schreiben darf, kann auch Einstellungen der Module ändern, z. B. Ordnerangaben der Texterkennung. Module prüfen solche Pfade selbst, die App ersetzt aber keine sauber gesetzten Rechte.</li>
+  </ul>
   <h3 id="verwalter">Verwalter</h3>
   <p><b>Erster Verwalter:</b> Wer HU-Amt mit <code>Pull.ps1</code> neu installiert, wird automatisch Verwalter. Fehlt die Liste trotzdem, fragt HU-Amt beim Start einmal: <span class="ui">Soll … Verwalter werden?</span> Wer Nein sagt, wird nicht mehr gefragt. Sobald jemand eingetragen ist, kommt die Frage für niemanden mehr, ein Update ändert die Liste nie.</p>
   <p><span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b>: <span class="ui b">Mich hinzufügen</span> oder <span class="ui">Hinzufügen</span> (Windows-Benutzername, ohne Domäne oder als <code>DOMÄNE\Name</code>), <span class="ui r">Markierten entfernen</span> fragt nach und legt vorher eine Kopie der Liste an. Verwalter sehen zusätzlich das Protokoll, die Sicherung, die Update-Einstellungen und die Module. Alle anderen bekommen eine aufgeräumte Oberfläche; das Update per goldenem Knopf geht für alle.</p>
