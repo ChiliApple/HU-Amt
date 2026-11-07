@@ -1,5 +1,22 @@
 ﻿# Changelog
 
+## v0.1.7
+
+### 📨 Outlook und Word
+- **Gemeinsame Grundlage für Module:** Module können jetzt Termine und Aufgaben in Outlook anlegen, Mails vorbereiten und Word-Vorlagen ausfüllen, ohne das selbst zu bauen.
+  - Termine und Aufgaben landen im eigenen oder in einem gewählten gemeinsamen Kalender. Wird etwas geändert, ändert sich derselbe Eintrag, es entstehen keine doppelten.
+  - Mails werden nur angezeigt, gesendet wird immer von Hand.
+  - Word-Vorlagen bleiben unverändert. Heraus kommt ein ausgefülltes PDF oder eine Word-Datei.
+  - Ohne klassisches Outlook gibt es eine Kalenderdatei (.ics) bzw. eine Mail über das Standard-Mailprogramm.
+- **Kein Office-Programm bleibt offen:** Outlook wird nur beendet, wenn es vorher nicht lief und kein Fenster offen ist. Word läuft unsichtbar und wird immer geschlossen.
+  - Antwortet Word zwei Minuten lang nicht, beendet HU-Amt genau diese unsichtbare Word-Instanz. Ein selbst geöffnetes Word bleibt unberührt.
+
+### ⚠️ Nach dem Update
+- Für Module, die Outlook oder Word nutzen, ist das klassische Outlook bzw. Word nötig. Das neue Outlook hat diese Schnittstelle nicht.
+
+### ✅ Qualität
+- 143 Tests.
+
 ## v0.1.6
 
 ### 🔐 Verwalter

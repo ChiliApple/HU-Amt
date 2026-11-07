@@ -1,0 +1,271 @@
+﻿#Requires -Version 5.1
+# Pester 5: Outlook und Word (Core\HU.Office.psm1). Ohne echtes Outlook oder Word: COM wird durch Stellvertreter ersetzt,
+# es oeffnet sich kein Fenster und kein Office-Prozess startet.
+
+BeforeAll {
+    $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+    Import-Module (Join-Path $script:Root 'Core\HU.Office.psm1') -Force -DisableNameChecking
+
+    # Stellvertreter fuer ein Outlook-Element mit Benutzereigenschaft
+    function New-FakeItem([string]$Id, [string]$Key) {
+        $props = [pscustomobject]@{ Map = @{} }
+        if ($Key) { $props.Map['HUAmtSchluessel'] = [pscustomobject]@{ Value = $Key } }
+        $props | Add-Member ScriptMethod Find { param($n) $this.Map[$n] }
+        $props | Add-Member ScriptMethod Add { param($n, $t, $f) $p = [pscustomobject]@{ Value = '' }; $this.Map[$n] = $p; $p }
+        return [pscustomobject]@{ EntryID = $Id; UserProperties = $props }
+    }
+}
+
+Describe 'Schluessel' {
+    It 'erlaubt Modul-Kennung mit Nummer' {
+        Test-HUOfficeKey 'Fristen:F-2026-0012' | Should -BeTrue
+        Test-HUOfficeKey 'Buchung:2026.17_a' | Should -BeTrue
+    }
+    It 'lehnt Zeichen ab, die einen Filter brechen koennten' {
+        Test-HUOfficeKey "a'b" | Should -BeFalse
+        Test-HUOfficeKey 'a b' | Should -BeFalse
+        Test-HUOfficeKey '' | Should -BeFalse
+        Test-HUOfficeKey ('a' * 121) | Should -BeFalse
+        { Find-HUOutlookItem -Session ([pscustomobject]@{}) -FolderObject ([pscustomobject]@{}) -Key "x' or 1=1" } | Should -Throw
+    }
+}
+
+Describe 'Ordnerangabe' {
+    It 'leer ergibt den Standardordner des Typs' {
+        $s = ConvertTo-HUOutlookFolderSpec $null -Type Tasks
+        $s.Type | Should -Be 'Tasks'
+        $s.EntryId | Should -Be ''
+    }
+    It 'uebernimmt gespeicherte Werte' {
+        $s = ConvertTo-HUOutlookFolderSpec ([pscustomobject]@{ Name = 'Saal'; EntryId = 'E1'; StoreId = 'S1'; Type = 'Calendar' })
+        $s.Name | Should -Be 'Saal'; $s.EntryId | Should -Be 'E1'; $s.StoreId | Should -Be 'S1'; $s.Type | Should -Be 'Calendar'
+    }
+    It 'Standardordner ueber GetDefaultFolder (Kalender 9, Aufgaben 13), sonst GetFolderFromID' {
+        $ns = [pscustomobject]@{}
+        $ns | Add-Member ScriptMethod GetDefaultFolder { param($n) "default-$n" }
+        $ns | Add-Member ScriptMethod GetFolderFromID { param($e, $s) "id-$e-$s" }
+        $sess = [pscustomobject]@{ Namespace = $ns }
+        Get-HUOutlookFolder -Session $sess -Type Calendar | Should -Be 'default-9'
+        Get-HUOutlookFolder -Session $sess -Type Tasks | Should -Be 'default-13'
+        Get-HUOutlookFolder -Session $sess -Folder ([pscustomobject]@{ EntryId = 'E'; StoreId = 'S' }) | Should -Be 'id-E-S'
+    }
+}
+
+Describe 'Eintrag finden' {
+    BeforeEach {
+        $script:A = New-FakeItem 'A' 'Fristen:1'
+        $script:B = New-FakeItem 'B' 'Fristen:2'
+        $script:C = New-FakeItem 'C' ''
+        $all = @($script:A, $script:B, $script:C)
+        $script:Ns = [pscustomobject]@{ Items = $all }
+        $script:Ns | Add-Member ScriptMethod GetItemFromID { param($e, $s) $this.Items | Where-Object { $_.EntryID -eq $e } | Select-Object -First 1 }
+        $script:Sess = [pscustomobject]@{ Namespace = $script:Ns }
+        $script:RestrictWorks = $true
+        $items = New-Object System.Collections.ArrayList
+        [void]$items.AddRange($all)
+        $items | Add-Member ScriptMethod Restrict {
+            param($f)
+            if (-not $script:RestrictWorks) { throw 'Feld nicht im Ordner' }
+            $k = [regex]::Match($f, "'(.*)'").Groups[1].Value
+            , @($this | Where-Object { (Get-HUOutlookItemKey $_) -eq $k })
+        }
+        $script:Folder = [pscustomobject]@{ StoreID = 'S'; Items = $items }
+    }
+    It 'findet ueber die EntryID, wenn der Schluessel passt' {
+        (Find-HUOutlookItem -Session $script:Sess -FolderObject $script:Folder -Key 'Fristen:2' -EntryId 'B').EntryID | Should -Be 'B'
+    }
+    It 'EntryID mit fremdem Schluessel zaehlt nicht, dann Suche ueber den Schluessel' {
+        (Find-HUOutlookItem -Session $script:Sess -FolderObject $script:Folder -Key 'Fristen:2' -EntryId 'A').EntryID | Should -Be 'B'
+    }
+    It 'findet ueber Restrict' {
+        (Find-HUOutlookItem -Session $script:Sess -FolderObject $script:Folder -Key 'Fristen:1').EntryID | Should -Be 'A'
+    }
+    It 'wirft Restrict (Feld fehlt im Ordner), wird durchsucht' {
+        $script:RestrictWorks = $false
+        (Find-HUOutlookItem -Session $script:Sess -FolderObject $script:Folder -Key 'Fristen:2').EntryID | Should -Be 'B'
+    }
+    It 'unbekannter Schluessel: $null' {
+        Find-HUOutlookItem -Session $script:Sess -FolderObject $script:Folder -Key 'Fristen:9' | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Termin und Aufgabe setzen' {
+    BeforeEach {
+        # Ordner mit leerer Items-Auflistung (eigenes Objekt: bei einer ArrayList gewinnt deren .NET-Add gegen eine Skriptmethode)
+        $script:Saved = 0
+        $items = [pscustomobject]@{ List = (New-Object System.Collections.ArrayList) }
+        $items | Add-Member ScriptMethod Restrict {
+            param($f)
+            $k = [regex]::Match($f, "'(.*)'").Groups[1].Value
+            , @($this.List | Where-Object { (Get-HUOutlookItemKey $_) -eq $k })
+        }
+        $items | Add-Member ScriptMethod Add {
+            param($t)
+            $it = New-FakeItem ('N' + $this.List.Count) ''
+            foreach ($p in 'Subject', 'AllDayEvent', 'Start', 'End', 'Location', 'Body', 'BusyStatus', 'Categories', 'ReminderSet', 'ReminderMinutesBeforeStart', 'StartDate', 'DueDate', 'ReminderTime') { $it | Add-Member NoteProperty $p $null }
+            $it | Add-Member NoteProperty ItemType $t
+            $it | Add-Member NoteProperty Parent ([pscustomobject]@{ StoreID = 'S' })
+            $it | Add-Member ScriptMethod Save { $script:Saved++ }
+            [void]$this.List.Add($it); $it
+        }
+        $script:Folder = [pscustomobject]@{ StoreID = 'S'; Items = $items }
+        $ns = [pscustomobject]@{ Folder = $script:Folder }
+        $ns | Add-Member ScriptMethod GetDefaultFolder { param($n) $this.Folder }
+        $ns | Add-Member ScriptMethod GetItemFromID { param($e, $s) $null }
+        $script:Sess = [pscustomobject]@{ Namespace = $ns }
+    }
+    It 'Termin: legt an, setzt Zeiten, Erinnerung und Schluessel' {
+        $r = Set-HUOutlookAppointment -Session $script:Sess -Key 'Buchung:1' -Subject 'Saal' -Start ([datetime]'2026-12-04 18:00') -End ([datetime]'2026-12-04 23:00') -ReminderMinutes 60
+        $r.Created | Should -BeTrue
+        $it = $script:Folder.Items.List[0]
+        $it.ItemType | Should -Be 1
+        $it.End | Should -Be ([datetime]'2026-12-04 23:00')
+        $it.ReminderSet | Should -BeTrue; $it.ReminderMinutesBeforeStart | Should -Be 60
+        $it.BusyStatus | Should -Be 2
+        Get-HUOutlookItemKey $it | Should -Be 'Buchung:1'
+        $script:Saved | Should -Be 1
+    }
+    It 'Termin: zweiter Aufruf aendert denselben Eintrag' {
+        [void](Set-HUOutlookAppointment -Session $script:Sess -Key 'Buchung:1' -Subject 'Saal' -Start ([datetime]'2026-12-04 18:00'))
+        $r = Set-HUOutlookAppointment -Session $script:Sess -Key 'Buchung:1' -Subject 'Saal neu' -Start ([datetime]'2026-12-05 18:00')
+        $r.Created | Should -BeFalse
+        $script:Folder.Items.List.Count | Should -Be 1
+        $script:Folder.Items.List[0].Subject | Should -Be 'Saal neu'
+        $script:Folder.Items.List[0].End | Should -Be ([datetime]'2026-12-05 19:00')
+    }
+    It 'Termin ganztaegig: Ende ist der Tag nach dem letzten Tag' {
+        [void](Set-HUOutlookAppointment -Session $script:Sess -Key 'Buchung:2' -Subject 'Saal' -Start ([datetime]'2026-12-02') -End ([datetime]'2026-12-08') -AllDay)
+        $it = $script:Folder.Items.List[0]
+        $it.AllDayEvent | Should -BeTrue
+        $it.End | Should -Be ([datetime]'2026-12-09')
+        $it.ReminderSet | Should -BeFalse
+    }
+    It 'Aufgabe: Faelligkeit, Beginn und Erinnerung' {
+        [void](Set-HUOutlookTask -Session $script:Sess -Key 'Fristen:7' -Subject 'Spielplatz' -DueDate ([datetime]'2027-03-31 15:00') -StartDate ([datetime]'2027-03-01') -ReminderTime ([datetime]'2027-03-24 08:00'))
+        $it = $script:Folder.Items.List[0]
+        $it.ItemType | Should -Be 3
+        $it.DueDate | Should -Be ([datetime]'2027-03-31')
+        $it.StartDate | Should -Be ([datetime]'2027-03-01')
+        $it.ReminderTime | Should -Be ([datetime]'2027-03-24 08:00')
+    }
+}
+
+Describe 'Outlook schliessen' {
+    BeforeEach {
+        $script:Quit = 0
+        $script:App = [pscustomobject]@{ Explorers = [pscustomobject]@{ Count = 0 }; Inspectors = [pscustomobject]@{ Count = 0 } }
+        $script:App | Add-Member ScriptMethod Quit { $script:Quit++ }
+    }
+    It 'lief Outlook vorher nicht und ist kein Fenster offen: beenden' {
+        Close-HUOutlook ([pscustomobject]@{ Application = $script:App; Namespace = $null; WasRunning = $false })
+        $script:Quit | Should -Be 1
+    }
+    It 'lief Outlook schon: nicht beenden' {
+        Close-HUOutlook ([pscustomobject]@{ Application = $script:App; Namespace = $null; WasRunning = $true })
+        $script:Quit | Should -Be 0
+    }
+    It 'ist eine angezeigte Mail offen: nicht beenden' {
+        $script:App.Inspectors.Count = 1
+        Close-HUOutlook ([pscustomobject]@{ Application = $script:App; Namespace = $null; WasRunning = $false })
+        $script:Quit | Should -Be 0
+    }
+}
+
+Describe 'Mail' {
+    It 'mailto mit kodiertem Betreff und Text' {
+        $u = New-HUMailtoUri -To 'a@b.at' -Subject 'Bestätigung 1' -Body "Zeile 1`r`nZeile 2"
+        $u | Should -Match '^mailto:a@b\.at\?subject=Best%C3%A4tigung%201&body=Zeile%201%0D%0AZeile%202$'
+    }
+    It 'zu langer Text wird gekuerzt und bekommt den Hinweis' {
+        $u = New-HUMailtoUri -Subject 'X' -Body ('a' * 5000) -MaxLength 300 -Note 'gekuerzt'
+        $u.Length | Should -BeLessOrEqual 300
+        $u | Should -Match 'gekuerzt$'
+    }
+}
+
+Describe '.ics' {
+    It 'hat CRLF, DTSTAMP, UID und Zeiten in UTC' {
+        $c = New-HUIcsContent -Uid 'Buchung:7' -Subject 'Saal' -Start ([datetime]'2026-12-04 18:00') -End ([datetime]'2026-12-04 23:00') -Now ([datetime]'2026-11-07 10:00')
+        $c | Should -Match "^BEGIN:VCALENDAR`r`n"
+        $c | Should -Match "`r`nEND:VCALENDAR`r`n$"
+        ($c -replace "`r`n", '') | Should -Not -Match "`n"
+        $c | Should -Match "`r`nUID:Buchung:7`r`n"
+        $c | Should -Match "`r`nDTSTAMP:\d{8}T\d{6}Z`r`n"
+        $c | Should -Match ("`r`nDTSTART:" + ([datetime]'2026-12-04 18:00').ToUniversalTime().ToString("yyyyMMdd'T'HHmmss'Z'") + "`r`n")
+    }
+    It 'ganztaegig: Datum, Ende exklusiv' {
+        $c = New-HUIcsContent -Uid 'F:1' -Subject 'Frist' -Start ([datetime]'2026-12-31') -AllDay
+        $c | Should -Match "`r`nDTSTART;VALUE=DATE:20261231`r`n"
+        $c | Should -Match "`r`nDTEND;VALUE=DATE:20270101`r`n"
+    }
+    It 'Erinnerung als VALARM mit TRIGGER' {
+        $c = New-HUIcsContent -Uid 'F:1' -Subject 'Frist' -Start ([datetime]'2026-12-31 08:00') -AlarmMinutes 15
+        $c | Should -Match "`r`nBEGIN:VALARM`r`nACTION:DISPLAY`r`n"
+        $c | Should -Match "`r`nTRIGGER:-PT15M`r`n"
+    }
+    It 'maskiert Komma, Semikolon, Backslash und Zeilenwechsel' {
+        ConvertTo-HUIcsText "a,b;c\d`r`ne" | Should -Be 'a\,b\;c\\d\ne'
+    }
+    It 'faltet lange Zeilen bei 75 Oktetten, ohne Umlaute zu zerteilen' {
+        $line = 'DESCRIPTION:' + ('ä' * 100)
+        $f = Format-HUIcsLine $line
+        $parts = $f -split "`r`n"
+        $enc = New-Object System.Text.UTF8Encoding $false
+        foreach ($p in $parts) { $enc.GetByteCount($p) | Should -BeLessOrEqual 75 }
+        ($parts[1..($parts.Count - 1)] | ForEach-Object { $_.StartsWith(' ') }) | Should -Not -Contain $false
+        (($parts | ForEach-Object { $_ -replace '^ ', '' }) -join '') | Should -Be $line
+    }
+    It 'lehnt ein Ende vor dem Beginn ab' {
+        { New-HUIcsContent -Uid 'x' -Subject 's' -Start ([datetime]'2026-12-04 18:00') -End ([datetime]'2026-12-04 17:00') } | Should -Throw
+    }
+    It 'schreibt die Datei ohne BOM' {
+        $p = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtIcs-' + [guid]::NewGuid().ToString('N') + '.ics')
+        try {
+            New-HUIcsFile -Path $p -Uid 'x' -Subject 'Test' -Start ([datetime]'2026-12-04 18:00') | Should -Be $p
+            $b = [IO.File]::ReadAllBytes($p)
+            $b[0] | Should -Be ([byte][char]'B')
+        } finally { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+Describe 'Word' {
+    It 'Zeilenwechsel werden manuelle Zeilenumbrueche, Steuerzeichen fallen weg' {
+        ConvertTo-HUWordText "a`r`nb`nc$([char]7)" | Should -Be ("a$([char]11)b$([char]11)c")
+    }
+    It 'fehlende Vorlage oder fehlendes Ziel wird gemeldet, bevor Word startet' {
+        { Invoke-HUWordTemplate -Template 'C:\gibt-es-nicht\x.docx' -PdfPath 'x.pdf' } | Should -Throw '*Vorlage nicht gefunden*'
+        $t = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtTpl-' + [guid]::NewGuid().ToString('N') + '.docx')
+        try {
+            [IO.File]::WriteAllText($t, 'x')
+            { Invoke-HUWordTemplate -Template $t } | Should -Throw '*Kein Ziel*'
+        } finally { Remove-Item -LiteralPath $t -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+Describe 'Aufpasser fuer eigene Prozesse' {
+    BeforeEach { $script:P = Start-Process -FilePath "$env:SystemRoot\System32\PING.EXE" -ArgumentList '-n', '60', '127.0.0.1' -WindowStyle Hidden -PassThru }
+    AfterEach { Stop-Process -Id $script:P.Id -Force -ErrorAction SilentlyContinue }
+    It 'beendet den Prozess nach Ablauf der Zeit' {
+        $g = InModuleScope HU.Office -Parameters @{ Id = $script:P.Id } { param($Id) Start-HUProcessGuard -ProcessId $Id -Seconds 1 }
+        $script:P.WaitForExit(8000) | Should -BeTrue
+        $g.Fired() | Should -BeTrue
+        $g.Stop()
+    }
+    It 'Stop vor Ablauf laesst den Prozess in Ruhe' {
+        $g = InModuleScope HU.Office -Parameters @{ Id = $script:P.Id } { param($Id) Start-HUProcessGuard -ProcessId $Id -Seconds 2 }
+        $g.Stop()
+        $script:P.WaitForExit(3500) | Should -BeFalse
+        $g.Fired() | Should -BeFalse
+    }
+    It 'Nachlauf beendet einen Prozess, der nach der Frist noch laeuft' {
+        InModuleScope HU.Office -Parameters @{ Id = $script:P.Id } { param($Id) Stop-HUOwnProcess -ProcessId $Id -GraceSeconds 1 }
+        $script:P.WaitForExit(8000) | Should -BeTrue
+    }
+}
+
+Describe 'Erkennung' {
+    It 'liefert Wahr/Falsch und wirft nie' {
+        Test-HUOutlookClassic | Should -BeOfType [bool]
+        Test-HUWord | Should -BeOfType [bool]
+    }
+}
