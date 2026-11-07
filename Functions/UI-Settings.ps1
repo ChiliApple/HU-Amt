@@ -18,10 +18,7 @@
 function Set-HUProp($Object, [string]$Name, $Value) {
     if ($Object.PSObject.Properties[$Name]) { $Object.$Name = $Value } else { $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value }
 }
-function Get-HUProp($Object, [string]$Name, $Default = $null) {
-    if ($Object -and $Object.PSObject.Properties[$Name] -and $null -ne $Object.$Name) { return $Object.$Name }
-    return $Default
-}
+# Get-HUProp kommt aus Core\HU.Data.psm1 (Standard dort '', hier immer mit eigenem Standard aufgerufen)
 
 function Save-HUUserSettings {
     Write-HUJsonFile -Path $script:SettingsPath -Object $script:Settings -Depth 5

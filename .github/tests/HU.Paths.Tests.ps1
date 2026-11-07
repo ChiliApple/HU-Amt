@@ -2,6 +2,7 @@
 # Pester 5: Datenordner und Sperren (Core\HU.Paths.psm1). Nur kuenstliche Daten in einem Testordner unter TEMP.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     Import-Module (Join-Path $script:Root 'Core\HU.Paths.psm1') -Force -DisableNameChecking
 }

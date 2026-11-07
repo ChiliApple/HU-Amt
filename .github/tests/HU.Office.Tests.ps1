@@ -3,6 +3,7 @@
 # es oeffnet sich kein Fenster und kein Office-Prozess startet.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     Import-Module (Join-Path $script:Root 'Core\HU.Office.psm1') -Force -DisableNameChecking
 

@@ -6,7 +6,8 @@
     Startpunkt. Liest Config\app.json (Name, Repo, Signatur), laedt Core-Module (Core\*.psm1),
     Oberflaeche (XAML\*.xaml) und Funktionen (Functions\*.ps1).
       Config\      app.json, version.json (im Repo); lokale Dateien wie update.json nicht im Repo
-      Core\        Logging, Datenordner und Sperren (HU.Paths), Sicherung (HU.AppBackup), Datei-Austausch (HU.Exchange), Outlook und Word (HU.Office)
+      Core\        Logging, Datenordner und Sperren (HU.Paths), Sicherung (HU.AppBackup), Datei-Austausch (HU.Exchange), Outlook und Word (HU.Office), Kontakte (HU.Contacts),
+                   Datenablage/Zahlen/Verlauf/Anhaenge (HU.Data), PDF (HU.Pdf), Excel/CSV (HU.Import), Werkzeug-Aufrufe (HU.Tools)
       Functions\   Oberflaeche: Dialoge, Fensterzustand, Startbildschirm, Starter und Verknuepfungen, Module, Update-Bibliothek
       Modules\     mitgelieferte Module; Addons\ private (signiert); AddonsDev\ Entwicklung - je Modul ein Reiter
       XAML\        Fenster und gemeinsames Theme
@@ -145,12 +146,12 @@ if (-not $SmokeTest) {
 # 1. CORE-MODULE, FUNKTIONEN
 # ============================================================================
 Set-HUSplashStatus 'Module werden geladen ...'
-foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office')) {
+foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU.Contacts', 'HU.Data', 'HU.Pdf', 'HU.Import', 'HU.Tools')) {
     $modPath = Join-Path $script:AppRoot "Core\$mod.psm1"
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -293,6 +294,8 @@ foreach ($__a in @(Get-HUAddonStartList)) {
         . (Join-Path $__a.Dir $__a.Script)
         Add-HUAddonTab $__a
         & $__a.Init
+        # verschiebbare Bereiche des Reiters: Kern merkt sie sich (nach dem Start des Moduls, damit die gemerkte Groesse gilt)
+        try { Register-HUSplitterState (@($script:Controls['tabMain'].Items)[-1]) "Reiter.$($__a.Id)" } catch { Write-HULogWarn "Bereiche $($__a.Id): $($_.Exception.Message)" }
         $script:LoadedAddons += $__a
         Write-HULogOK "Modul geladen: $($__a.Title) $($__a.Version)$(if ($__a.Source -ne 'Programm') { " ($($__a.Source))" })"
     } catch { Write-HULogWarn "Modul $($__a.Id) nicht geladen: $($_.Exception.Message)" }
@@ -350,14 +353,20 @@ $script:OnContentRendered = {
                 $tabs = @($script:Controls['tabMain'].Items).Count
                 if ($tabs -ne [Math]::Max(1, @($script:LoadedAddons).Count)) { throw "Reiter: $tabs, Module: $(@($script:LoadedAddons).Count)" }
                 $script:SmokeSteps += "Module=$(@($script:LoadedAddons).Count)"; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
-                # Hineinziehen: jede Endung eines Moduls muss bei diesem Modul ankommen (Ziel ohne echtes Ziehen bestimmen)
+                # Hineinziehen: bei offenem Reiter eines Moduls muss jede seiner Endungen dort ankommen (Ziel ohne echtes Ziehen bestimmen).
+                # Teilen sich mehrere Module eine Endung (z. B. .pdf), entscheidet in der App der offene Reiter.
+                $selVorher = $script:Controls['tabMain'].SelectedItem
                 foreach ($a in @($script:LoadedAddons | Where-Object { Test-HUAddonCanDrop $_ })) {
+                    $tab = $null
+                    foreach ($it in @($script:Controls['tabMain'].Items)) { if ($script:AddonByTab.ContainsKey("$($it.Name)") -and $script:AddonByTab["$($it.Name)"].Id -eq $a.Id) { $tab = $it; break } }
+                    if ($tab) { $script:Controls['tabMain'].SelectedItem = $tab }
                     foreach ($x in @($a.Drop)) {
                         $tg = Resolve-HUDropTarget @("C:\Test\Datei$x")
-                        if (-not $tg -or $tg.Info.Id -ne $a.Id) { throw "Hineinziehen: $x kommt nicht bei $($a.Id) an" }
+                        if (-not $tg -or $tg.Info.Id -ne $a.Id) { throw "Hineinziehen: $x kommt bei offenem Reiter nicht bei $($a.Id) an" }
                     }
                     $script:SmokeSteps += "Ziehen-$($a.Id)"; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 }
+                if ($selVorher) { $script:Controls['tabMain'].SelectedItem = $selVorher }
                 if (Resolve-HUDropTarget @('C:\Test\Datei.unbekannt')) { throw 'Hineinziehen: unbekannte Endung angenommen' }
                 # Sicherung: Quellen nur aus Data, ohne Logs, Token, Sperren
                 $src = @(Get-HUAppBackupSources -DataRoot $script:DataRoot)

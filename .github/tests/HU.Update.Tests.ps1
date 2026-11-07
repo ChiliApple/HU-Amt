@@ -2,6 +2,7 @@
 # Pester 5: Update (Pull.ps1, Functions\Core-Update.ps1). Kein Netzzugriff; Sperren mit kuenstlichen Dateien unter TEMP.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:PullText = [IO.File]::ReadAllText((Join-Path $script:Root 'Pull.ps1'), [Text.Encoding]::UTF8)
     $script:LibText = [IO.File]::ReadAllText((Join-Path $script:Root 'Functions\Core-Update.ps1'), [Text.Encoding]::UTF8)

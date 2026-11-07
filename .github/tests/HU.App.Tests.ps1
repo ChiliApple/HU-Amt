@@ -2,6 +2,7 @@
 # Pester 5: App-Manifest, Version, Kodierung und Inhalte des Repos.
 
 BeforeAll {
+    Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:Files = @(Get-ChildItem -LiteralPath $script:Root -Recurse -File |
             Where-Object { $_.FullName -notmatch '\\\.git\\' -and $_.Extension -in '.ps1', '.psm1', '.xaml', '.json', '.md', '.cmd', '.yml', '.html' })

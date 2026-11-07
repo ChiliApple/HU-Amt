@@ -1,5 +1,45 @@
 ﻿# Changelog
 
+## v0.1.11
+
+### 🧩 Module
+- **Gemeinsame Bausteine im Hauptprogramm:** Was mehrere Module bisher jedes für sich gebaut haben, liefert jetzt HU-Amt selbst. Module werden dadurch einheitlicher und Fehler werden an einer Stelle behoben.
+  - Datenablage auf der Freigabe mit Sperre, Warten und Schutz vor gleichzeitigem Speichern, Verlauf („wer hat wann was geändert“), Anhänge und gemeinsame Einstellungen.
+  - Euro, Zahlen und Datum einheitlich für Österreich, unter Windows PowerShell und PowerShell 7 gleich.
+  - Dunkler Kalender, Uhrzeit-Auswahl, Text- und Auswahl-Dialoge, Laden im Hintergrund.
+  - PDF-Ausdrucke mit Tabellen über mehrere Seiten, Lesen von Excel- und CSV-Dateien ohne Excel, Aufruf externer Werkzeuge mit Zeitlimit.
+- **Umstellung der Module folgt:** Die Module übernehmen die Bausteine mit ihren nächsten Testversionen. Bis dahin arbeiten sie unverändert weiter.
+
+### ✅ Qualität
+- 347 Tests, alle im strengen Modus wie die App.
+
+## v0.1.10
+
+### 📨 Outlook und Word
+- **Absender für Mails aus Modulen:** Module können einstellen, von welchem Mailkonto ihre Mails kommen, auch von einem gemeinsamen Postfach („im Auftrag von“).
+  - Ist nichts eingestellt und hat jemand mehrere Konten im Outlook, fragt HU-Amt einmal nach dem Konto. Auf Wunsch merkt es sich die Wahl je Benutzer.
+  - Fehlt das eingestellte Konto auf einem PC, fragt HU-Amt nach, statt still ein anderes zu nehmen.
+  - Die Mail wird weiterhin nur angezeigt. Im Feld „Von“ steht der Absender und lässt sich vor dem Senden ändern.
+- **Outlook-Ordnerauswahl im Vordergrund:** Der Dialog „Ordner auswählen“ erscheint jetzt vor HU-Amt statt dahinter.
+
+### 🎨 Oberfläche
+- **Verschobene Bereiche bleiben erhalten:** HU-Amt merkt sich in jedem Modul-Reiter und jedem Fenster, wie weit du die Bereiche verschoben hast, und stellt sie beim nächsten Start wieder her.
+  - Das gilt jetzt für alle Module, ohne dass ein Modul dafür etwas tun muss.
+
+### 👥 Kontakte
+- **Kontakte übernehmen:** Module können Kontakte aus dem eigenen Outlook oder aus vCard-Dateien (.vcf) übernehmen, z. B. für Mieter.
+  - Suche nach Name, Firma, Mail oder Ort. vCard-Dateien lassen sich auch ins Fenster ziehen.
+  - Übernommen wird nur, was du markierst.
+
+### 🧪 Testmodus
+- **Geführter Test öffnet zuverlässig:** In 0.1.9 brach das Öffnen des Testassistenten ab. Behoben; die Tests des Kerns laufen jetzt wie die App im strengen Modus.
+
+### ⚠️ Nach dem Update
+- Für das Senden „im Auftrag von“ eines gemeinsamen Postfachs braucht der Benutzer im Exchange das Recht dazu.
+
+### ✅ Qualität
+- 195 Tests, alle im strengen Modus wie die App.
+
 ## v0.1.9
 
 ### 🧪 Testmodus
