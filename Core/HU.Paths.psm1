@@ -253,6 +253,18 @@ function Backup-HUDataFile {
 # Belege (Microsoft Learn): FileSystemRights-Werte (System.Security.AccessControl.FileSystemRights), Get-Acl liest nur die
 # NTFS-ACL der Datei bzw. des Ordners; Freigabeberechtigungen liegen am SMB-Share und kommen dort nicht vor.
 
+# Nur den Zugriffsteil der ACL lesen, ohne Namensaufloesung: Get-Acl loest unter Windows PowerShell 5.1 Besitzer, Gruppe
+# und alle Eintraege sofort in Kontonamen auf (LSA-Abfrage je SID). Unaufloesbare SIDs koennen dabei lange haengen,
+# im Fenster-Thread friert dann die Oberflaeche ein (CI-Starttest 5.1). Geprueft wird ohnehin nur ueber SIDs.
+# 5.1 (.NET Framework): FileSystemInfo.GetAccessControl(sections); 7 (.NET): FileSystemAclExtensions.GetAccessControl.
+function Get-HUAclAccessOnly([string]$Path, [switch]$Directory) {
+    $sec = [System.Security.AccessControl.AccessControlSections]::Access
+    if ($Directory) { $info = New-Object System.IO.DirectoryInfo $Path; if (-not $info.Exists) { throw "Ordner fehlt: $Path" } }
+    else { $info = New-Object System.IO.FileInfo $Path; if (-not $info.Exists) { throw "Datei fehlt: $Path" } }
+    if ($info.PSObject.Methods['GetAccessControl']) { return $info.GetAccessControl($sec) }
+    return [System.IO.FileSystemAclExtensions]::GetAccessControl($info, $sec)
+}
+
 function Get-HUAclBroadName([string]$Sid) {
     if ($script:HUAclBroad.Contains($Sid)) { return $script:HUAclBroad[$Sid] }
     if ($Sid -match '^S-1-5-21-\d+-\d+-\d+-513$') { return 'Domänen-Benutzer' }
@@ -282,7 +294,8 @@ function Get-HUAclBroadWriters($Acl, [int]$Mask, [switch]$ForContainer) {
 .DESCRIPTION
     Warnung, wenn breite Gruppen (Jeder, Authentifizierte Benutzer, Benutzer, Domaenen-Benutzer; ueber SIDs) die Datei
     aendern, loeschen oder ihre Rechte aendern duerfen (auch geerbt), oder am Ordner Data Unterordner und Dateien
-    loeschen duerfen (Vollzugriff). Freigaberechte (SMB) sind ueber Get-Acl nicht sichtbar und werden nicht geprueft.
+    loeschen duerfen (Vollzugriff). Freigaberechte (SMB) sind ueber die NTFS-ACL nicht sichtbar und werden nicht geprueft.
+    Liest nur den Zugriffsteil ohne Namensaufloesung (siehe Get-HUAclAccessOnly).
     Laesst sich eine ACL nicht lesen: Status 'NichtPruefbar' (ohne Fehler).
 .OUTPUTS
     @{ Status = 'Ok' | 'Warnung' | 'NichtPruefbar'; Text; ToolTip; Funde (string[]) }
@@ -293,9 +306,9 @@ function Test-HUVerwalterAcl {
     $funde = New-Object System.Collections.Generic.List[string]
     $file = [IO.Path]::Combine($DataRoot, 'Verwalter.txt')   # Join-Path wirft unter 5.1 bei fehlendem Laufwerk
     try {
-        $dirAcl = Get-Acl -LiteralPath $DataRoot -ErrorAction Stop
+        $dirAcl = Get-HUAclAccessOnly $DataRoot -Directory
         if (Test-Path -LiteralPath $file -PathType Leaf) {
-            foreach ($x in @(Get-HUAclBroadWriters (Get-Acl -LiteralPath $file -ErrorAction Stop) $script:HUAclFileWrite)) { $funde.Add("Verwalter.txt ändern oder löschen: $x") }
+            foreach ($x in @(Get-HUAclBroadWriters (Get-HUAclAccessOnly $file) $script:HUAclFileWrite)) { $funde.Add("Verwalter.txt ändern oder löschen: $x") }
         } else {
             # ohne Liste gilt der Rueckfall der App; wer im Ordner Dateien anlegen darf (WriteData 0x2 = CreateFiles), legt sie an
             foreach ($x in @(Get-HUAclBroadWriters $dirAcl 0x2 -ForContainer)) { $funde.Add("Verwalter.txt fehlt und darf neu angelegt werden: $x") }

@@ -268,6 +268,11 @@ Describe 'Rechte der Verwalter-Liste (Entscheidung Verwalter.txt)' {
         Add-AclTestRule $script:Ad 'S-1-1-0' 'ReadAndExecute' -Folder
         (Test-HUVerwalterAcl -DataRoot $script:Ad).Status | Should -Be 'Ok'
     }
+    It 'liest ohne Get-Acl (keine Namensaufloesung, die unter 5.1 haengen kann)' {
+        Mock -ModuleName HU.Paths Get-Acl { throw 'Get-Acl darf nicht benutzt werden' }
+        (Test-HUVerwalterAcl -DataRoot $script:Ad).Status | Should -Be 'Ok'
+        Should -Invoke -ModuleName HU.Paths Get-Acl -Times 0 -Exactly
+    }
     It 'ACL nicht lesbar: still nicht pruefbar' {
         (Test-HUVerwalterAcl -DataRoot (Join-Path $script:Ad 'gibt-es-nicht')).Status | Should -Be 'NichtPruefbar'
     }
