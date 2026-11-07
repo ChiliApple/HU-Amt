@@ -129,11 +129,13 @@ function Invoke-HUOutlook {
     try { return (& $ScriptBlock $s) } finally { Close-HUOutlook $s }
 }
 
-# Eigene Sitzung nur, wenn keine mitgegeben wurde
-function Use-HUOutlookSession($Session, [scriptblock]$Body) {
-    if ($Session) { return (& $Body $Session) }
-    $s = Open-HUOutlook
-    try { return (& $Body $s) } finally { Close-HUOutlook $s }
+# Eigene Sitzung nur, wenn keine mitgegeben wurde.
+# Ungewoehnliche Namen mit Absicht: Der Skriptblock sieht die Variablen dieser Funktion (dynamischer Gueltigkeitsbereich).
+# Hiesse ein Parameter z. B. $Body, bekaeme der Termin den Skriptblock statt des Texts (im Echttest aufgefallen).
+function Use-HUOutlookSession($__HUOfSession, [scriptblock]$__HUOfScript) {
+    if ($__HUOfSession) { return (& $__HUOfScript $__HUOfSession) }
+    $__HUOfOwn = Open-HUOutlook
+    try { return (& $__HUOfScript $__HUOfOwn) } finally { Close-HUOutlook $__HUOfOwn }
 }
 
 # ---------------------------------------------------------------- Outlook: Ordner ----------------------------------------------------------------

@@ -115,13 +115,14 @@ Describe 'Termin und Aufgabe setzen' {
         $script:Sess = [pscustomobject]@{ Namespace = $ns }
     }
     It 'Termin: legt an, setzt Zeiten, Erinnerung und Schluessel' {
-        $r = Set-HUOutlookAppointment -Session $script:Sess -Key 'Buchung:1' -Subject 'Saal' -Start ([datetime]'2026-12-04 18:00') -End ([datetime]'2026-12-04 23:00') -ReminderMinutes 60
+        $r = Set-HUOutlookAppointment -Session $script:Sess -Key 'Buchung:1' -Subject 'Saal' -Start ([datetime]'2026-12-04 18:00') -End ([datetime]'2026-12-04 23:00') -ReminderMinutes 60 -Body 'Text' -Location 'Ort' -Categories 'Kat'
         $r.Created | Should -BeTrue
         $it = $script:Folder.Items.List[0]
         $it.ItemType | Should -Be 1
         $it.End | Should -Be ([datetime]'2026-12-04 23:00')
         $it.ReminderSet | Should -BeTrue; $it.ReminderMinutesBeforeStart | Should -Be 60
         $it.BusyStatus | Should -Be 2
+        $it.Body | Should -Be 'Text'; $it.Location | Should -Be 'Ort'; $it.Categories | Should -Be 'Kat'
         Get-HUOutlookItemKey $it | Should -Be 'Buchung:1'
         $script:Saved | Should -Be 1
     }
@@ -141,12 +142,13 @@ Describe 'Termin und Aufgabe setzen' {
         $it.ReminderSet | Should -BeFalse
     }
     It 'Aufgabe: Faelligkeit, Beginn und Erinnerung' {
-        [void](Set-HUOutlookTask -Session $script:Sess -Key 'Fristen:7' -Subject 'Spielplatz' -DueDate ([datetime]'2027-03-31 15:00') -StartDate ([datetime]'2027-03-01') -ReminderTime ([datetime]'2027-03-24 08:00'))
+        [void](Set-HUOutlookTask -Session $script:Sess -Key 'Fristen:7' -Subject 'Spielplatz' -DueDate ([datetime]'2027-03-31 15:00') -StartDate ([datetime]'2027-03-01') -ReminderTime ([datetime]'2027-03-24 08:00') -Body 'Notiz')
         $it = $script:Folder.Items.List[0]
         $it.ItemType | Should -Be 3
         $it.DueDate | Should -Be ([datetime]'2027-03-31')
         $it.StartDate | Should -Be ([datetime]'2027-03-01')
         $it.ReminderTime | Should -Be ([datetime]'2027-03-24 08:00')
+        $it.Body | Should -Be 'Notiz'
     }
 }
 
