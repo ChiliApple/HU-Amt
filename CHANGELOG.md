@@ -1,5 +1,13 @@
 ﻿# Changelog
 
+## v0.1.13
+
+### 🔐 Rechte
+- **Einstellungen öffnen sofort:** Die Prüfung der Rechte auf die Verwalter-Liste läuft jetzt im Hintergrund. Bis das Ergebnis da ist, steht „wird geprüft …“. Auch eine langsame Freigabe hält Fenster und Programmstart nicht mehr auf.
+
+### ✅ Qualität
+- 467 Tests, alle im strengen Modus wie die App.
+
 ## v0.1.12
 
 ### 📤 Datei-Austausch
