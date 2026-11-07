@@ -198,6 +198,14 @@
                         <Button x:Name="btnAdminMe" Content="Mich hinzuf&#xFC;gen" Style="{StaticResource ToolButton}" Margin="8,0,0,0" ToolTip="Den eigenen Windows-Benutzer aufnehmen"/>
                         <Button x:Name="btnAdminDel" Content="Markierten entfernen" Background="#C62828" Style="{StaticResource DarkButton}" Margin="24,0,0,0" ToolTip="Markierten Namen aus der Liste nehmen (mit R&#xFC;ckfrage)"/>
                     </StackPanel>
+                    <Border DockPanel.Dock="Bottom" BorderBrush="#E65100" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,8,0,0">
+                        <DockPanel>
+                            <Button x:Name="btnTestMode" DockPanel.Dock="Right" Content="Testmodus starten ..." Background="#E65100" Style="{StaticResource DarkButton}" Margin="8,0,0,0"
+                                    ToolTip="Neu starten mit eigenem Testbestand (Data\_Test): echte Daten, Outlook, Word und Mails bleiben unber&#xFC;hrt"/>
+                            <TextBlock x:Name="txtTestModeInfo" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"
+                                       Text="Testmodus: zum Ausprobieren neuer Module ohne echte Daten. Gilt bis zum n&#xE4;chsten normalen Neustart."/>
+                        </DockPanel>
+                    </Border>
                     <TextBlock x:Name="txtAdminInfo" DockPanel.Dock="Bottom" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
                     <ListBox x:Name="lstAdmins" Style="{StaticResource DarkListBox}" MinHeight="120" ToolTip="Eingetragene Verwalter"/>
                 </DockPanel>

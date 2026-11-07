@@ -268,7 +268,7 @@ function Unprotect-HUAppBackupBytes {
 #   Docs\ (kommt aus dem Hilfe-Repo), Laufend\ (Sperren), Wiederherstellung\ (Vorstand), Benutzer\<Name>\Logs\, Benutzer\<Name>\Token\,
 #   *.lock, *.tmp, sicherung-kennwort.dat (DPAPI, nur fuer diesen Benutzer lesbar - woanders nutzlos).
 # Bereiche (beim Wiederherstellen einzeln waehlbar): Daten je Modul (Data\<Id>\), Benutzer (Fenster, Einstellungen), Allgemein.
-$script:HUAbSkipTop = @('Docs', 'Laufend', 'Wiederherstellung')
+$script:HUAbSkipTop = @('Docs', 'Laufend', 'Wiederherstellung', '_Test')   # _Test: Testbestand des Testmodus
 $script:HUAbSkipUserDirs = @('Logs', 'Token')
 $script:HUAbSkipFileRx = '(?i)(\.lock|\.tmp|\.hu-neu|^sicherung-kennwort\.dat)$'
 $script:HUAbFileRx = '^HU-Sicherung_[A-Za-z0-9-]{1,40}_\d{4}-\d{2}-\d{2}_\d{6}\.husicherung$'

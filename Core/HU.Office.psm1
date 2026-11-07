@@ -78,6 +78,17 @@ function Remove-HUComObject {
 #>
 function Test-HUOfficeKey([string]$Key) { return ("$Key" -match $script:HUOfKeyPattern) }
 
+<#
+.SYNOPSIS
+    $true im Testmodus der App ($env:HUAMT_TESTMODE = 1, gilt auch in Hintergrund-Auftraegen).
+    Dann sind Outlook, Word und Mail gesperrt: Open-HUOutlook und Invoke-HUWordTemplate werfen, Show-HUMail oeffnet nichts.
+#>
+function Test-HUOfficeTestMode { return ($env:HUAMT_TESTMODE -eq '1') }
+
+function Assert-HUOfficeLive([string]$What) {
+    if (Test-HUOfficeTestMode) { throw "Testmodus: $What ist gesperrt (keine echten Outlook-, Word- oder Mail-Aktionen)." }
+}
+
 function Assert-HUOfficeKey([string]$Key) {
     if (-not (Test-HUOfficeKey $Key)) { throw "Ungueltiger Schluessel '$Key' (erlaubt: Buchstaben, Ziffern und : . _ -, hoechstens 120 Zeichen)." }
 }
@@ -119,6 +130,7 @@ function Invoke-HUComRetry([scriptblock]$Action, [int]$TimeoutSeconds = 30) {
 #>
 function Open-HUOutlook {
     param([int]$TimeoutSeconds = 30)
+    Assert-HUOfficeLive 'Outlook'
     if (-not (Test-HUOutlookClassic)) { throw 'Das klassische Outlook ist nicht installiert.' }
     $before = @(Get-Process -Name OUTLOOK -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
     $was = ($before.Count -gt 0)
@@ -456,7 +468,7 @@ function New-HUMailtoUri {
 <#
 .SYNOPSIS
     Mail im Outlook anzeigen, nie senden. Ohne Outlook (oder -Mailweg mailto): mailto: ohne Anhang.
-    Rueckgabe: Way (outlook | mailto | fehler), Message (Grund fuer den Rueckfall oder Fehler).
+    Rueckgabe: Way (outlook | mailto | fehler | testmodus), Message (Grund fuer den Rueckfall oder Fehler).
     Nur im Fenster-Thread aufrufen (Display).
 #>
 function Show-HUMail {
@@ -464,6 +476,7 @@ function Show-HUMail {
         [ValidateSet('auto', 'mailto')][string]$Mailweg = 'auto', [int]$MaxLength = 1800, [string]$TruncatedNote = '(Text gekuerzt.)')
     $toText = (@($To) | Where-Object { "$_".Trim() } | ForEach-Object { "$_".Trim() }) -join '; '
     $ccText = (@($Cc) | Where-Object { "$_".Trim() } | ForEach-Object { "$_".Trim() }) -join '; '
+    if (Test-HUOfficeTestMode) { return [pscustomobject]@{ Way = 'testmodus'; Message = 'Testmodus: Es wurde keine Mail geöffnet.' } }
     $errText = ''
     if ($Mailweg -eq 'auto' -and (Test-HUOutlookClassic)) {
         $s = $null; $m = $null; $att = $null
@@ -650,6 +663,7 @@ function Invoke-HUWordTemplate {
         [Parameter(Mandatory)][string]$Template, [string]$PdfPath = '', [string]$DocxPath = '',
         [hashtable]$Values = @{}, [hashtable]$Tables = @{}, [ValidateRange(10, 3600)][int]$TimeoutSeconds = 120
     )
+    Assert-HUOfficeLive 'Word'
     if (-not (Test-Path -LiteralPath $Template)) { throw "Vorlage nicht gefunden: $Template" }
     if (-not $PdfPath -and -not $DocxPath) { throw 'Kein Ziel angegeben (-PdfPath oder -DocxPath).' }
     if (-not (Test-HUWord)) { throw 'Word ist nicht installiert.' }
@@ -766,7 +780,7 @@ function Stop-HUOwnProcess([int]$ProcessId, [int]$GraceSeconds = 15) {
     [void]$ps.BeginInvoke()
 }
 
-Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey,
+Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode,
     Open-HUOutlook, Close-HUOutlook, Invoke-HUOutlook, ConvertTo-HUOutlookFolderSpec, Get-HUOutlookFolder, Select-HUOutlookFolder,
     Find-HUOutlookItem, Get-HUOutlookItemKey, Set-HUOutlookAppointment, Set-HUOutlookTask, Complete-HUOutlookItem, Remove-HUOutlookItem,
     New-HUMailtoUri, Show-HUMail, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,

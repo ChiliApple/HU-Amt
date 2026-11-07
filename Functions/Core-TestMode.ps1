@@ -1,0 +1,95 @@
+﻿#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Testmodus: nur fuer Verwalter, nur fuer die laufende Sitzung auf diesem PC.
+.DESCRIPTION
+    - HU-Amt startet neu mit -TestMode. Der Datenstamm ist dann Data\_Test\ statt Data\: alle Module bekommen ueber
+      Get-HUAddonDataDir bzw. $script:DataRoot automatisch einen getrennten Testbestand. Echte Daten bleiben unberuehrt.
+    - Outlook, Word und Mail sind gesperrt (Core\HU.Office.psm1 prueft $env:HUAMT_TESTMODE, gilt auch in Hintergrund-Auftraegen).
+    - Keine automatische Sicherung, orange Leiste im Hauptfenster, Fenstertitel mit "TEST".
+    - "Test zurücksetzen" loescht beim naechsten Start alles unter Data\_Test\ (nur wenn dort die Kennungsdatei liegt).
+    - Ein normaler Neustart beendet den Testmodus; Neustarts aus dem Testmodus heraus (z. B. nach Modul-Installation) bleiben im Test.
+.NOTES
+    Zielmaschine: der PC, auf dem die App laeuft. PowerShell 5.1 und 7.
+#>
+
+$script:HUTestMarker = '.hu-testbestand'
+$script:HUTestResetMarker = '.zuruecksetzen'
+
+<#
+.SYNOPSIS
+    $true, wenn die App im Testmodus laeuft. Module pruefen das z. B. vor Outlook oder Word und zeigen dann eine Simulation.
+#>
+function Test-HUTestMode { return ($env:HUAMT_TESTMODE -eq '1') }
+
+function Get-HUTestDataRoot([string]$AppRoot = $script:AppRoot) { return (Join-Path (Join-Path $AppRoot 'Data') '_Test') }
+
+<#
+.SYNOPSIS
+    Sicherheitspruefung vor jedem Loeschen von Testdaten: Pfad liegt unter Data\_Test\ und der Testbestand ist gekennzeichnet.
+#>
+function Test-HUTestDataPath([string]$Path, [string]$AppRoot = $script:AppRoot) {
+    if (-not $Path) { return $false }
+    $root = [IO.Path]::GetFullPath((Get-HUTestDataRoot $AppRoot)).TrimEnd('\')
+    $full = [IO.Path]::GetFullPath($Path).TrimEnd('\')
+    if (-not ($full.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or $full.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase))) { return $false }
+    return (Test-Path -LiteralPath (Join-Path $root $script:HUTestMarker))
+}
+
+<#
+.SYNOPSIS
+    Beim Start im Testmodus, vor Protokoll und Modulen: Testbestand anlegen bzw. zuruecksetzen, Verwalter-Liste uebernehmen.
+    Rueckgabe: $true, wenn zurueckgesetzt wurde.
+#>
+function Initialize-HUTestData([string]$AppRoot = $script:AppRoot) {
+    $root = Get-HUTestDataRoot $AppRoot
+    if (-not (Test-Path -LiteralPath $root)) { [void](New-Item -ItemType Directory -Path $root -Force) }
+    $mk = Join-Path $root $script:HUTestMarker
+    if (-not (Test-Path -LiteralPath $mk)) {
+        [IO.File]::WriteAllText($mk, "Testbestand von HU-Amt. Darf jederzeit geloescht werden. Angelegt $(Get-Date -Format 'yyyy-MM-dd HH:mm').`r`n")
+    }
+    $reset = $false
+    if (Test-Path -LiteralPath (Join-Path $root $script:HUTestResetMarker)) {
+        if (-not (Test-HUTestDataPath $root $AppRoot)) { throw 'Der Testbestand ist nicht gekennzeichnet. Zurücksetzen abgebrochen.' }
+        foreach ($i in @(Get-ChildItem -LiteralPath $root -Force)) {
+            if ($i.Name -ceq $script:HUTestMarker) { continue }
+            if (-not (Test-HUTestDataPath $i.FullName $AppRoot)) { throw "Pfad liegt nicht im Testbestand: $($i.FullName)" }
+            Remove-Item -LiteralPath $i.FullName -Recurse -Force
+        }
+        $reset = $true
+    }
+    # Verwalter bleiben im Test Verwalter (sonst fehlte der Reiter Verwalter und der Weg zurueck)
+    $real = Join-Path (Join-Path $AppRoot 'Data') 'Verwalter.txt'
+    $test = Join-Path $root 'Verwalter.txt'
+    if ((Test-Path -LiteralPath $real) -and -not (Test-Path -LiteralPath $test)) { Copy-Item -LiteralPath $real -Destination $test }
+    return $reset
+}
+
+<#
+.SYNOPSIS
+    Testmodus starten (nur Verwalter) oder beenden. Beides startet die App neu.
+#>
+function Switch-HUTestMode {
+    if (Test-HUTestMode) {
+        if (Confirm-HU "Testmodus beenden?`n`n$($script:AppTitle) startet neu und arbeitet wieder mit den echten Daten. Der Testbestand bleibt bis zum Zurücksetzen erhalten." 'Testmodus') { Restart-HUApp -LeaveTestMode }
+        return
+    }
+    if (-not (Test-HUVerwalter)) { Show-HUMessage 'Den Testmodus können nur Verwalter starten.' -Icon Warning; return }
+    $txt = "Testmodus starten?`n`n$($script:AppTitle) startet neu und arbeitet bis zum nächsten normalen Neustart mit einem eigenen Testbestand (Data\_Test).`n`n" +
+    "Echte Daten bleiben unberührt. Outlook, Word und Mails sind im Test gesperrt, die automatische Sicherung ruht."
+    if (Confirm-HU $txt 'Testmodus') { Restart-HUApp -EnterTestMode }
+}
+
+<#
+.SYNOPSIS
+    Testdaten loeschen: Kennzeichnung fuer den naechsten Start setzen und im Testmodus neu starten.
+    Geloescht wird erst beim Start, bevor ein Modul eine Datei offen hat.
+#>
+function Request-HUTestReset {
+    if (-not (Test-HUTestMode)) { return }
+    $root = Get-HUTestDataRoot
+    if (-not (Test-HUTestDataPath $root)) { Show-HUMessage 'Der Testbestand ist nicht gekennzeichnet. Es wurde nichts gelöscht.' -Icon Error; return }
+    if (-not (Confirm-HU "Alle Testdaten löschen und mit leerem Testbestand neu starten?`n`nEchte Daten bleiben unberührt." 'Testmodus' -Warning)) { return }
+    [IO.File]::WriteAllText((Join-Path $root $script:HUTestResetMarker), (Get-Date -Format 'o'))
+    Restart-HUApp
+}

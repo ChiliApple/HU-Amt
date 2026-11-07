@@ -1,5 +1,24 @@
 ﻿# Changelog
 
+## v0.1.9
+
+### 🧪 Testmodus
+- **Neue Module gefahrlos ausprobieren:** Verwalter starten unter Einstellungen › Verwalter › „Testmodus starten“ einen Testmodus.
+  - HU-Amt startet neu und arbeitet mit einem eigenen Testbestand. Echte Daten bleiben unberührt.
+  - Outlook, Word und Mails sind im Test gesperrt, die automatische Sicherung ruht.
+  - Eine orange Leiste zeigt den Testmodus, „TEST“ steht im Fenstertitel.
+  - „Test zurücksetzen“ löscht nur die Testdaten. „Testmodus beenden“ oder ein normaler Neustart führt zurück zu den echten Daten.
+- **Geführter Test für Module:** Module können einen Testassistenten anbieten.
+  - Je Schritt zeigt er, was zu tun ist und was herauskommen soll. Wer testet, bedient die echten Masken und bestätigt „Bestanden“ oder „Fehler“ mit Kommentar.
+  - Was das Programm selbst prüfen kann, steht getrennt von der Bestätigung durch den Menschen.
+  - Das Testprotokoll wird als CSV und HTML gespeichert, mit Version, Soll, Ist, Ergebnis und offenen Fehlern.
+
+### 💾 Sicherung
+- **Testdaten nicht in der Sicherung:** Der Testbestand wird nie mitgesichert.
+
+### ✅ Qualität
+- 168 Tests, dazu ein Starttest im Testmodus.
+
 ## v0.1.8
 
 ### 📨 Outlook und Word

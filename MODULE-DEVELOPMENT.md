@@ -129,6 +129,30 @@ $r = Set-HUOutlookAppointment -Folder $einst.Kalender -Key "Buchung:$($b.Id)" -E
 $b.OutlookId = $r.EntryId
 ```
 
+## Testmodus und geführter Test
+
+Ab Kern 0.1.9 (`minApp` 0.1.9). Den Testmodus startet ein Verwalter in den Einstellungen; HU-Amt startet dafür neu.
+
+- **Daten:** Im Testmodus ist der Datenstamm `Data\_Test\` statt `Data\`. Wer seine Daten über `Get-HUAddonDataDir` bzw. `$script:DataRoot` holt (Pflicht), arbeitet automatisch im Testbestand. Nie einen Pfad aus dem Programmordner selbst zusammensetzen.
+- **Erkennen:** `Test-HUTestMode` (im Fenster) bzw. `Test-HUOfficeTestMode` (auch in Hintergrund-Aufträgen). Im Test zeigt das Modul statt Outlook/Word eine Simulation, z. B. „Termin würde eingetragen“.
+- **Sperre:** `Open-HUOutlook`, alle Outlook-Funktionen ohne Sitzung und `Invoke-HUWordTemplate` werfen im Testmodus, `Show-HUMail` öffnet nichts (`Way` = `testmodus`). `.ics`-Dateien gehen weiter.
+- **Zurücksetzen** macht der Kern (Knopf in der orangen Leiste): gelöscht wird beim nächsten Start alles unter `Data\_Test\`, nur wenn dort die Kennungsdatei `.hu-testbestand` liegt. Module löschen keine Testdaten selbst.
+
+**Geführter Test:** Das Modul liefert nur Szenarien, Fenster und Protokoll macht der Kern.
+
+```powershell
+Show-HUTestAssistant -ModuleId 'Buchung' -ModuleVersion $ver -Scenarios @(
+    @{ Name = 'Heimatsaal mit Teilfläche und Rabatt'; Steps = @(
+        @{ Action = 'Neue Buchung: Saal 1/2, Samstag 18–23 Uhr'; Expected = 'Wird gespeichert'; Check = { @{ Ok = (Test-...); Text = '1 Buchung gefunden' } } }
+        @{ Action = 'Zweite Buchung: Saal 2/3, gleiche Zeit'; Expected = 'Wird abgelehnt' }
+    ) }
+)
+```
+
+- `Check` ist optional und gibt `$true`/`$false` oder `@{ Ok; Text }` zurück. Ein Fehler darin zählt als „Fehler“.
+- Automatische Ergebnisse und die Bestätigung des Menschen bleiben getrennt, auch im Protokoll (CSV und HTML unter `Data\_Test\Testprotokolle\`).
+- Den Knopf „Test starten“ zeigt das Modul nur, wenn `Test-HUTestMode` wahr ist. Testdaten und Preise im Test als Beispielwerte kennzeichnen.
+
 ## Externe Werkzeuge und Bibliotheken
 
 Bringt ein Modul fremde Programme, DLLs oder Pakete mit, gilt:
