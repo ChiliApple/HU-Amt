@@ -171,6 +171,8 @@ if ($TestMode) {
             Assert-HUWritable $script:Paths.UserRoot
             $script:DataRoot = $script:Paths.DataRoot
             $script:UserRoot = $script:Paths.UserRoot
+            # beim Laden der Funktionen schon aus dem echten Benutzerordner gebildet: neu setzen
+            $script:StateFilePath = Join-Path $script:UserRoot 'ui-state.json'
             $env:HUAMT_TESTMODE = '1'
             $script:TestModeActive = $true
         } catch { Show-HUFatal "Der Testmodus konnte nicht starten:`n$($_.Exception.Message)" }
