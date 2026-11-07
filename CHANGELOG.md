@@ -9,11 +9,20 @@
   - Die Mail wird weiterhin nur angezeigt. Im Feld „Von“ steht der Absender und lässt sich vor dem Senden ändern.
 - **Outlook-Ordnerauswahl im Vordergrund:** Der Dialog „Ordner auswählen“ erscheint jetzt vor HU-Amt statt dahinter.
 
+### 🎨 Oberfläche
+- **Verschobene Bereiche bleiben erhalten:** HU-Amt merkt sich in jedem Modul-Reiter und jedem Fenster, wie weit du die Bereiche verschoben hast, und stellt sie beim nächsten Start wieder her.
+  - Das gilt jetzt für alle Module, ohne dass ein Modul dafür etwas tun muss.
+
+### 👥 Kontakte
+- **Kontakte übernehmen:** Module können Kontakte aus dem eigenen Outlook oder aus vCard-Dateien (.vcf) übernehmen, z. B. für Mieter.
+  - Suche nach Name, Firma, Mail oder Ort. vCard-Dateien lassen sich auch ins Fenster ziehen.
+  - Übernommen wird nur, was du markierst.
+
 ### ⚠️ Nach dem Update
 - Für das Senden „im Auftrag von“ eines gemeinsamen Postfachs braucht der Benutzer im Exchange das Recht dazu.
 
 ### ✅ Qualität
-- 180 Tests.
+- 193 Tests.
 
 ## v0.1.9
 

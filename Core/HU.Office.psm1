@@ -310,6 +310,43 @@ function Get-HUOutlookAccounts {
         })
 }
 
+<#
+.SYNOPSIS
+    Kontakte aus dem Kontakte-Ordner des eigenen Outlook (olFolderContacts = 10), im Format von Core\HU.Contacts.psm1:
+    Name, Firma, Mail, Telefon, Mobil, Strasse, Plz, Ort, Land, Quelle. Verteilerlisten werden uebersprungen (nur Class 40 = olContact).
+    -Search filtert nach Name, Firma, Mail und Ort. -Max begrenzt die Anzahl.
+#>
+function Get-HUOutlookContacts {
+    param([string]$Search = '', [int]$Max = 500, $Session = $null)
+    $q = "$Search".Trim()
+    return @(Use-HUOutlookSession $Session {
+            param($s)
+            $f = $null; $items = $null; $n = 0
+            try {
+                $f = $s.Namespace.GetDefaultFolder(10)
+                $items = $f.Items
+                foreach ($it in $items) {
+                    try {
+                        if ([int]$it.Class -ne 40) { continue }
+                        $street = "$($it.MailingAddressStreet)"; $plz = "$($it.MailingAddressPostalCode)"; $city = "$($it.MailingAddressCity)"; $land = "$($it.MailingAddressCountry)"
+                        if (-not ($street + $plz + $city)) { $street = "$($it.BusinessAddressStreet)"; $plz = "$($it.BusinessAddressPostalCode)"; $city = "$($it.BusinessAddressCity)"; $land = "$($it.BusinessAddressCountry)" }
+                        if (-not ($street + $plz + $city)) { $street = "$($it.HomeAddressStreet)"; $plz = "$($it.HomeAddressPostalCode)"; $city = "$($it.HomeAddressCity)"; $land = "$($it.HomeAddressCountry)" }
+                        $tel = "$($it.BusinessTelephoneNumber)"; if (-not $tel) { $tel = "$($it.HomeTelephoneNumber)" }
+                        $name = ("$($it.FullName)" -replace '\s+', ' ').Trim(); $firma = ("$($it.CompanyName)").Trim()
+                        if (-not $name) { $name = $firma }
+                        $mail = "$($it.Email1Address)".Trim()
+                        if ($q -and "$name $firma $mail $city" -notlike "*$q*") { continue }
+                        [pscustomobject]@{ Name = $name; Firma = $firma; Mail = $mail; Telefon = $tel.Trim(); Mobil = "$($it.MobileTelephoneNumber)".Trim()
+                            Strasse = ($street -replace '\s+', ' ').Trim(); Plz = $plz.Trim(); Ort = $city.Trim(); Land = $land.Trim(); Quelle = 'Outlook'
+                        }
+                        $n++
+                        if ($n -ge $Max) { break }
+                    } finally { Remove-HUComObject $it }
+                }
+            } finally { Remove-HUComObject @($items, $f) }
+        })
+}
+
 function Find-HUOutlookAccount($Session, [string]$Address) {
     $accs = $Session.Namespace.Accounts
     try {
@@ -889,7 +926,7 @@ function Stop-HUOwnProcess([int]$ProcessId, [int]$GraceSeconds = 15) {
     [void]$ps.BeginInvoke()
 }
 
-Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode, Get-HUOutlookAccounts,
+Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode, Get-HUOutlookAccounts, Get-HUOutlookContacts,
     Open-HUOutlook, Close-HUOutlook, Invoke-HUOutlook, ConvertTo-HUOutlookFolderSpec, Get-HUOutlookFolder, Select-HUOutlookFolder,
     Find-HUOutlookItem, Get-HUOutlookItemKey, Set-HUOutlookAppointment, Set-HUOutlookTask, Complete-HUOutlookItem, Remove-HUOutlookItem,
     New-HUMailtoUri, Show-HUMail, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,

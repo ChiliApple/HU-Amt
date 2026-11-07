@@ -134,6 +134,19 @@ $r = Set-HUOutlookAppointment -Folder $einst.Kalender -Key "Buchung:$($b.Id)" -E
 $b.OutlookId = $r.EntryId
 ```
 
+## Oberfläche: was der Kern für jedes Modul erledigt
+
+- **Verschiebbare Bereiche (GridSplitter):** Der Kern merkt sich in jedem Reiter und in jedem Fenster mit `Restore-HUDialogState`/`Save-HUDialogState` die Zeilen- und Spaltengrößen aller Grids mit Splitter (je Benutzer, ab 0.1.10). **Module bauen dafür nichts Eigenes.** Ein Grid bekommt am besten ein `x:Name`, dann bleibt die Zuordnung auch bei Umbauten stabil.
+- **Fenstergröße und -position:** `Restore-HUDialogState $w '<Name>'` beim Öffnen, `Save-HUDialogState $w '<Name>'` beim Schließen.
+- **Tabellen:** Spaltenbreite nach Inhalt, Knöpfe wachsen mit der Beschriftung, Anfasser an jedem größenveränderbaren Fenster (über `New-HUWindow`).
+
+## Kontakte übernehmen
+
+Ab Kern 0.1.10. `Select-HUContact [-Multiple]` öffnet „Kontakt übernehmen“: Suche, Outlook-Kontakte (eigener Ordner Kontakte), vCard-Dateien öffnen oder hineinziehen. Rückgabe: die markierten Kontakte mit `Name`, `Firma`, `Mail`, `Telefon`, `Mobil`, `Strasse`, `Plz`, `Ort`, `Land`, `Quelle`; das Modul übernimmt die Felder selbst.
+
+- Ohne Fenster: `Get-HUOutlookContacts [-Search] [-Max]`, `Import-HUVCardFile -Path`, `ConvertFrom-HUVCard -Text`, `Find-HUContact`.
+- vCard 4.0, 3.0 und 2.1 (Outlook-Export mit Quoted-Printable). Im Testmodus geht nur vCard.
+
 ## Testmodus und geführter Test
 
 Ab Kern 0.1.9 (`minApp` 0.1.9). Den Testmodus startet ein Verwalter in den Einstellungen; HU-Amt startet dafür neu.

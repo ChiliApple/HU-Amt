@@ -145,12 +145,12 @@ if (-not $SmokeTest) {
 # 1. CORE-MODULE, FUNKTIONEN
 # ============================================================================
 Set-HUSplashStatus 'Module werden geladen ...'
-foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office')) {
+foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU.Contacts')) {
     $modPath = Join-Path $script:AppRoot "Core\$mod.psm1"
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -293,6 +293,8 @@ foreach ($__a in @(Get-HUAddonStartList)) {
         . (Join-Path $__a.Dir $__a.Script)
         Add-HUAddonTab $__a
         & $__a.Init
+        # verschiebbare Bereiche des Reiters: Kern merkt sie sich (nach dem Start des Moduls, damit die gemerkte Groesse gilt)
+        try { Register-HUSplitterState (@($script:Controls['tabMain'].Items)[-1]) "Reiter.$($__a.Id)" } catch { Write-HULogWarn "Bereiche $($__a.Id): $($_.Exception.Message)" }
         $script:LoadedAddons += $__a
         Write-HULogOK "Modul geladen: $($__a.Title) $($__a.Version)$(if ($__a.Source -ne 'Programm') { " ($($__a.Source))" })"
     } catch { Write-HULogWarn "Modul $($__a.Id) nicht geladen: $($_.Exception.Message)" }
