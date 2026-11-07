@@ -84,38 +84,87 @@ function Assert-HUOfficeKey([string]$Key) {
 
 # ---------------------------------------------------------------- Outlook: Sitzung ----------------------------------------------------------------
 
+# RPC-Fehler, bei denen Outlook nur kurz nicht annimmt: beim kalten Start oder waehrend es sich nach Quit beendet.
+# 0x80010001 RPC_E_CALL_REJECTED, 0x800706BA RPC-Server nicht verfuegbar, 0x800706BE Remoteprozeduraufruf fehlgeschlagen.
+$script:HUOfRetryHResults = @(-2147418111, -2147023174, -2147023170)
+$script:HUOfCreateApp = { New-Object -ComObject Outlook.Application -ErrorAction Stop }   # im Test ersetzbar
+$script:HUOfRetryDelayMs = 2000
+
+function Get-HUComHResult($ErrorRecordOrException) {
+    $ex = $(if ($ErrorRecordOrException -is [System.Management.Automation.ErrorRecord]) { $ErrorRecordOrException.Exception } else { $ErrorRecordOrException })
+    while ($ex) {
+        if ($ex.HResult -and $script:HUOfRetryHResults -contains [int]$ex.HResult) { return [int]$ex.HResult }
+        $ex = $ex.InnerException
+    }
+    return 0
+}
+
+# Skriptblock ausfuehren und bei den RPC-Fehlern oben bis -TimeoutSeconds wiederholen. Andere Fehler gehen sofort weiter.
+function Invoke-HUComRetry([scriptblock]$Action, [int]$TimeoutSeconds = 30) {
+    $until = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ($true) {
+        try { return (& $Action) }
+        catch {
+            if ((Get-HUComHResult $_) -eq 0 -or (Get-Date) -ge $until) { throw }
+            Start-Sleep -Milliseconds $script:HUOfRetryDelayMs
+        }
+    }
+}
+
 <#
 .SYNOPSIS
-    Outlook-Sitzung oeffnen. Rueckgabe: Application, Namespace, WasRunning. Immer mit Close-HUOutlook schliessen.
+    Outlook-Sitzung oeffnen. Rueckgabe: Application, Namespace, WasRunning, ProcessId. Immer mit Close-HUOutlook schliessen.
+    Startet Outlook kalt oder beendet es sich gerade, lehnt es Aufrufe kurz ab (RPC_E_CALL_REJECTED u. a.):
+    dann wird bis -TimeoutSeconds wiederholt (im Echttest aufgefallen).
 #>
 function Open-HUOutlook {
+    param([int]$TimeoutSeconds = 30)
     if (-not (Test-HUOutlookClassic)) { throw 'Das klassische Outlook ist nicht installiert.' }
-    $was = [bool](Get-Process -Name OUTLOOK -ErrorAction SilentlyContinue)
-    $app = New-Object -ComObject Outlook.Application
-    try { $ns = $app.GetNamespace('MAPI') } catch { Remove-HUComObject $app; throw }
-    return [pscustomobject]@{ Application = $app; Namespace = $ns; WasRunning = $was }
+    $before = @(Get-Process -Name OUTLOOK -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+    $was = ($before.Count -gt 0)
+    $app = Invoke-HUComRetry -TimeoutSeconds $TimeoutSeconds -Action $script:HUOfCreateApp
+    if ($null -eq $app) { throw 'Outlook konnte nicht gestartet werden.' }
+    $ns = $null
+    try { $ns = Invoke-HUComRetry -TimeoutSeconds $TimeoutSeconds -Action { $app.GetNamespace('MAPI') } }
+    catch { Remove-HUComObject $app; throw }
+    $procId = 0
+    if (-not $was) {
+        $new = @(Get-Process -Name OUTLOOK -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.Id })
+        if ($new.Count -eq 1) { $procId = [int]$new[0].Id }
+    }
+    return [pscustomobject]@{ Application = $app; Namespace = $ns; WasRunning = $was; ProcessId = $procId }
 }
 
 <#
 .SYNOPSIS
     Outlook-Sitzung schliessen. Beendet Outlook nur, wenn es vorher nicht lief und kein Fenster offen ist (z. B. eine angezeigte Mail).
+    Nach Quit wird bis zu -WaitSeconds gewartet, bis der selbst gestartete Prozess weg ist. Sonst hielte die naechste Sitzung
+    das sterbende Outlook fuer „lief schon“ und wuerde es nie beenden. Outlook wird nie hart beendet.
 #>
 function Close-HUOutlook {
-    param($Session)
+    param($Session, [int]$WaitSeconds = 15)
     if (-not $Session) { return }
     $app = $Session.Application
+    $quit = $false
     try {
         if ($app -and -not $Session.WasRunning) {
             $ex = $null; $in = $null
             try {
                 $ex = $app.Explorers; $in = $app.Inspectors
-                if ([int]$ex.Count -eq 0 -and [int]$in.Count -eq 0) { $app.Quit() }
+                if ([int]$ex.Count -eq 0 -and [int]$in.Count -eq 0) { Invoke-HUComRetry -TimeoutSeconds 10 -Action { $app.Quit() }; $quit = $true }
             } catch { } finally { Remove-HUComObject @($ex, $in) }
         }
     } finally {
         Remove-HUComObject @($Session.Namespace, $app)
         $Session.Namespace = $null; $Session.Application = $null
         [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+    }
+    $pidProp = $Session.PSObject.Properties['ProcessId']
+    if ($quit -and $pidProp -and [int]$pidProp.Value -gt 0) {
+        # WaitForExit statt Get-Process: ein Prozess, der sich gerade beendet, ist per Id oft schon nicht mehr zu finden (PS 7)
+        $pr = $null
+        try { $pr = [System.Diagnostics.Process]::GetProcessById([int]$pidProp.Value); [void]$pr.WaitForExit($WaitSeconds * 1000) }
+        catch { } finally { if ($pr) { $pr.Dispose() } }
     }
 }
 

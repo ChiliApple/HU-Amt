@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## v0.1.8
+
+### 📨 Outlook und Word
+- **Outlook startet zuverlässig:** Wird Outlook gerade erst gestartet oder beendet es sich noch, wartet HU-Amt bis zu 30 Sekunden und versucht es erneut, statt abzubrechen.
+  - Bisher konnte dabei ein unsichtbares Outlook im Hintergrund weiterlaufen.
+- **Outlook wird sauber beendet:** Hat HU-Amt Outlook selbst gestartet, wartet es nach dem Beenden kurz, bis Outlook wirklich zu ist.
+
+### ✅ Qualität
+- 147 Tests.
+
 ## v0.1.7
 
 ### 📨 Outlook und Word
