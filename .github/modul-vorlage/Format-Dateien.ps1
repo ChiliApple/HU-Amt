@@ -4,12 +4,25 @@
     Bringt die eigenen Textdateien des Moduls auf UTF-8 mit BOM und CRLF (.yml und .py ohne BOM, mit LF).
 .NOTES
     Zielmaschine: nb001. Wird vor jedem Commit und von Deploy-Dev.ps1 (gleiche Regel) gebraucht.
+    Beachtet aus .github\dev\modul-dev.json (neben diesem Skript): "formatAusschluss" (Regex auf den relativen Pfad,
+    Standard wie Deploy-Dev: ^\.github\\dev\\Werkzeuge\\) und "ohneFormat": true (dann aendert es nichts).
 #>
 $ErrorActionPreference = 'Stop'
 $src = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $bom = New-Object System.Text.UTF8Encoding $true
 $nobom = New-Object System.Text.UTF8Encoding $false
+
+$ausschluss = '^\.github\\dev\\Werkzeuge\\'
+$cfgPfad = Join-Path $PSScriptRoot 'modul-dev.json'
+if (Test-Path -LiteralPath $cfgPfad) {
+    $cfg = [IO.File]::ReadAllText($cfgPfad, [Text.Encoding]::UTF8) | ConvertFrom-Json
+    if ($cfg.PSObject.Properties['ohneFormat'] -and [bool]$cfg.ohneFormat) { Write-Host 'modul-dev.json: ohneFormat, nichts geaendert.'; return }
+    if ($cfg.PSObject.Properties['formatAusschluss'] -and "$($cfg.formatAusschluss)") { $ausschluss = "$($cfg.formatAusschluss)" }
+}
+
 foreach ($f in @(Get-ChildItem -LiteralPath $src -Recurse -File -Force | Where-Object { $_.FullName -notmatch '\\\.git\\' })) {
+    $rel = $f.FullName.Substring($src.Length + 1)
+    if ($ausschluss -and $rel -match $ausschluss) { continue }
     $ext = $f.Extension.ToLowerInvariant()
     $lf = $ext -in '.yml', '.py'
     if (-not $lf -and $ext -notin '.ps1', '.psm1', '.xaml', '.json', '.md', '.html', '.txt') { if ($f.Name -notin 'LICENSE', '.gitignore', '.gitattributes') { continue } }
@@ -21,6 +34,6 @@ foreach ($f in @(Get-ChildItem -LiteralPath $src -Recurse -File -Force | Where-O
     $wantBom = -not $lf -and $f.Name -notin '.gitignore', '.gitattributes'
     if ($n -ne $t -or $hasBom -ne $wantBom) {
         [IO.File]::WriteAllText($f.FullName, $n, $(if ($wantBom) { $bom } else { $nobom }))
-        Write-Host "angepasst: $($f.FullName.Substring($src.Length + 1))"
+        Write-Host "angepasst: $rel"
     }
 }

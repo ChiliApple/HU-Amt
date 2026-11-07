@@ -239,6 +239,25 @@ Describe 'Vorlage Format-Dateien' {
             [IO.File]::ReadAllText((Join-Path $repo '.git\HEAD')) | Should -Be "ref: refs/heads/test`n"
         } finally { Remove-Item -LiteralPath $d -Recurse -Force }
     }
+    It 'beachtet formatAusschluss und ohneFormat aus modul-dev.json' {
+        $d = New-TestDir 'HUAmtVorlage'
+        try {
+            $repo = Join-Path $d 'Repo'
+            $dev = New-FakeRepo $repo
+            New-Item -ItemType Directory -Force (Join-Path $repo 'web') | Out-Null
+            $h = Join-Path $repo 'web\index.html'
+            Write-TestText $h "<p>x</p>`n" $script:Utf8
+            Write-TestText (Join-Path $dev 'modul-dev.json') '{ "formatAusschluss": "^web\\\\" }' $script:Utf8Bom
+            & (Join-Path $dev 'Format-Dateien.ps1') 6>$null
+            Test-Bom $h | Should -BeFalse
+            [IO.File]::ReadAllText($h) | Should -Be "<p>x</p>`n"
+            Test-Bom (Join-Path $repo 'Addon.ps1') | Should -BeTrue
+            Write-TestText (Join-Path $repo 'neu.ps1') "x`n" $script:Utf8
+            Write-TestText (Join-Path $dev 'modul-dev.json') '{ "ohneFormat": true }' $script:Utf8Bom
+            & (Join-Path $dev 'Format-Dateien.ps1') 6>$null
+            Test-Bom (Join-Path $repo 'neu.ps1') | Should -BeFalse
+        } finally { Remove-Item -LiteralPath $d -Recurse -Force }
+    }
 }
 
 Describe 'Vorlage Deploy-Dev' {

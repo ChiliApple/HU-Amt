@@ -8,7 +8,7 @@ Die drei Skripte kommen **unverändert** nach `.github/dev/` im Modul-Repository
 
 | Vorlage | im Modul | Zweck |
 |---|---|---|
-| `Format-Dateien.ps1` | `.github/dev/Format-Dateien.ps1` | Textdateien auf UTF-8 mit BOM und CRLF bringen (`.yml` und `.py` ohne BOM, mit LF). Vor jedem Commit. |
+| `Format-Dateien.ps1` | `.github/dev/Format-Dateien.ps1` | Textdateien auf UTF-8 mit BOM und CRLF bringen (`.yml` und `.py` ohne BOM, mit LF). Vor jedem Commit. Beachtet `formatAusschluss` und `ohneFormat` aus `modul-dev.json` wie `Deploy-Dev.ps1`. |
 | `Deploy-Dev.ps1` | `.github/dev/Deploy-Dev.ps1` | Modul in die Test-App kopieren (`<App>\AddonsDev\<Modul-Id>`). |
 | `Test-Start.ps1` | `.github/dev/Test-Start.ps1` | Starttest der App mit nur diesem Modul in einer Temp-Kopie der Test-App, unter PowerShell 5.1 und 7. |
 

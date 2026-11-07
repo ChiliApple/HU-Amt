@@ -11,7 +11,7 @@
 - **Umstellung der Module folgt:** Die Module übernehmen die Bausteine mit ihren nächsten Testversionen. Bis dahin arbeiten sie unverändert weiter.
 
 ### ✅ Qualität
-- 346 Tests, alle im strengen Modus wie die App.
+- 347 Tests, alle im strengen Modus wie die App.
 
 ## v0.1.10
 
