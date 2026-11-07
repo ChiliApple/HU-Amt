@@ -152,6 +152,52 @@ Describe 'Termin und Aufgabe setzen' {
     }
 }
 
+Describe 'Outlook starten mit Wiederholung' {
+    BeforeAll {
+        Mock -ModuleName HU.Office Test-HUOutlookClassic { $true }
+        InModuleScope HU.Office { $script:HUOfRetryDelayMs = 10 }
+        function New-RpcError([int]$HResult) { $e = New-Object System.Runtime.InteropServices.COMException('abgelehnt', $HResult); return $e }
+    }
+    AfterAll { InModuleScope HU.Office { $script:HUOfRetryDelayMs = 2000; $script:HUOfCreateApp = { New-Object -ComObject Outlook.Application -ErrorAction Stop } } }
+    BeforeEach {
+        $script:Calls = 0
+        $script:FakeApp = [pscustomobject]@{}
+        $script:FakeApp | Add-Member ScriptMethod GetNamespace { param($n) "ns-$n" }
+    }
+    It 'RPC_E_CALL_REJECTED beim kalten Start: wiederholt und oeffnet dann' {
+        $err = New-RpcError -2147418111
+        InModuleScope HU.Office -Parameters @{ Err = $err; App = $script:FakeApp } {
+            param($Err, $App)
+            $script:N = 0
+            $script:TErr = $Err; $script:TApp = $App
+            $script:HUOfCreateApp = { $script:N++; if ($script:N -lt 3) { throw $script:TErr }; $script:TApp }
+        }
+        $s = Open-HUOutlook -TimeoutSeconds 5
+        $s.Namespace | Should -Be 'ns-MAPI'
+        InModuleScope HU.Office { $script:N } | Should -Be 3
+    }
+    It 'RPC-Server weg (0x800706BA) zaehlt ebenfalls als kurz nicht erreichbar' {
+        $err = New-RpcError -2147023174
+        InModuleScope HU.Office -Parameters @{ Err = $err; App = $script:FakeApp } {
+            param($Err, $App)
+            $script:N = 0
+            $script:TErr = $Err; $script:TApp = $App
+            $script:HUOfCreateApp = { $script:N++; if ($script:N -lt 2) { throw $script:TErr }; $script:TApp }
+        }
+        (Open-HUOutlook -TimeoutSeconds 5).Namespace | Should -Be 'ns-MAPI'
+    }
+    It 'andere Fehler werden nicht wiederholt' {
+        InModuleScope HU.Office { $script:N = 0; $script:HUOfCreateApp = { $script:N++; throw 'Klasse nicht registriert' } }
+        { Open-HUOutlook -TimeoutSeconds 5 } | Should -Throw '*nicht registriert*'
+        InModuleScope HU.Office { $script:N } | Should -Be 1
+    }
+    It 'nach Ablauf der Zeit wird der letzte Fehler gemeldet' {
+        $err = New-RpcError -2147418111
+        InModuleScope HU.Office -Parameters @{ Err = $err } { param($Err); $script:TErr = $Err; $script:HUOfCreateApp = { throw $script:TErr } }
+        { Open-HUOutlook -TimeoutSeconds 1 } | Should -Throw '*abgelehnt*'
+    }
+}
+
 Describe 'Outlook schliessen' {
     BeforeEach {
         $script:Quit = 0

@@ -99,6 +99,7 @@ Module bauen keine eigenen COM-Aufrufe, sondern nutzen den Kern (`Core\HU.Office
 
 - `Open-HUOutlook` / `Close-HUOutlook $s` oder `Invoke-HUOutlook { param($s) ... }`: eine Sitzung für viele Einträge, z. B. beim Abgleich am Start. Alle folgenden Funktionen nehmen `-Session`; ohne sie öffnen und schließen sie selbst.
   - Outlook wird nur beendet, wenn es vorher nicht lief und kein Fenster offen ist.
+  - Lehnt Outlook beim kalten Start oder kurz nach dem Beenden Aufrufe ab (`RPC_E_CALL_REJECTED` u. a.), wiederholt `Open-HUOutlook` bis `-TimeoutSeconds` (Standard 30). Ab Kern 0.1.8.
 - `Select-HUOutlookFolder -Type Calendar|Tasks`: Ordner im Outlook-Dialog wählen, auch einen gemeinsamen Kalender. Rückgabe `Name`, `Path`, `EntryId`, `StoreId`, `Type` oder `$null` bei Abbruch. Diese Angabe speichert das Modul in seinen Einstellungen und gibt sie als `-Folder` weiter. Leer = Standardordner des Benutzers.
 - `Set-HUOutlookAppointment -Folder -Key [-EntryId] -Subject -Start [-End] [-AllDay] [-Location] [-Body] [-ReminderMinutes] [-BusyStatus] [-Categories]`: anlegen oder denselben Termin ändern. Rückgabe `EntryId`, `StoreId`, `Created`.
 - `Set-HUOutlookTask -Folder -Key [-EntryId] -Subject -DueDate [-StartDate] [-ReminderTime] [-Body] [-Categories]`: dasselbe für Aufgaben.
