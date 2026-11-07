@@ -353,14 +353,20 @@ $script:OnContentRendered = {
                 $tabs = @($script:Controls['tabMain'].Items).Count
                 if ($tabs -ne [Math]::Max(1, @($script:LoadedAddons).Count)) { throw "Reiter: $tabs, Module: $(@($script:LoadedAddons).Count)" }
                 $script:SmokeSteps += "Module=$(@($script:LoadedAddons).Count)"; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
-                # Hineinziehen: jede Endung eines Moduls muss bei diesem Modul ankommen (Ziel ohne echtes Ziehen bestimmen)
+                # Hineinziehen: bei offenem Reiter eines Moduls muss jede seiner Endungen dort ankommen (Ziel ohne echtes Ziehen bestimmen).
+                # Teilen sich mehrere Module eine Endung (z. B. .pdf), entscheidet in der App der offene Reiter.
+                $selVorher = $script:Controls['tabMain'].SelectedItem
                 foreach ($a in @($script:LoadedAddons | Where-Object { Test-HUAddonCanDrop $_ })) {
+                    $tab = $null
+                    foreach ($it in @($script:Controls['tabMain'].Items)) { if ($script:AddonByTab.ContainsKey("$($it.Name)") -and $script:AddonByTab["$($it.Name)"].Id -eq $a.Id) { $tab = $it; break } }
+                    if ($tab) { $script:Controls['tabMain'].SelectedItem = $tab }
                     foreach ($x in @($a.Drop)) {
                         $tg = Resolve-HUDropTarget @("C:\Test\Datei$x")
-                        if (-not $tg -or $tg.Info.Id -ne $a.Id) { throw "Hineinziehen: $x kommt nicht bei $($a.Id) an" }
+                        if (-not $tg -or $tg.Info.Id -ne $a.Id) { throw "Hineinziehen: $x kommt bei offenem Reiter nicht bei $($a.Id) an" }
                     }
                     $script:SmokeSteps += "Ziehen-$($a.Id)"; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 }
+                if ($selVorher) { $script:Controls['tabMain'].SelectedItem = $selVorher }
                 if (Resolve-HUDropTarget @('C:\Test\Datei.unbekannt')) { throw 'Hineinziehen: unbekannte Endung angenommen' }
                 # Sicherung: Quellen nur aus Data, ohne Logs, Token, Sperren
                 $src = @(Get-HUAppBackupSources -DataRoot $script:DataRoot)
