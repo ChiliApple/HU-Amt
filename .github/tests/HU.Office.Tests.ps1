@@ -311,6 +311,20 @@ Describe 'Aufpasser fuer eigene Prozesse' {
     }
 }
 
+Describe 'Testmodus sperrt Outlook, Word und Mail' {
+    BeforeAll { $script:OldEnv = $env:HUAMT_TESTMODE; $env:HUAMT_TESTMODE = '1' }
+    AfterAll { if ($null -eq $script:OldEnv) { Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue } else { $env:HUAMT_TESTMODE = $script:OldEnv } }
+    It 'Test-HUOfficeTestMode erkennt den Testmodus' { Test-HUOfficeTestMode | Should -BeTrue }
+    It 'Outlook wird nicht geoeffnet' { { Open-HUOutlook } | Should -Throw '*Testmodus*' }
+    It 'Termin ohne Sitzung wird nicht angelegt' { { Set-HUOutlookAppointment -Key 'Test:1' -Subject 's' -Start (Get-Date) } | Should -Throw '*Testmodus*' }
+    It 'Word wird nicht gestartet' { { Invoke-HUWordTemplate -Template 'C:\x.docx' -PdfPath 'x.pdf' } | Should -Throw '*Testmodus*' }
+    It 'Mail oeffnet nichts und meldet den Testmodus' { (Show-HUMail -To 'a@b.at' -Subject 'x').Way | Should -Be 'testmodus' }
+    It '.ics-Datei geht weiter (nur eine Datei)' {
+        $p = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtIcsT-' + [guid]::NewGuid().ToString('N') + '.ics')
+        try { New-HUIcsFile -Path $p -Uid 'x' -Subject 'T' -Start ([datetime]'2030-01-01 10:00') | Should -Be $p } finally { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 Describe 'Erkennung' {
     It 'liefert Wahr/Falsch und wirft nie' {
         Test-HUOutlookClassic | Should -BeOfType [bool]

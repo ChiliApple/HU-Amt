@@ -20,6 +20,7 @@ BeforeAll {
             'Docs\Beispiel\index.html'                = 'h'
             'Wiederherstellung\2026-11-01_101010\x'   = 'v'
             'Beispiel\Liste.xlsx.lock'                = 'l'
+            '_Test\Beispiel\verlauf.txt'              = 't'
         }
         foreach ($k in $files.Keys) {
             $p = Join-Path $Base $k
@@ -44,8 +45,8 @@ Describe 'Was gesichert wird' {
         $script:Names | Should -Contain 'data/Beispiel/_Kopien/Liste_20261103-101010.xlsx'
         $script:Names | Should -Contain 'data/Benutzer/anna/ui-state.json'
     }
-    It 'laesst Logs, Token, Sperren, Hilfe, Vorstand und das gespeicherte Kennwort weg' {
-        @($script:Names | Where-Object { $_ -match '/Logs/|/Token/|^data/Laufend/|^data/Docs/|^data/Wiederherstellung/|\.lock$|sicherung-kennwort\.dat$' }).Count | Should -Be 0
+    It 'laesst Logs, Token, Sperren, Hilfe, Vorstand, Testbestand und das gespeicherte Kennwort weg' {
+        @($script:Names | Where-Object { $_ -match '/Logs/|/Token/|^data/Laufend/|^data/Docs/|^data/Wiederherstellung/|^data/_Test/|\.lock$|sicherung-kennwort\.dat$' }).Count | Should -Be 0
         $script:Names.Count | Should -Be 5
     }
     It 'Bereiche: je Modul, Benutzer, Verwalter, Allgemein' {

@@ -35,11 +35,13 @@ function Initialize-HUDataPaths {
     param(
         [Parameter(Mandatory)][string]$AppRoot,
         [string]$UserName = $env:USERNAME,
-        [string]$PcName = $env:COMPUTERNAME
+        [string]$PcName = $env:COMPUTERNAME,
+        [switch]$TestMode   # Datenstamm Data\_Test\ (Testbestand); laufende Apps bleiben in Data\Laufend
     )
-    $data = Join-Path $AppRoot 'Data'
+    $base = Join-Path $AppRoot 'Data'
+    $data = $(if ($TestMode) { Join-Path $base '_Test' } else { $base })
     $user = Join-Path (Join-Path $data 'Benutzer') (Get-HUSafeName $UserName)
-    $run = Join-Path $data 'Laufend'
+    $run = Join-Path $base 'Laufend'
     foreach ($d in $data, $user, $run) {
         if (-not (Test-Path -LiteralPath $d)) { [void](New-Item -ItemType Directory -Path $d -Force) }
     }

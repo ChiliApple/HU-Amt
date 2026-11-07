@@ -15,7 +15,7 @@
 .NOTES
     Zielmaschine: der PC, auf dem HU-Amt laeuft (Windows 10/11, Windows PowerShell 5.1 oder PowerShell 7).
 #>
-param([switch]$ShowConsole, [string]$SmokeTest = '', [int]$WaitForPid = 0)
+param([switch]$ShowConsole, [string]$SmokeTest = '', [int]$WaitForPid = 0, [switch]$TestMode)
 
 # Konsolenfenster ausblenden (nur die WPF-Oberflaeche ist sichtbar)
 if (-not $ShowConsole) {
@@ -150,10 +150,30 @@ foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office')) {
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'UI-Common', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
+}
+
+# ============================================================================
+# 1b. TESTMODUS (nur Verwalter, nur diese Sitzung): Datenstamm Data\_Test\, Outlook/Word/Mail gesperrt
+# ============================================================================
+Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue   # nie vom Vorgaenger-Prozess erben
+$script:TestMode = $false; $script:TestResetDone = $false; $script:TestModeRequested = [bool]$TestMode
+# im Starttest (CI) ohne Verwalter-Pruefung, damit auch der Testmodus automatisch geprueft wird
+if ($TestMode) {
+    if ($SmokeTest -or (Test-HUVerwalter)) {
+        try {
+            $script:TestResetDone = Initialize-HUTestData
+            $script:Paths = Initialize-HUDataPaths -AppRoot $script:AppRoot -TestMode
+            Assert-HUWritable $script:Paths.UserRoot
+            $script:DataRoot = $script:Paths.DataRoot
+            $script:UserRoot = $script:Paths.UserRoot
+            $env:HUAMT_TESTMODE = '1'
+            $script:TestMode = $true
+        } catch { Show-HUFatal "Der Testmodus konnte nicht starten:`n$($_.Exception.Message)" }
+    }
 }
 
 # ============================================================================
@@ -211,6 +231,13 @@ $minLevel = "$($script:Settings.logging.logLevel)".ToUpper()
 if ($minLevel -notin 'DEBUG', 'INFO', 'OK', 'WARN', 'ERROR') { $minLevel = 'INFO' }
 Initialize-Logging -LogFilePath $logFile -RichTextBox $c['rtbLog'] -MinLevel $minLevel -MaxGuiLines ([int]$script:Settings.ui.maxLogLines)
 Write-HULogInfo "$($script:AppTitle) v$($script:Version) startet (PowerShell $($PSVersionTable.PSVersion), Benutzer $($script:UserName)) ..."
+if ($script:TestMode) {
+    Write-HULogWarn "TESTMODUS: Daten in $($script:DataRoot). Outlook, Word und Mails sind gesperrt, die automatische Sicherung ruht."
+    if ($script:TestResetDone) { Write-HULogOK 'Testbestand wurde zurückgesetzt.' }
+    $c['bdrTestMode'].Visibility = 'Visible'
+    $c['btnTestReset'].Add_Click({ Request-HUTestReset })
+    $c['btnTestEnd'].Add_Click({ Switch-HUTestMode })
+}
 # Protokolle aelter als logging.retentionDays (Standard 30) beim Start loeschen: die der App und die der Module (alle *.log in Logs)
 try {
     $keep = 30; try { if ([int]$script:Settings.logging.retentionDays -gt 0) { $keep = [int]$script:Settings.logging.retentionDays } } catch { }
@@ -231,7 +258,7 @@ function Update-VersionDisplay {
     $t.Text = "v$($script:Version)  |  $txt"
     $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($col)
     $t.ToolTip = $(if ($cfg -and $cfg.UseBranch) { "Updates kommen direkt aus dem Repo (Branch $($cfg.Branch)), ohne freigegebene Version" } elseif ($txt -eq 'Kanal Test') { 'Updates: auch Testversionen.' } else { 'Updates: nur freigegebene Versionen.' })
-    $script:Window.Title = "$($script:AppTitle) v$($script:Version)"
+    $script:Window.Title = "$(if ($script:TestMode) { 'TEST - ' })$($script:AppTitle) v$($script:Version)"
 }
 
 # ============================================================================
@@ -309,6 +336,14 @@ $script:OnContentRendered = {
                 $script:SmokeSteps += 'Titel'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 if (-not ('HUTaskbar' -as [type])) { throw 'Taskleiste' }
                 $script:SmokeSteps += 'Taskleiste'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
+                if ($script:TestModeRequested) {
+                    if (-not $script:TestMode -or -not (Test-HUTestMode)) { throw 'Testmodus nicht aktiv' }
+                    if (-not $script:DataRoot.EndsWith('Data' + [IO.Path]::DirectorySeparatorChar + '_Test')) { throw "Testmodus: Datenstamm $($script:DataRoot)" }
+                    if ("$($script:Controls['bdrTestMode'].Visibility)" -ne 'Visible') { throw 'Testmodus: Leiste nicht sichtbar' }
+                    if (-not (Test-HUOfficeTestMode)) { throw 'Testmodus: Office nicht gesperrt' }
+                    if ((Show-HUMail -Subject 'x').Way -ne 'testmodus') { throw 'Testmodus: Mail nicht gesperrt' }
+                    $script:SmokeSteps += 'Testmodus'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
+                }
                 $tabs = @($script:Controls['tabMain'].Items).Count
                 if ($tabs -ne [Math]::Max(1, @($script:LoadedAddons).Count)) { throw "Reiter: $tabs, Module: $(@($script:LoadedAddons).Count)" }
                 $script:SmokeSteps += "Module=$(@($script:LoadedAddons).Count)"; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
@@ -362,9 +397,9 @@ $script:OnContentRendered = {
         return
     }
     # Erststart ohne Verwalter: einmal fragen, ob dieser Benutzer Verwalter wird
-    try { [void](Request-HUFirstVerwalter) } catch { Write-HULogWarn "Verwalter: $($_.Exception.Message)" }
-    # Sicherung: Stand in der Kopfzeile, Automatik (beim Start und stuendlich, wenn faellig)
-    try { Update-HUAbMainStatus; Start-HUAppBackupScheduler } catch { Write-HULogWarn "Sicherung: $($_.Exception.Message)" }
+    if (-not $script:TestMode) { try { [void](Request-HUFirstVerwalter) } catch { Write-HULogWarn "Verwalter: $($_.Exception.Message)" } }
+    # Sicherung: Stand in der Kopfzeile, Automatik (beim Start und stuendlich, wenn faellig) - nicht im Testmodus
+    if (-not $script:TestMode) { try { Update-HUAbMainStatus; Start-HUAppBackupScheduler } catch { Write-HULogWarn "Sicherung: $($_.Exception.Message)" } }
     # Update-Pruefung im Hintergrund (Knopf wird gold), Module im Hintergrund aktualisieren
     if ($script:Settings.ui.checkUpdatesOnStart -ne $false) { try { Invoke-UpdateCheck -Quiet; Start-HUAddonUpdate } catch { Write-HULogWarn "Update-Prüfung: $($_.Exception.Message)" } }
     # Starter HU-Amt.exe (eigenes Logo, ohne Konsolenfenster) bereitstellen, falls er fehlt

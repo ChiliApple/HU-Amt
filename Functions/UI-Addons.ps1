@@ -413,9 +413,12 @@ function Show-HUAddonRestartPrompt([string[]]$Names) {
 
 # App beenden und neu starten: die neue Instanz startet sofort, zeigt "wird neu gestartet" und wartet,
 # bis diese beendet ist (Main.ps1 -WaitForPid).
-function Restart-HUApp {
+# -EnterTestMode / -LeaveTestMode: Testmodus starten bzw. beenden; sonst bleibt ein laufender Testmodus erhalten.
+function Restart-HUApp([switch]$EnterTestMode, [switch]$LeaveTestMode) {
     try {
-        $si = Get-HUAppStartInfo "-WaitForPid $PID"
+        $extra = "-WaitForPid $PID"
+        if ($EnterTestMode -or ((Test-HUTestMode) -and -not $LeaveTestMode)) { $extra += ' -TestMode' }
+        $si = Get-HUAppStartInfo $extra
         Start-Process -FilePath $si.Exe -WorkingDirectory $script:AppRoot -WindowStyle Hidden -ArgumentList $si.Args | Out-Null
         Write-HULogOK "$($script:AppTitle) wird neu gestartet ..."
         $script:Window.Close()

@@ -47,6 +47,22 @@
             </DockPanel>
         </Border>
 
+        <!-- ========== TESTMODUS (nur sichtbar im Testmodus) ========== -->
+        <Border x:Name="bdrTestMode" DockPanel.Dock="Top" Background="#E65100" Padding="14,6" Visibility="Collapsed"
+                ToolTip="Testmodus: eigener Testbestand (Data\_Test), echte Daten bleiben unber&#xFC;hrt">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <Button x:Name="btnTestReset" Content="Test zur&#xFC;cksetzen" Style="{StaticResource ToolButton}" Margin="0,0,6,0"
+                            ToolTip="Alle Testdaten l&#xF6;schen und mit leerem Testbestand neu starten (echte Daten bleiben unber&#xFC;hrt)"/>
+                    <Button x:Name="btnTestEnd" Content="Testmodus beenden" Style="{StaticResource ToolButton}"
+                            ToolTip="Neu starten und wieder mit den echten Daten arbeiten"/>
+                </StackPanel>
+                <TextBlock x:Name="txtTestMode" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" TextWrapping="Wrap"
+                           Text="&#x1F9EA; TESTMODUS &#x2013; Testbestand, keine echten Daten, kein Outlook, kein Word, keine Mails"
+                           ToolTip="Gilt bis zum n&#xE4;chsten normalen Neustart. Die automatische Sicherung ruht."/>
+            </DockPanel>
+        </Border>
+
         <!-- ========== PROTOKOLL (unten) ========== -->
         <Border x:Name="pnlLog" DockPanel.Dock="Bottom" Background="#2D2D2D" CornerRadius="4" Padding="10" Margin="10,0,10,10" Height="170" MinHeight="80">
             <DockPanel>

@@ -13,6 +13,12 @@ Describe 'Datenordner' {
     }
     AfterEach { Remove-Item -LiteralPath $script:App -Recurse -Force -ErrorAction SilentlyContinue }
 
+    It 'Testmodus: Datenstamm Data\_Test, laufende Apps bleiben in Data\Laufend' {
+        $p = Initialize-HUDataPaths -AppRoot $script:App -UserName 'anna' -PcName 'PC-1' -TestMode
+        $p.DataRoot | Should -Be (Join-Path $script:App 'Data\_Test')
+        $p.UserRoot | Should -Be (Join-Path $script:App 'Data\_Test\Benutzer\anna')
+        $p.RunDir | Should -Be (Join-Path $script:App 'Data\Laufend')
+    }
     It 'legt Data, Benutzer und Laufend an' {
         $p = Initialize-HUDataPaths -AppRoot $script:App -UserName 'Test.Person' -PcName 'PC-1'
         $p.DataRoot | Should -Be (Join-Path $script:App 'Data')

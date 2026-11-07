@@ -80,6 +80,26 @@ jobs:
           "Starttest: $r"
           "### Starttest ${{ matrix.name }}: $r" | Add-Content $env:GITHUB_STEP_SUMMARY
           if ($r -notmatch '^OK') { throw "Starttest fehlgeschlagen: $r" }
+      - name: Starttest im Testmodus (Main.ps1 -SmokeTest -TestMode)
+        if: always()
+        shell: pwsh
+        timeout-minutes: 6
+        run: |
+          $f = Join-Path $env:RUNNER_TEMP 'smoke-test.txt'
+          $a = @('-NoProfile')
+          if ($env:HU_STA) { $a += $env:HU_STA }
+          $a += @('-ExecutionPolicy', 'Bypass', '-File', "`"$((Resolve-Path .\Main.ps1).Path)`"", '-ShowConsole', '-SmokeTest', "`"$f`"", '-TestMode')
+          $p = Start-Process $env:HU_EXE -ArgumentList $a -PassThru
+          if (-not $p.WaitForExit(240000)) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            throw "Starttest Testmodus: keine Antwort nach 240 s$(if (Test-Path $f) { ' - ' + (Get-Content $f -Raw) })"
+          }
+          if (-not (Test-Path $f)) { throw "Starttest Testmodus: kein Ergebnis (Exitcode $($p.ExitCode))" }
+          $r = Get-Content $f -Raw
+          "Starttest Testmodus: $r"
+          "### Starttest Testmodus ${{ matrix.name }}: $r" | Add-Content $env:GITHUB_STEP_SUMMARY
+          if ($r -notmatch '^OK' -or $r -notmatch 'Testmodus') { throw "Starttest Testmodus fehlgeschlagen: $r" }
+          if (Test-Path .\Data\_Test\Benutzer) { 'Testbestand angelegt: ok' } else { throw 'Testbestand fehlt' }
       - name: Protokoll bei Fehler
         if: failure()
         shell: pwsh
