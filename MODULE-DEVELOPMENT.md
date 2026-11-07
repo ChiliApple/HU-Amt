@@ -86,6 +86,48 @@ Der Kern hat ein Postfach je Modul im gemeinsamen Datenordner (`Data\Postfach\<M
 - `Remove-HUAddonInboxItem <Eintrag>`: Eintrag samt Kopie entfernen, erst nach gelungener Übernahme.
 - `Update-HUAddonInboxBadge [<Id>]`: Zahl am Reiter neu zählen. Der Kern zählt zusätzlich jede Minute.
 
+## Outlook und Word
+
+Module bauen keine eigenen COM-Aufrufe, sondern nutzen den Kern (`Core\HU.Office.psm1`, ab Version 0.1.7, also `minApp` 0.1.7). Grundsätze:
+
+- Nur klassisches Outlook (`Test-HUOutlookClassic`), Word über `Test-HUWord`. Ohne Outlook: `.ics` bzw. `mailto:`.
+- Mails werden nur angezeigt, nie gesendet.
+- COM braucht einen STA-Thread: den Fenster-Thread oder einen Hintergrund-Auftrag des Kerns. `Select-HUOutlookFolder` und `Show-HUMail` nur im Fenster-Thread.
+- Jeder Termin und jede Aufgabe hat einen **Schlüssel** (`<Modul>:<Id>`, nur Buchstaben, Ziffern und `: . _ -`). Er steht in der Benutzereigenschaft `HUAmtSchluessel`. Das Modul speichert zusätzlich `EntryId` und `StoreId` aus dem Ergebnis, das macht das Wiederfinden schneller.
+
+**Outlook**
+
+- `Open-HUOutlook` / `Close-HUOutlook $s` oder `Invoke-HUOutlook { param($s) ... }`: eine Sitzung für viele Einträge, z. B. beim Abgleich am Start. Alle folgenden Funktionen nehmen `-Session`; ohne sie öffnen und schließen sie selbst.
+  - Outlook wird nur beendet, wenn es vorher nicht lief und kein Fenster offen ist.
+- `Select-HUOutlookFolder -Type Calendar|Tasks`: Ordner im Outlook-Dialog wählen, auch einen gemeinsamen Kalender. Rückgabe `Name`, `Path`, `EntryId`, `StoreId`, `Type` oder `$null` bei Abbruch. Diese Angabe speichert das Modul in seinen Einstellungen und gibt sie als `-Folder` weiter. Leer = Standardordner des Benutzers.
+- `Set-HUOutlookAppointment -Folder -Key [-EntryId] -Subject -Start [-End] [-AllDay] [-Location] [-Body] [-ReminderMinutes] [-BusyStatus] [-Categories]`: anlegen oder denselben Termin ändern. Rückgabe `EntryId`, `StoreId`, `Created`.
+- `Set-HUOutlookTask -Folder -Key [-EntryId] -Subject -DueDate [-StartDate] [-ReminderTime] [-Body] [-Categories]`: dasselbe für Aufgaben.
+- `Complete-HUOutlookItem -Type Task|Appointment -Key`: Aufgabe erledigt (`MarkComplete`), Termin ohne Erinnerung und mit „Erledigt: “ im Betreff.
+- `Remove-HUOutlookItem -Type Task|Appointment -Key`: löschen, z. B. bei Storno.
+- `Show-HUMail -To -Cc -Subject -Body -Attachments`: Mail anzeigen. Rückgabe `Way` (`outlook`, `mailto`, `fehler`) und `Message`.
+
+**Ohne Outlook**
+
+- `New-HUIcsFile -Path -Uid -Subject -Start [-End] [-AllDay] [-Location] [-Description] [-AlarmMinutes] [-Sequence]`: Kalenderdatei nach RFC 5545. Gleiche `Uid` für denselben Termin, `Sequence` bei Änderungen hochzählen.
+- `New-HUMailtoUri`: Mail-Adresse für das Standard-Mailprogramm, zu langer Text wird gekürzt.
+
+**Word**
+
+- `Invoke-HUWordTemplate -Template <.docx> -PdfPath [-DocxPath] -Values @{ '{Mieter}' = '...' } -Tables @{ '{Positionen}' = @(@('Position', 'Preis'), @('Saal', '270,00')) }`
+  - Platzhalter werden im Text, in Kopf- und Fußzeilen ersetzt, ohne Längengrenze. Ein Tabellen-Platzhalter steht allein in seinem Absatz, die erste Zeile wird Kopfzeile.
+  - Die Vorlage bleibt unverändert, Word arbeitet an einer Kopie im Temp-Ordner, unsichtbar, und wird immer beendet.
+  - Antwortet Word `-TimeoutSeconds` lang nicht (Standard 120, z. B. wegen eines unsichtbaren Dialogs), beendet der Kern genau diese Word-Instanz und meldet einen Fehler. Ein von Hand geöffnetes Word bleibt unberührt.
+  - Am besten in einem Hintergrund-Auftrag aufrufen, damit das Fenster nicht stehen bleibt.
+  - Rückgabe `Pdf`, `Docx` und `Missing` (Platzhalter, die in der Vorlage fehlen).
+
+Beispiel:
+
+```powershell
+$r = Set-HUOutlookAppointment -Folder $einst.Kalender -Key "Buchung:$($b.Id)" -EntryId $b.OutlookId `
+    -Subject "Saal: $($b.Titel)" -Start $b.Beginn -End $b.Ende -ReminderMinutes 1440
+$b.OutlookId = $r.EntryId
+```
+
 ## Externe Werkzeuge und Bibliotheken
 
 Bringt ein Modul fremde Programme, DLLs oder Pakete mit, gilt:

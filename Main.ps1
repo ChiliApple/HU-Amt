@@ -6,7 +6,7 @@
     Startpunkt. Liest Config\app.json (Name, Repo, Signatur), laedt Core-Module (Core\*.psm1),
     Oberflaeche (XAML\*.xaml) und Funktionen (Functions\*.ps1).
       Config\      app.json, version.json (im Repo); lokale Dateien wie update.json nicht im Repo
-      Core\        Logging, Datenordner und Sperren (HU.Paths), Sicherung (HU.AppBackup), Datei-Austausch (HU.Exchange)
+      Core\        Logging, Datenordner und Sperren (HU.Paths), Sicherung (HU.AppBackup), Datei-Austausch (HU.Exchange), Outlook und Word (HU.Office)
       Functions\   Oberflaeche: Dialoge, Fensterzustand, Startbildschirm, Starter und Verknuepfungen, Module, Update-Bibliothek
       Modules\     mitgelieferte Module; Addons\ private (signiert); AddonsDev\ Entwicklung - je Modul ein Reiter
       XAML\        Fenster und gemeinsames Theme
@@ -145,7 +145,7 @@ if (-not $SmokeTest) {
 # 1. CORE-MODULE, FUNKTIONEN
 # ============================================================================
 Set-HUSplashStatus 'Module werden geladen ...'
-foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange')) {
+foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office')) {
     $modPath = Join-Path $script:AppRoot "Core\$mod.psm1"
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
