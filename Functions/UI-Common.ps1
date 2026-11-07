@@ -232,7 +232,7 @@ function New-HUWindow([string]$Name, [string]$XamlText = '') {
     return @{ Window = $w; C = $c }
 }
 
-# Spaltenbreiten GLOBAL (Udo 24.10.): jede Text-Spalte jeder Tabelle ist so breit wie ihr Inhalt bzw. Kopf (+ Zellabstand
+# Spaltenbreiten GLOBAL (Festlegung 24.10.): jede Text-Spalte jeder Tabelle ist so breit wie ihr Inhalt bzw. Kopf (+ Zellabstand
 # 6/12 aus dem Theme) - nie abgeschnitten, nie aufgeblaeht. Feste Pixelbreiten und Stern-Breiten (Rest fuellen) werden
 # zu "Auto". Greift ueber einen Klassen-Handler beim Laden jeder DataGrid und auch fuer Spalten, die der Code spaeter
 # hinzufuegt (Breite wird danach im Hintergrund nachgezogen, damit eine im Code gesetzte Breite nicht gewinnt).
@@ -273,7 +273,7 @@ function Set-HUDiffRowTint($Row, [switch]$Retry) {
     try {
         if ($null -eq $Row) { return }
         if ($null -eq $script:HUDiffTintBrush) { $b = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#3A321F')); $b.Freeze(); $script:HUDiffTintBrush = $b }
-        # nur in Fenstern, die aufgehen (Detail/Ergebnis) - nicht im Hauptfenster (Udo 25.10.)
+        # nur in Fenstern, die aufgehen (Detail/Ergebnis) - nicht im Hauptfenster (Festlegung 25.10.)
         $win = [System.Windows.Window]::GetWindow($Row)
         if ($null -eq $win) {
             # LoadingRow kommt, bevor die Zeile im Fenster haengt -> einmal nachholen, sobald sie geladen ist
@@ -304,7 +304,7 @@ function Set-HUGridFit($Grid) {
         # jede Tabelle nur einmal verdrahten (Tag bleibt unberuehrt - den nutzen andere Fenster selbst)
         foreach ($h in $script:HUGridHookedList) { if ([object]::ReferenceEquals($h, $Grid)) { return } }
         [void]$script:HUGridHookedList.Add($Grid)
-        # GLOBAL (Udo 25.10.): in aufgehenden Fenstern Zeilen mit "abweichend" dezent einfaerben - beim Erzeugen jeder Zeile, auch wiederverwendete
+        # GLOBAL (Festlegung 25.10.): in aufgehenden Fenstern Zeilen mit "abweichend" dezent einfaerben - beim Erzeugen jeder Zeile, auch wiederverwendete
         try {
             $Grid.Add_LoadingRow({ param($s, $e) Set-HUDiffRowTint $e.Row })
             foreach ($it in @($Grid.Items)) { $r = $Grid.ItemContainerGenerator.ContainerFromItem($it); if ($r) { Set-HUDiffRowTint $r } }
@@ -399,7 +399,7 @@ function Set-HUWindowScale($Window) {
 }
 
 # ---------------------------------------------------------------------------------------------
-# Meldungen und Rueckfragen im App-Stil (2.5.9, Udo: global, sauber, Scrollbalken erst bei viel Text)
+# Meldungen und Rueckfragen im App-Stil (2.5.9, Festlegung: global, sauber, Scrollbalken erst bei viel Text)
 # Ersetzt die Windows-MessageBox; faellt nur zurueck, wenn das App-Design nicht ladbar ist (z. B. ganz am Start).
 # Mode: OK | YesNo | YesNoCancel. Icon: Info | Warning | Error | Question. Rueckgabe: 'OK' | 'Yes' | 'No' | 'Cancel'.
 # Schliessen (X, Esc): OK -> 'OK', YesNo -> 'No', YesNoCancel -> 'Cancel'.
