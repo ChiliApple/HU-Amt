@@ -25,7 +25,7 @@
 - Für das Senden „im Auftrag von“ eines gemeinsamen Postfachs braucht der Benutzer im Exchange das Recht dazu.
 
 ### ✅ Qualität
-- 194 Tests, alle im strengen Modus wie die App.
+- 195 Tests, alle im strengen Modus wie die App.
 
 ## v0.1.9
 

@@ -56,6 +56,14 @@ Describe 'Verschiebbare Bereiche' {
         Register-HUSplitterState $p 'Reiter.X'
         @(Get-HUSplitterGrids $p)[0].ColumnDefinitions[0].Width.Value | Should -Be 2
     }
+    It 'laesst das Tag des Splitters dem Modul' {
+        if (-not $script:Sta) { Set-ItResult -Skipped -Because 'WPF braucht STA'; return }
+        $p = New-SplitPanel
+        $sp = @(@(Get-HUSplitterGrids $p)[0].Children)[0]; $sp.Tag = 'vom Modul'
+        Register-HUSplitterState $p 'Reiter.Tag'
+        $sp.Tag | Should -Be 'vom Modul'
+        $script:HUSplitOwner[$sp] | Should -Be 'Bereiche.Reiter.Tag'
+    }
     It 'Schliessen des Hauptfensters speichert alle Reiter' {
         if (-not $script:Sta) { Set-ItResult -Skipped -Because 'WPF braucht STA'; return }
         $p = New-SplitPanel

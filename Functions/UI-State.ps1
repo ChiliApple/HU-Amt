@@ -237,6 +237,7 @@ function Save-HUDialogState($Window, [string]$Key) {
 # Gespeichert werden die Zeilen- und Spaltengroessen aller Grids, in denen ein GridSplitter liegt (ui-state.json, je Benutzer),
 # bei jedem Loslassen des Splitters und beim Schliessen. Wiederhergestellt nur, wenn Zahl und Art der Zeilen/Spalten noch passen.
 $script:HUSplitRoots = @{}
+$script:HUSplitOwner = New-Object 'System.Collections.Generic.Dictionary[object,string]'   # Splitter -> Schluessel (Tag bleibt dem Modul)
 
 function Get-HUSplitterGrids($Root) {
     $list = New-Object System.Collections.Generic.List[object]
@@ -305,8 +306,9 @@ function Register-HUSplitterState($Root, [string]$Key) {
     try { $saved = Get-HUStateValue $sk; if ($saved) { Restore-HUSplitterSnapshot $Root @($saved) } } catch { }
     foreach ($g in $grids) {
         foreach ($sp in @($g.Children | Where-Object { $_ -is [System.Windows.Controls.GridSplitter] })) {
-            $sp.Tag = $sk
-            $sp.Add_DragCompleted({ param($s, $e) try { Save-HUSplitterState "$($s.Tag)" } catch { } })
+            if ($script:HUSplitOwner.ContainsKey($sp)) { $script:HUSplitOwner[$sp] = $sk; continue }   # nur einmal anmelden
+            $script:HUSplitOwner[$sp] = $sk
+            $sp.Add_DragCompleted({ param($s, $e) try { $k = ''; if ($script:HUSplitOwner.TryGetValue($s, [ref]$k)) { Save-HUSplitterState $k } } catch { } })
         }
     }
 }
