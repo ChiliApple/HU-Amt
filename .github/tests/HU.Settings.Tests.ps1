@@ -5,6 +5,7 @@ BeforeAll {
     Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     Import-Module (Join-Path $script:Root 'Core\HU.Paths.psm1') -Force -DisableNameChecking
+    Import-Module (Join-Path $script:Root 'Core\HU.Data.psm1') -Force -DisableNameChecking
     $script:AppRoot = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtSet-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
     [void](New-Item -ItemType Directory -Path (Join-Path $script:AppRoot 'Config') -Force)
     [void](New-Item -ItemType Directory -Path (Join-Path $script:AppRoot 'Docs') -Force)

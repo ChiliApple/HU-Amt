@@ -1,5 +1,18 @@
 ﻿# Changelog
 
+## v0.1.11
+
+### 🧩 Module
+- **Gemeinsame Bausteine im Hauptprogramm:** Was mehrere Module bisher jedes für sich gebaut haben, liefert jetzt HU-Amt selbst. Module werden dadurch einheitlicher und Fehler werden an einer Stelle behoben.
+  - Datenablage auf der Freigabe mit Sperre, Warten und Schutz vor gleichzeitigem Speichern, Verlauf („wer hat wann was geändert“), Anhänge und gemeinsame Einstellungen.
+  - Euro, Zahlen und Datum einheitlich für Österreich, unter Windows PowerShell und PowerShell 7 gleich.
+  - Dunkler Kalender, Uhrzeit-Auswahl, Text- und Auswahl-Dialoge, Laden im Hintergrund.
+  - PDF-Ausdrucke mit Tabellen über mehrere Seiten, Lesen von Excel- und CSV-Dateien ohne Excel, Aufruf externer Werkzeuge mit Zeitlimit.
+- **Umstellung der Module folgt:** Die Module übernehmen die Bausteine mit ihren nächsten Testversionen. Bis dahin arbeiten sie unverändert weiter.
+
+### ✅ Qualität
+- 346 Tests, alle im strengen Modus wie die App.
+
 ## v0.1.10
 
 ### 📨 Outlook und Word

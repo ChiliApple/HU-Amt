@@ -4,7 +4,7 @@
     Hintergrund-Auftraege: eigener Runspace, optional Live-Protokoll in eine RichTextBox (wie in der Vorlage).
 .DESCRIPTION
     Start-HUJob -Name 'AppBackup' -Code { ... } -Vars @{ ... } -Output $rtb -OnDone { param($Result, $Errors) ... }
-    Im Auftrag stehen bereit: HU.Logging, HU.Paths, HU.AppBackup, HU.Exchange, HU.Office (STA, fuer Outlook/Word), HU.Contacts, $AppRoot, $Settings und alle -Vars.
+    Im Auftrag stehen bereit: HU.Logging, HU.Paths, HU.AppBackup, HU.Exchange, HU.Office (STA, fuer Outlook/Word), HU.Contacts, HU.Data, HU.Pdf, HU.Import, HU.Tools, $AppRoot, $Settings und alle -Vars.
     Write-HULog im Auftrag erscheint sofort in -Output (Datei wird alle 0,4 s nachgelesen).
 .NOTES
     Dot-Source aus Main.ps1. Zielmaschine: der PC, auf dem die App laeuft.
@@ -59,7 +59,7 @@ function Start-HUJob {
     $ps = [powershell]::Create()
     $ps.Runspace = $rs
     [void]$ps.AddScript({
-            foreach ($m in 'HU.Logging', 'HU.Paths', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU.Contacts') {
+            foreach ($m in 'HU.Logging', 'HU.Paths', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU.Contacts', 'HU.Data', 'HU.Pdf', 'HU.Import', 'HU.Tools') {
                 Import-Module (Join-Path $AppRoot "Core\$m.psm1") -Force -DisableNameChecking -ErrorAction Stop
             }
             Initialize-Logging -LogFilePath $__JobLog -MinLevel 'INFO'

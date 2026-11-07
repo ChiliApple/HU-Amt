@@ -6,7 +6,8 @@
     Startpunkt. Liest Config\app.json (Name, Repo, Signatur), laedt Core-Module (Core\*.psm1),
     Oberflaeche (XAML\*.xaml) und Funktionen (Functions\*.ps1).
       Config\      app.json, version.json (im Repo); lokale Dateien wie update.json nicht im Repo
-      Core\        Logging, Datenordner und Sperren (HU.Paths), Sicherung (HU.AppBackup), Datei-Austausch (HU.Exchange), Outlook und Word (HU.Office)
+      Core\        Logging, Datenordner und Sperren (HU.Paths), Sicherung (HU.AppBackup), Datei-Austausch (HU.Exchange), Outlook und Word (HU.Office), Kontakte (HU.Contacts),
+                   Datenablage/Zahlen/Verlauf/Anhaenge (HU.Data), PDF (HU.Pdf), Excel/CSV (HU.Import), Werkzeug-Aufrufe (HU.Tools)
       Functions\   Oberflaeche: Dialoge, Fensterzustand, Startbildschirm, Starter und Verknuepfungen, Module, Update-Bibliothek
       Modules\     mitgelieferte Module; Addons\ private (signiert); AddonsDev\ Entwicklung - je Modul ein Reiter
       XAML\        Fenster und gemeinsames Theme
@@ -145,12 +146,12 @@ if (-not $SmokeTest) {
 # 1. CORE-MODULE, FUNKTIONEN
 # ============================================================================
 Set-HUSplashStatus 'Module werden geladen ...'
-foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU.Contacts')) {
+foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU.Contacts', 'HU.Data', 'HU.Pdf', 'HU.Import', 'HU.Tools')) {
     $modPath = Join-Path $script:AppRoot "Core\$mod.psm1"
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
