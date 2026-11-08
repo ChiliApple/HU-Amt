@@ -173,6 +173,7 @@ Remove-Item -LiteralPath Env:\HUAMT_DEMO -ErrorAction SilentlyContinue
 $script:TestModeRequested = [bool]($TestMode -or $Demo); $script:TestModeActive = $false; $script:TestResetDone = $false
 $script:DemoActive = $false
 # Demo (alle Benutzer): eigener Bestand je Benutzer unter _Demo, bei jedem Start geleert und mit Beispieldaten neu gefuellt
+$script:RealUserRoot = $script:UserRoot   # echter Benutzerordner (Demo: Farbschema von dort)
 if ($Demo) {
     try {
         $env:HUAMT_DEMO = '1'
@@ -213,6 +214,8 @@ $script:Settings = [pscustomobject]@{
     ui      = [pscustomobject]@{ startTab = 'Last'; splashAnimation = $true; maxLogLines = 1000; checkUpdatesOnStart = $true; theme = 'Dunkel' }
     logging = [pscustomobject]@{ logLevel = 'INFO'; retentionDays = 30 }
 }
+# Demo: der Bestand ist leer, das eigene Farbschema gilt trotzdem
+if ($script:DemoActive) { try { $real = Read-HUJsonFile (Join-Path $script:RealUserRoot 'settings.json'); if ($real -and $real.ui -and $real.ui.PSObject.Properties['theme']) { $script:Settings.ui.theme = "$($real.ui.theme)" } } catch { } }
 $saved = Read-HUJsonFile $script:SettingsPath
 if ($saved) {
     foreach ($sec in 'ui', 'logging') {
@@ -493,7 +496,7 @@ $script:OnContentRendered = {
     if ($script:Settings.ui.checkUpdatesOnStart -ne $false) { try { Invoke-UpdateCheck -Quiet; Start-HUAddonUpdate } catch { Write-HULogWarn "Update-Prüfung: $($_.Exception.Message)" } }
     # Starter HU-Amt.exe (eigenes Logo, ohne Konsolenfenster) bereitstellen, falls er fehlt
     try { [void](New-HULauncher) } catch { }
-    if ($script:FirstRun) {
+    if ($script:FirstRun -and -not $script:DemoActive) {   # die Demo ist bei jedem Start neu: dort nicht jedes Mal fragen
         # neuer Benutzer: einmal fragen, ob ein Symbol auf den Desktop soll, und zeigen, wie die App an die Taskleiste kommt
         $asked = $false; try { $asked = [bool](Get-HUStateValue 'shortcutAsked' $false) } catch { }
         if (-not $asked) {
@@ -512,7 +515,7 @@ $script:Window.Add_ContentRendered($script:OnContentRendered)
 
 $script:Window.Add_Closing({
     param($s, $e)
-    # Absicherung zuerst (Pruefung 091, KERN-B1): Endet der Prozess nicht innerhalb von 30 s (beobachtet 08.11.2026,
+    # Absicherung zuerst (Pruefung 091, KERN-B1): Endet der Prozess nicht innerhalb von 60 s (beobachtet 08.11.2026,
     # Ursache unklar; auch ein haengender Schritt hier im Schliessen), beendet ihn ein eigener Thread hart und schreibt
     # vorher den zuletzt erreichten Schritt ins Protokoll. Normales Beenden verzoegert er nicht.
     $script:CloseState = [hashtable]::Synchronized(@{ Step = 'Start' })
@@ -523,8 +526,8 @@ $script:Window.Add_Closing({
             $__xp = [powershell]::Create(); $__xp.Runspace = $__xr
             [void]$__xp.AddScript({
                     param($St, $Log)
-                    Start-Sleep -Seconds 30
-                    if ($Log) { try { [IO.File]::AppendAllText($Log, "[$((Get-Date).ToString('yyyy-MM-dd'))] [$((Get-Date).ToString('HH:mm:ss'))] [WARN] Beenden hart abgeschlossen nach 30 s, letzter Schritt: $($St.Step)`r`n", (New-Object System.Text.UTF8Encoding $true)) } catch { } }
+                    Start-Sleep -Seconds 60   # Platz fuer laufende Abgleiche der Module (Buchung wartet bis 20 s auf Outlook)
+                    if ($Log) { try { [IO.File]::AppendAllText($Log, "[$((Get-Date).ToString('yyyy-MM-dd'))] [$((Get-Date).ToString('HH:mm:ss'))] [WARN] Beenden hart abgeschlossen nach 60 s, letzter Schritt: $($St.Step)`r`n", (New-Object System.Text.UTF8Encoding $true)) } catch { } }
                     [Environment]::Exit(0)
                 }).AddArgument($script:CloseState).AddArgument($__lf).BeginInvoke()
         } catch { }

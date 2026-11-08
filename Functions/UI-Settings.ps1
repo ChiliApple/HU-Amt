@@ -165,6 +165,20 @@ function Complete-HUDataLocationChange($Res, $Err, $Ctx, [switch]$NoCopy) {
             return
         }
     }
+    # Hat waehrend des Kopierens jemand im alten Ordner gespeichert (auch wenn er HU-Amt schon wieder zu hat)? Dann fehlt das in der Kopie.
+    if (-not $NoCopy -and $Res.Snapshot) {
+        $own = @(); $c0 = "$($Ctx.Cur)".TrimEnd('\')
+        if ("$($script:UserRoot)".StartsWith($c0 + '\', [StringComparison]::OrdinalIgnoreCase)) { $own = @("$($script:UserRoot)".Substring($c0.Length + 1).TrimEnd('\') + '\') }
+        $chg = @(); try { $chg = @(Get-HUDataTreeChanges -Source $Ctx.Cur -Snapshot $Res.Snapshot -SkipPrefix $own) } catch { $chg = @("(nicht prüfbar: $($_.Exception.Message))") }
+        if ($chg.Count) {
+            try { [IO.File]::WriteAllText((Join-Path $Ctx.New '.hu-kopie-unvollstaendig'), "Umzug abgebrochen $((Get-Date).ToString('s')): im alten Ordner wurde während des Kopierens gespeichert.") } catch { }
+            try { Update-HUDataLocationInfo $Ctx.Info } catch { }
+            Write-HULogWarn "Datenordner: $($chg.Count) Dateien während des Kopierens geändert, nichts umgestellt"
+            Show-HUMessage ("Während des Kopierens wurde im alten Ordner gespeichert. Es wurde nichts umgestellt, die Kopie wäre nicht mehr aktuell:`n`n" + (($chg | Select-Object -First 8) -join "`n") +
+                $(if ($chg.Count -gt 8) { "`n... und $($chg.Count - 8) weitere" }) + "`n`nBitte dafür sorgen, dass niemand $($script:AppTitle) offen hat, den neuen Ordner leeren und es noch einmal versuchen.") $t -Icon Warning -Owner $Ctx.Owner
+            return
+        }
+    }
     # unmittelbar vor dem Umstellen noch einmal: hat inzwischen jemand anderer HU-Amt geoeffnet? (Pruefung 090, KERN-B3)
     $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock)
     if ($others.Count) {

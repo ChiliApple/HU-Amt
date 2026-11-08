@@ -143,6 +143,9 @@ function Copy-HUDataTree {
     [IO.File]::WriteAllText($mark, "Kopie von $src begonnen $((Get-Date).ToString('s')). Liegt diese Datei noch hier, ist die Kopie unvollständig.")
     $files = 0; $bytes = [long]0
     $err = New-Object System.Collections.Generic.List[string]
+    # Stand jeder Quelldatei (Zeitstempel des Servers und Groesse): danach erkennt Get-HUDataTreeChanges, ob waehrend des Kopierens
+    # jemand etwas geaendert hat - ohne Vergleich mit der Uhr dieses PCs
+    $snap = @{}
     foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force -ErrorAction Stop)) {
         $rel = $i.FullName.Substring($src.Length + 1)
         if ($rel -ieq 'Laufend' -or $rel.StartsWith('Laufend\', $oic) -or $rel -ieq '_Demo' -or $rel.StartsWith('_Demo\', $oic)) { continue }
@@ -153,11 +156,40 @@ function Copy-HUDataTree {
             [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($to))
             [IO.File]::Copy($i.FullName, $to, $false)
             if ((New-Object System.IO.FileInfo $to).Length -ne $i.Length) { throw 'Größe nach dem Kopieren verschieden' }
+            $snap[$rel] = "$($i.LastWriteTimeUtc.Ticks)/$($i.Length)"
             $files++; $bytes += $i.Length
         } catch { $err.Add("$($rel): $($_.Exception.Message)") }
     }
     if (-not $err.Count) { Remove-Item -LiteralPath $mark -Force -ErrorAction SilentlyContinue }
-    return [pscustomobject]@{ Files = $files; Bytes = $bytes; Errors = @($err.ToArray()) }
+    return [pscustomobject]@{ Files = $files; Bytes = $bytes; Errors = @($err.ToArray()); Snapshot = $snap }
+}
+
+<#
+.SYNOPSIS
+    Was hat sich im Quellordner seit Copy-HUDataTree geaendert? (Pruefung 1.0.0: jemand oeffnet HU-Amt waehrend des Kopierens,
+    speichert und schliesst wieder - dann fehlt seine Aenderung in der Kopie.)
+.PARAMETER Snapshot
+    Snapshot aus dem Ergebnis von Copy-HUDataTree.
+.PARAMETER SkipPrefix
+    Relative Pfade, die nicht zaehlen (z. B. der eigene Benutzerordner, in den die eigene App waehrenddessen schreibt).
+.OUTPUTS
+    [string[]] relative Pfade: neu, geaendert oder verschwunden. Leer = unveraendert.
+#>
+function Get-HUDataTreeChanges {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][hashtable]$Snapshot, [string[]]$SkipPrefix = @())
+    $src = [IO.Path]::GetFullPath($Source).TrimEnd('\'); $oic = [StringComparison]::OrdinalIgnoreCase
+    $skip = { param($r) foreach ($p in $SkipPrefix) { if ($p -and $r.StartsWith($p, $oic)) { return $true } }; return $false }
+    $out = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force -File -ErrorAction Stop)) {
+        $rel = $i.FullName.Substring($src.Length + 1)
+        if ($rel.StartsWith('Laufend\', $oic) -or $rel.StartsWith('_Demo\', $oic) -or $i.Name -like '*.lock' -or $i.Name -ieq 'UMGEZOGEN.txt' -or (& $skip $rel)) { continue }
+        $seen[$rel] = $true
+        if ("$($Snapshot[$rel])" -ne "$($i.LastWriteTimeUtc.Ticks)/$($i.Length)") { $out.Add($rel) }
+    }
+    foreach ($k in @($Snapshot.Keys)) { if (-not $seen.ContainsKey($k) -and -not (& $skip $k)) { $out.Add($k) } }
+    return @($out.ToArray() | Sort-Object)
 }
 
 <#
@@ -474,6 +506,6 @@ function Test-HUVerwalterAcl {
 }
 
 Export-ModuleMember -Function Initialize-HUDataPaths, Get-HUDataLocation, Set-HUDataLocation, Resolve-HUDataLocationPath,
-    Get-HUDataFolderState, Copy-HUDataTree, Assert-HUWritable, Get-HUModuleDataPath, Get-HUSafeName,
+    Get-HUDataFolderState, Copy-HUDataTree, Get-HUDataTreeChanges, Assert-HUWritable, Get-HUModuleDataPath, Get-HUSafeName,
     Open-HURunLock, Close-HURunLock, Get-HURunningInstances,
     Lock-HUDataFile, Unlock-HUDataFile, Get-HULockInfoText, Backup-HUDataFile, Test-HUVerwalterAcl

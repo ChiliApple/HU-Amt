@@ -142,6 +142,31 @@ Describe 'Datenordner einstellbar (Config\datenort.json)' {
         Test-Path -LiteralPath (Join-Path $dst 'Laufend') | Should -BeFalse
         Test-Path -LiteralPath (Join-Path $src 'Buchung\2026\b1.json') | Should -BeTrue
     }
+    It 'erkennt Aenderungen im Quellordner waehrend des Kopierens, der eigene Benutzerordner zaehlt nicht' {
+        $src = Join-Path $script:App 'Data'
+        foreach ($d in 'Benutzer\anna', 'Benutzer\bert', 'Buchung\2026', 'Laufend') { [void](New-Item -ItemType Directory -Path (Join-Path $src $d) -Force) }
+        [IO.File]::WriteAllText((Join-Path $src 'Verwalter.txt'), 'anna')
+        [IO.File]::WriteAllText((Join-Path $src 'Buchung\2026\b1.json'), '{"a":1}')
+        [IO.File]::WriteAllText((Join-Path $src 'Benutzer\anna\settings.json'), '{}')
+        $r = Copy-HUDataTree -Source $src -Target (Join-Path $script:Ext 'Neu')
+        $r.Snapshot.Count | Should -Be 3
+        # unveraendert, nur Sperren, Laufend und eigener Ordner bewegt -> nichts
+        [IO.File]::WriteAllText((Join-Path $src 'Laufend\bert_PC.lock'), 'x')
+        [IO.File]::WriteAllText((Join-Path $src 'Buchung\2026\b1.json.lock'), 'x')
+        [IO.File]::WriteAllText((Join-Path $src 'Benutzer\anna\ui-state.json'), '{}')
+        @(Get-HUDataTreeChanges -Source $src -Snapshot $r.Snapshot -SkipPrefix @('Benutzer\anna\')).Count | Should -Be 0
+        # Gegenprobe: ohne Ausnahme zaehlt die neue Datei im eigenen Ordner
+        @(Get-HUDataTreeChanges -Source $src -Snapshot $r.Snapshot) | Should -Contain 'Benutzer\anna\ui-state.json'
+        # jemand anderer speichert eine Buchung und legt eine neue an
+        [IO.File]::WriteAllText((Join-Path $src 'Buchung\2026\b1.json'), '{"a":22}')
+        [IO.File]::WriteAllText((Join-Path $src 'Benutzer\bert\settings.json'), '{}')
+        $c = @(Get-HUDataTreeChanges -Source $src -Snapshot $r.Snapshot -SkipPrefix @('Benutzer\anna\'))
+        $c | Should -Contain 'Buchung\2026\b1.json'
+        $c | Should -Contain 'Benutzer\bert\settings.json'
+        # geloeschte Datei zaehlt auch
+        Remove-Item -LiteralPath (Join-Path $src 'Verwalter.txt')
+        @(Get-HUDataTreeChanges -Source $src -Snapshot $r.Snapshot -SkipPrefix @('Benutzer\anna\')) | Should -Contain 'Verwalter.txt'
+    }
     It 'kopiert nie in einen vollen Ordner oder ineinander' {
         $src = Join-Path $script:App 'Data'; [void](New-Item -ItemType Directory -Path $src)
         [IO.File]::WriteAllText((Join-Path $script:Ext 'alt.txt'), 'x')

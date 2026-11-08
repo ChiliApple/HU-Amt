@@ -12,7 +12,7 @@ Stable-Release der Testversionen 0.0.1 bis 0.1.14 – „Ein Fenster für die Ge
 - **Farbschema hell oder dunkel:** Unter ⚙ Einstellungen › Allgemein › „Farbschema“ wählt jeder Benutzer für sich Dunkel (Standard) oder Hell.
   - Hell ist warm und gedämpft, nicht grellweiß. Farbige Knöpfe bleiben farbig.
   - Gilt für alle Reiter, Fenster und Meldungen, auch für die Module und den Startbildschirm. Wirkt nach dem Neustart.
-- **Beenden ohne Hängen:** Beim Schließen meldet sich HU-Amt sofort ab. Bleibt danach doch ein Rest hängen, blockiert er weder den Neustart noch ein Update und endet nach 15 Sekunden von selbst.
+- **Beenden ohne Hängen:** Beim Schließen meldet sich HU-Amt sofort ab. Bleibt danach doch ein Rest hängen, blockiert er weder den Neustart noch ein Update und endet nach spätestens einer Minute von selbst.
 - **Hinweis zur Taskleiste repariert:** Die Anleitung zum Anheften beim ersten Start brach mitten im Text ab. Jetzt steht sie vollständig da.
 
 ### 🧪 Demo und Testmodus
