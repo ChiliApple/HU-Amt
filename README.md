@@ -1,7 +1,7 @@
 ﻿<h1 align="center"><img src="Assets/logo64.png" width="44" alt="" align="absmiddle"/> HU-Amt</h1>
 
 <p align="center"><b>Werkzeuge für die Gemeindeverwaltung – aus einem Fenster</b><br>
-Jeder Reiter ist ein Modul: mitgeliefert oder signiert aus einem eigenen Repository. Dazu Update per Knopf, verschlüsselte Sicherung aller Einstellungen, Hilfe mit F1 und dunkles Farbschema.<br>
+Jeder Reiter ist ein Modul: mitgeliefert oder signiert aus einem eigenen Repository. Dazu Update per Knopf, verschlüsselte Sicherung aller Einstellungen, Hilfe mit F1 und Farbschema dunkel oder hell.<br>
 Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe, für mehrere Bedienstete gleichzeitig.</p>
 
 <p align="center">
@@ -60,7 +60,7 @@ Was das Programm kann und wie es geht:
 - **Sicherung und Update:** verschlüsselte Sicherung aller Einstellungen, signierte Updates von App und Modulen per Knopf.
 - **Demo für alle:** Jeder probiert alle Module mit Beispieldaten aus, in einem eigenen Bestand, der bei jedem Demo-Start wieder wie neu ist. Outlook, Word und Mails sind dabei gesperrt.
 - **Testmodus:** Verwalter probieren neue Module mit einem eigenen Testbestand aus, echte Daten bleiben unberührt; ein geführter Test protokolliert die Schritte.
-- **Einheitliche Oberfläche:** dunkles Farbschema, Tooltips, verschiebbare Bereiche und Fenstergrößen bleiben erhalten, Hilfe mit **F1**.
+- **Einheitliche Oberfläche:** dunkles oder helles Farbschema je Benutzer, Tooltips, verschiebbare Bereiche und Fenstergrößen bleiben erhalten, Hilfe mit **F1**.
 
 ## Rechte auf der Freigabe
 

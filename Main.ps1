@@ -156,7 +156,7 @@ foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Theme', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -208,7 +208,7 @@ Set-HUSplashStatus 'Einstellungen ...'
 $script:SettingsPath = Join-Path $script:UserRoot 'settings.json'
 $script:FirstRun = -not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))
 $script:Settings = [pscustomobject]@{
-    ui      = [pscustomobject]@{ startTab = 'Last'; splashAnimation = $true; maxLogLines = 1000; checkUpdatesOnStart = $true }
+    ui      = [pscustomobject]@{ startTab = 'Last'; splashAnimation = $true; maxLogLines = 1000; checkUpdatesOnStart = $true; theme = 'Dunkel' }
     logging = [pscustomobject]@{ logLevel = 'INFO'; retentionDays = 30 }
 }
 $saved = Read-HUJsonFile $script:SettingsPath
@@ -220,6 +220,11 @@ if ($saved) {
         }
     }
 }
+
+# Farbschema (persoenlich, wirkt ab dem Start): Hell setzt die dunklen Farben beim Laden um (Functions\UI-Theme.ps1)
+Set-HUTheme "$($script:Settings.ui.theme)"
+if ($SmokeTest -and "$env:HUAMT_SMOKE_THEME" -eq 'Hell') { Set-HUTheme 'Hell' }   # Starttest im hellen Schema (CI)
+if (Test-HULightTheme) { try { Set-HULogColors @{ OK = '#2E7D32'; WARN = '#C25E00'; ERROR = '#C62828'; INFO = '#1565C0'; DEBUG = '#6E675C' } '#2E2A24' } catch { } }
 
 $iconPath = Join-Path $script:AppRoot 'Assets\icon.ico'
 if (Test-Path -LiteralPath $iconPath) { try { $script:AppIcon = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]::new($iconPath, [System.UriKind]::Absolute)) } catch { } }
@@ -294,7 +299,7 @@ function Update-VersionDisplay {
     elseif ($cfg -and "$($cfg.Channel)" -eq 'Test') { $txt = 'Kanal Test'; $col = '#FFA726' }
     $t = $script:Controls['txtVersion']
     $t.Text = "v$($script:Version)  |  $txt"
-    $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($col)
+    $t.Foreground = Get-HUBrush $col 'Fg'
     $t.ToolTip = $(if ($cfg -and $cfg.UseBranch) { "Updates kommen direkt aus dem Repo (Branch $($cfg.Branch)), ohne freigegebene Version" } elseif ($txt -eq 'Kanal Test') { 'Updates: auch Testversionen.' } else { 'Updates: nur freigegebene Versionen.' })
     $script:Window.Title = "$(if ($script:DemoActive) { 'DEMO - ' } elseif ($script:TestModeActive) { 'TEST - ' })$($script:AppTitle) v$($script:Version)"
 }
@@ -377,6 +382,16 @@ $script:OnContentRendered = {
                 $script:SmokeSteps = @()
                 if ($script:Controls['tabMain'].Items.Count -lt 1) { throw 'keine Reiter' }
                 $script:SmokeSteps += 'Reiter'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
+                if (Test-HULightTheme) { $script:SmokeSteps += 'Hell'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',') }
+                # Bilder fuer die Sichtpruefung (nur mit HUAMT_SMOKE_SHOTS = Ordner): Hauptfenster mit jedem Reiter
+                if ($env:HUAMT_SMOKE_SHOTS) {
+                    $selShot = $script:Controls['tabMain'].SelectedItem
+                    foreach ($it in @($script:Controls['tabMain'].Items)) {
+                        $script:Controls['tabMain'].SelectedItem = $it
+                        Save-HUWindowShot $script:Window (Join-Path $env:HUAMT_SMOKE_SHOTS "Reiter-$($it.Header).png")
+                    }
+                    $script:Controls['tabMain'].SelectedItem = $selShot
+                }
                 if ("$($script:Controls['txtAppTitle'].Text)" -ne $script:AppTitle) { throw 'Titel nicht aus app.json' }
                 $script:SmokeSteps += 'Titel'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 if (-not ('HUTaskbar' -as [type])) { throw 'Taskleiste' }
@@ -426,7 +441,12 @@ $script:OnContentRendered = {
                 # Fenster wirklich aufbauen: ein zweiter Timer schliesst das jeweils offene Fenster nach kurzer Zeit
                 $closer = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
                 $closer.Interval = [TimeSpan]::FromMilliseconds(1200)
-                $closer.Add_Tick({ if ($script:LastDialog -and $script:LastDialog.IsVisible) { $script:LastDialog.Close() } })
+                $closer.Add_Tick({
+                        if ($script:LastDialog -and $script:LastDialog.IsVisible) {
+                            if ($env:HUAMT_SMOKE_SHOTS) { Save-HUWindowShot $script:LastDialog (Join-Path $env:HUAMT_SMOKE_SHOTS "Fenster-$($script:LastDialog.Title).png") }
+                            $script:LastDialog.Close()
+                        }
+                    })
                 $closer.Start()
                 try {
                     Show-HUSupport; $script:SmokeSteps += 'Fenster-Support'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
@@ -586,6 +606,11 @@ if ($SmokeTest) {
     $script:SmokeWatch.Start()
 }
 
+if ($SmokeTest -and $env:HUAMT_SMOKE_SHOTS) {
+    # Bilder ohne sichtbares Fenster: ausserhalb des Bildschirms, feste Groesse (Dialoge oeffnen mittig ueber dem Hauptfenster)
+    $script:Window.WindowState = 'Normal'; $script:Window.WindowStartupLocation = 'Manual'
+    $script:Window.Left = -32000; $script:Window.Top = -32000; $script:Window.Width = 1400; $script:Window.Height = 900
+}
 try { [void]$script:Window.ShowDialog() }
 finally {
     Close-HURunLock $script:RunLock

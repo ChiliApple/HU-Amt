@@ -144,6 +144,12 @@ $b.OutlookId = $r.EntryId
 - **Verschiebbare Bereiche (GridSplitter):** Der Kern merkt sich in jedem Reiter und in jedem Fenster mit `Restore-HUDialogState`/`Save-HUDialogState` die Zeilen- und Spaltengrößen aller Grids mit Splitter (je Benutzer, ab 0.1.10). **Module bauen dafür nichts Eigenes.** Ein Grid bekommt am besten ein `x:Name`, dann bleibt die Zuordnung auch bei Umbauten stabil.
 - **Fenstergröße und -position:** `Restore-HUDialogState $w '<Name>'` beim Öffnen, `Save-HUDialogState $w '<Name>'` beim Schließen.
 - **Tabellen:** Spaltenbreite nach Inhalt, Knöpfe wachsen mit der Beschriftung, Anfasser an jedem größenveränderbaren Fenster (über `New-HUWindow`).
+- **Farbschema Dunkel/Hell (ab 1.0.0):** Jeder Benutzer wählt es unter Einstellungen › Allgemein. Module gestalten weiter dunkel wie bisher, der Kern setzt die Farben für Hell beim Laden um.
+  - XAML: automatisch über `New-HUWindow`, `Get-HUThemedXaml`, den Reiter des Moduls und `Show-HUToast`. Nichts zu tun.
+  - Farben im Code: immer `Get-HUBrush '<#RRGGBB>' '<Rolle>'`, nie `BrushConverter`, `ColorConverter` oder `[Windows.Media.Brushes]::…`. Rollen: `Fg` Schrift, `Bg` Fläche, `Border` Rahmen, `Btn` graue Knopffläche mit weißer Schrift. Ohne Rolle bleiben Weiß und kräftige Farben unverändert.
+  - Farben in Datenbindungen (z. B. `Farbe = '#9E9E9E'` in Zeilen): `ConvertTo-HUThemeColor '<#RRGGBB>' 'Fg'`.
+  - Abfrage: `Test-HULightTheme` (z. B. für eine eigene HTML-Seite in WebView2).
+  - Sichtprüfung: Starttest mit `HUAMT_SMOKE_THEME=Hell` und `HUAMT_SMOKE_SHOTS=<Ordner>` legt je Reiter und Fenster ein Bild ab, ohne sichtbares Fenster.
 
 ## Kontakte übernehmen
 

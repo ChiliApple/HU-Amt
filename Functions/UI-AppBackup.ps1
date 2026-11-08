@@ -184,15 +184,15 @@ function Update-HUAbMainStatus {
     $mode = switch ("$($cfg.Mode)") { 'taeglich' { 'täglich' } 'woechentlich' { 'wöchentlich' } default { 'aus' } }
     if ($run) {
         $p = $script:AbProg; $pc = $(if ($p -and [double]$p.Total -gt 0) { " $([int](100 * [double]$p.Done / [double]$p.Total)) %" } else { ' ...' })
-        $t.Text = "$ic$pc"; $t.Foreground = [System.Windows.Media.Brushes]::LightSkyBlue; $t.ToolTip = "App-Sicherung $run"
+        $t.Text = "$ic$pc"; $t.Foreground = Get-HUBrush '#87CEFA' 'Fg'; $t.ToolTip = "App-Sicherung $run"
     } elseif ($res -like 'FEHLER*' -or $res -like 'Automatik:*') {
-        $t.Text = "$ic !"; $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF9800'); $t.ToolTip = "App-Sicherung: $res$(if ($lt) { "`nLetzte erfolgreiche: $lt$by" })`nKlick: Einstellungen > Sicherung"
+        $t.Text = "$ic !"; $t.Foreground = (Get-HUBrush '#FF9800' 'Fg'); $t.ToolTip = "App-Sicherung: $res$(if ($lt) { "`nLetzte erfolgreiche: $lt$by" })`nKlick: Einstellungen > Sicherung"
     } elseif (-not (Test-HUTestMode) -and ($warn = Get-HUAppBackupWarning -Mode "$($cfg.Mode)" -Path "$($cfg.Path)" -Last $last)) {
         # fehlt oder ueberfaellig: orange, damit es auffaellt (niemand sonst sieht es)
-        $t.Text = "$ic !"; $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF9800')
+        $t.Text = "$ic !"; $t.Foreground = (Get-HUBrush '#FF9800' 'Fg')
         $t.ToolTip = "App-Sicherung: $warn$(if ($lt) { "`nLetzte erfolgreiche: $lt$by" })`nKlick: Einstellungen > Sicherung"
     } else {
-        $t.Text = "$ic"; $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#858585')
+        $t.Text = "$ic"; $t.Foreground = Get-HUBrush '#858585' 'Fg'
         $t.ToolTip = $(if ($lt) { "App-Sicherung: zuletzt $lt$by$(if ($res) { " ($res)" })`nAutomatisch: $mode`nKlick: Einstellungen > Sicherung" } else { "Noch keine App-Sicherung`nKlick: Einstellungen > Sicherung" })
     }
 }
@@ -214,8 +214,8 @@ function Update-HUAbTabInfo {
     $run = Get-HUAbProgressText
     foreach ($b in 'btnAbNow', 'btnAbCheck', 'btnAbRestore') { $c[$b].IsEnabled = -not $run }
     $c.btnAbNow.Content = $(if ($run -like 'sichert*') { 'Sichert ...' } else { 'Jetzt sichern' })
-    if ($run) { $c.txtAbLast.Text = $run; $c.txtAbLast.Foreground = [System.Windows.Media.Brushes]::LightSkyBlue; return }
-    $c.txtAbLast.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#AAAAAA')
+    if ($run) { $c.txtAbLast.Text = $run; $c.txtAbLast.Foreground = Get-HUBrush '#87CEFA' 'Fg'; return }
+    $c.txtAbLast.Foreground = Get-HUBrush '#AAAAAA' 'Fg'
     $cfg = Get-HUAbConfig
     $last = "$($cfg.Last)"; $res = "$($cfg.Result)"
     $c.txtAbLast.Text = $(if ($last) { "$(try { ([datetime]::Parse($last, [Globalization.CultureInfo]::InvariantCulture)).ToString('dd.MM.yyyy HH:mm') } catch { $last })$(if ($cfg.LastBy) { " von $($cfg.LastBy)" })$(if ($res) { "  -  $res" })" } elseif ($res) { $res } else { 'noch keine' })

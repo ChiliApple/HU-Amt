@@ -7,8 +7,11 @@ Stable-Release der Testversionen 0.0.1 bis 0.1.14 – „Ein Fenster für die Ge
 ### 🪟 Oberfläche
 - **Ein Fenster für alle Werkzeuge:** Jedes Modul ist ein Reiter: Kostenzuordnung, Texterkennung, PDF-Werkzeuge, Reisen, Buchungen, Gutscheine, Fristen sowie Ideen & Wünsche.
   - Dateien ins Fenster ziehen, der passende Reiter übernimmt sie.
-  - Dunkles Farbschema und Tooltips. Fenster, Reihenfolge der Reiter und verschobene Bereiche bleiben je Benutzer erhalten.
+  - Tooltips überall. Fenster, Reihenfolge der Reiter und verschobene Bereiche bleiben je Benutzer erhalten.
   - Bedienstete sehen eine aufgeräumte Oberfläche. Protokoll und Verwaltung sehen nur Verwalter.
+- **Farbschema hell oder dunkel:** Unter ⚙ Einstellungen › Allgemein › „Farbschema“ wählt jeder Benutzer für sich Dunkel (Standard) oder Hell.
+  - Hell ist warm und gedämpft, nicht grellweiß. Farbige Knöpfe bleiben farbig.
+  - Gilt für alle Reiter und Fenster, auch für die Module. Wirkt nach dem Neustart.
 - **Beenden ohne Hängen:** Beim Schließen meldet sich HU-Amt sofort ab. Bleibt danach doch ein Rest hängen, blockiert er weder den Neustart noch ein Update und endet nach 15 Sekunden von selbst.
 - **Hinweis zur Taskleiste repariert:** Die Anleitung zum Anheften beim ersten Start brach mitten im Text ab. Jetzt steht sie vollständig da.
 

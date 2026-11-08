@@ -4,7 +4,7 @@
     Einstellungen wie in der Vorlage: Allgemein (Verknuepfungen, Start und Darstellung), Sicherung, Update.
     Dazu (nur HU-Amt) Module und Verwalter. Verwalter-Ansicht im Hauptfenster.
 .DESCRIPTION
-    Persoenlich:  Data\Benutzer\<Name>\settings.json (ui.startTab, ui.splashAnimation, ui.checkUpdatesOnStart, logging.logLevel)
+    Persoenlich:  Data\Benutzer\<Name>\settings.json (ui.startTab, ui.splashAnimation, ui.checkUpdatesOnStart, ui.theme, logging.logLevel)
                   Data\Benutzer\<Name>\ui-state.json (Oberflaechengroesse)
     Installation: Config\update.json (Kanal, Signaturpflicht), Config\powershell-host.txt (auto | 5 | 7)
     Sicherung:    Data\sicherung.json (UI-AppBackup.ps1)
@@ -217,6 +217,8 @@ function Show-HUSettingsDialog {
     $it = New-Object System.Windows.Controls.ComboBoxItem; $it.Content = 'Zuletzt verwendeter Reiter'; $it.Tag = 'Last'; [void]$c.cmbStartTab.Items.Add($it)
     & $selTag $c.cmbStartTab (Get-HUProp $S.ui 'startTab' 'Last')
     $c.chkSplashAnim.IsChecked = [bool](Get-HUProp $S.ui 'splashAnimation' $true)
+    $themeOld = $(if ("$(Get-HUProp $S.ui 'theme' 'Dunkel')" -eq 'Hell') { 'Hell' } else { 'Dunkel' })
+    & $selTag $c.cmbTheme $themeOld
     # Demo (fuer alle): starten oder beenden, beides mit Neustart
     if (Test-HUDemoMode) { $c.btnDemo.Content = 'Demo beenden ...'; $c.btnDemo.ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten' }
     elseif (Test-HUTestMode) { $c.btnDemo.IsEnabled = $false; $c.btnDemo.ToolTip = 'Im Testmodus nicht möglich. Zuerst den Testmodus beenden.' }
@@ -301,7 +303,7 @@ function Show-HUSettingsDialog {
                 try {
                     if ($Err -or -not $Res) { $Ctx.Text = 'Rechte der Verwalter-Liste: nicht prüfbar.'; $Ctx.ToolTip = "$(if ($Err) { $Err } else { 'Keine Antwort.' })"; return }
                     $Ctx.Text = $Res.Text; $Ctx.ToolTip = $Res.ToolTip
-                    if ($Res.Status -eq 'Warnung') { $Ctx.Foreground = Get-HUBrush '#FFB74D' }
+                    if ($Res.Status -eq 'Warnung') { $Ctx.Foreground = Get-HUBrush '#FFB74D' 'Fg' }
                 } catch { }   # Fenster schon zu
             }
     } catch { $c.txtAdminAcl.Visibility = 'Collapsed' }
@@ -333,6 +335,8 @@ function Show-HUSettingsDialog {
             # persoenlich
             Set-HUProp $S.ui 'startTab' "$($c.cmbStartTab.SelectedItem.Tag)"
             Set-HUProp $S.ui 'splashAnimation' ([bool]$c.chkSplashAnim.IsChecked)
+            $themeNew = $(if ($c.cmbTheme.SelectedItem) { "$($c.cmbTheme.SelectedItem.Tag)" } else { $themeOld })
+            Set-HUProp $S.ui 'theme' $themeNew
             Set-HUProp $S.ui 'checkUpdatesOnStart' ([bool]$c.chkCheckOnStart.IsChecked)
             if ($adm -and $c.cmbLogLevel.SelectedItem) { Set-HUProp $S.logging 'logLevel' "$($c.cmbLogLevel.SelectedItem.Tag)".ToUpper() }
             try { Save-HUUserSettings } catch { Show-HUMessage "Einstellungen nicht gespeichert:`n$($_.Exception.Message)" -Icon Error -Owner $w; return }
@@ -360,6 +364,7 @@ function Show-HUSettingsDialog {
             Write-HULogOK 'Einstellungen gespeichert.'
             Update-HUAdminView
             $w.Close()
+            if ($themeNew -ne $themeOld -and (Confirm-HU "Das Farbschema $([char]0x201E)$themeNew$([char]0x201C) wirkt nach dem Neustart.`n`nJetzt neu starten?" 'Farbschema' -Owner $script:Window)) { Restart-HUApp }
         })
     $c.btnCancel.Add_Click({ $w.Close() })
     $w.Add_Closing({ Save-HUDialogState $w 'SettingsWindow'; $script:AbDlg = $null })

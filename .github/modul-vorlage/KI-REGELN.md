@@ -46,7 +46,7 @@ Diese Datei bekommt jede KI, die an einem Modul von HU-Amt mitarbeitet, als fest
 
 ## Oberfläche
 
-- Dunkles Farbschema wie der Kern, Farben aus dem Theme des Kerns.
+- Dunkel gestalten wie der Kern, Farben aus dem Theme des Kerns. Das helle Schema setzt der Kern um. Farben im Code nur über `Get-HUBrush '<#RRGGBB>' '<Rolle>'` (`Fg`, `Bg`, `Border`, `Btn`), in Datenbindungen über `ConvertTo-HUThemeColor`.
 - Jedes Steuerelement hat einen Tooltip.
 - Tabellen: Spalten etwas breiter als der Inhalt, nie abgeschnitten. Fenster so breit wie die Spalten.
 - Größenveränderbare Fenster haben rechts unten einen sichtbaren Anfasser (ResizeMode CanResizeWithGrip).

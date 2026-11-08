@@ -18,6 +18,7 @@ function Add-HUAddonTab($Info) {
     $theme = Get-HUXaml 'Theme'
     $mt = [regex]::Match($theme, '(?s)<ResourceDictionary[^>]*>(.*)</ResourceDictionary>')
     $x = $x.Replace('<!--HU:THEME-->', $mt.Groups[1].Value)
+    try { $x = Convert-HUXamlTheme $x } catch { try { Write-HULogWarn "Farbschema ($($Info.Id)): $($_.Exception.Message)" } catch { } }
     $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]::new($x))
     try { $tab = [System.Windows.Markup.XamlReader]::Load($reader) } finally { $reader.Close() }
     if (-not ($tab -is [System.Windows.Controls.TabItem])) { throw 'Tab.xaml: Wurzel muss <TabItem> sein' }
