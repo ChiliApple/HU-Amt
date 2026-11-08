@@ -145,12 +145,12 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </nav>
   </div>
   <h1>Alles, was HU-Amt <em>kann</em> – auf einer Seite.</h1>
-  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen auf Kostenstellen verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Dienstreisen abrechnen, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
+  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen auf Kostenstellen verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Dienstreisen abrechnen, Räume vermieten, Gutscheine verwalten, Fristen im Blick behalten, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
   <div class="promise">
     <span>Windows 10 / 11</span><span>PowerShell 5.1 und 7</span><span>Ohne Installation</span><span>Selbst-Update aus GitHub</span><span>Signierte Releases</span>
   </div>
   <div class="stats" aria-label="Kennzahlen">
-    <div style="--c: var(--blue)"><b>5</b><span>Module als Reiter</span></div>
+    <div style="--c: var(--blue)"><b>8</b><span>Module als Reiter</span></div>
     <div style="--c: var(--yellow)"><b>8</b><span>PDF-Werkzeuge</span></div>
     <div style="--c: var(--green)"><b>1</b><span>Ordner für alle, auch auf der Freigabe</span></div>
     <div style="--c: var(--peach)"><b>AES-256</b><span>verschlüsselte Sicherung</span></div>
@@ -195,6 +195,9 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     <a href="#ocr" style="--c: var(--blue)">Texterkennung</a>
     <a href="#pdf" style="--c: var(--teal)">PDF-Werkzeuge</a>
     <a href="#reisen" style="--c: var(--green)">Reisen</a>
+    <a href="#buchung" style="--c: var(--blue)">Buchungen</a>
+    <a href="#gutscheine" style="--c: var(--yellow)">Gutscheine</a>
+    <a href="#fristen" style="--c: var(--red)">Fristen</a>
     <a href="#roadmap" style="--c: var(--mauve)">Ideen &amp; Wünsche</a>
     <a href="#fenster" style="--c: var(--blue)">Hauptfenster</a>
     <a href="#update" style="--c: var(--peach)">Update</a>
@@ -259,6 +262,46 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
             <li>Sätze, Staffel und Frist in den Einstellungen, mit Probe-Rechnung</li>
           </ul>
         </div>
+      </div>
+    </article>
+
+    <article class="cat" id="buchung" style="--c: var(--blue)">
+      <div class="cat-head"><span class="chip">🗓️ Buchungen</span><h3>Buchungen <span class="new">neu</span></h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-body">
+        <div class="group"><h4>Belegung</h4>
+          <ul>
+            <li>Belegungskalender je Objekt oder für alle, Monat oder Woche, Farbe nach Status</li>
+            <li>Anfrage, Vormerkung mit Ablaufdatum, bestätigt, übergeben, zurück, abgerechnet; Storno mit Grund, nie gelöscht</li>
+            <li>Keine Doppelbuchung, je Teilraum geprüft, beim Speichern noch einmal auf der Freigabe</li>
+            <li>Serien, z. B. jeden Montag, einzelne Termine absagen oder verlegen</li>
+            <li>Nachtgrenze: eine Nacht bis in den Morgen zählt zum Vortag</li>
+            <li>Buchungsnummer nach dem Jahr der Buchung</li>
+          </ul>
+        </div>
+        <div class="group"><h4>Preis, Mieter, Outlook</h4>
+          <ul>
+            <li>Preisstände mit „gültig ab“, Tarifgruppen, Rabatte nur bewusst angehakt, Kaution getrennt</li>
+            <li>Mieter aus Outlook-Kontakten oder Visitenkarte (.vcf), anonymisieren durch den Verwalter</li>
+            <li>Termine im gemeinsamen Kalender, Änderung und Storno passen sie an; fehlende werden beim Laden nachgetragen</li>
+            <li>Ohne klassisches Outlook als Kalenderdateien (.ics)</li>
+            <li>Geführter Buchungstest im Testmodus</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="cat" id="gutscheine" style="--c: var(--yellow)">
+      <div class="cat-head"><span class="chip">🎟️ Gutscheine</span><h3>Gutscheine <span class="new">neu</span></h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Ausgeben einzeln oder als Bereich, Verkauf oder unentgeltlich (Förderung, Geschenk)</li>
+          <li>Einlösen per Tastatur oder Handscanner, jede Nummer sofort geprüft</li>
+          <li>Summe zum Bar-Auszahlen, Quittung zum Unterschreiben</li>
+          <li>Ausgegeben, eingelöst und offen, auch zu einem Stichtag</li>
+          <li>Fehler nur per Storno mit Grund, nie gelöscht; nie zweimal ausbezahlt, auch zwischen PCs</li>
+          <li>Auswertungen als PDF oder CSV</li>
+          <li>Bisherige Liste aus Excel oder CSV einmalig übernehmen, mit Abstimmungsprotokoll</li>
+        </ul>
       </div>
     </article>
 
@@ -339,6 +382,21 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
           <li>🖼 Bilder zu PDF, Handyfotos gedreht, auf Wunsch durchsuchbar</li>
           <li>📬 Eingangsstempel mit Vorlagen und 🗒 Notizzettel als Anmerkung</li>
           <li>Geschützte PDFs: Kennwort wird abgefragt und nie gespeichert</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="cat" id="fristen" style="--c: var(--red)">
+      <div class="cat-head"><span class="chip">⏰ Fristen</span><h3>Fristen <span class="new">neu</span></h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Ampel rot, gelb, grün mit Vorlauf je Kategorie oder Frist</li>
+          <li>Einmalig oder alle n Monate bzw. Jahre, ab Fälligkeit oder ab Erledigt</li>
+          <li>Kategorien, Verantwortliche, Filter „nur meine“</li>
+          <li>PDF-Anhänge als Kopie, z. B. der letzte Prüfbericht</li>
+          <li>Erledigt mit Datum und Notiz, nächste Fälligkeit von selbst, aussetzen statt löschen</li>
+          <li>Eigene offene Fristen als Aufgabe oder Termin im eigenen Outlook, nur in eine Richtung</li>
+          <li>Ohne Outlook als Kalenderdatei (.ics)</li>
         </ul>
       </div>
     </article>

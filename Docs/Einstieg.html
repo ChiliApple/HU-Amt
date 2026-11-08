@@ -143,7 +143,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </nav>
   </div>
   <h1>Die Werkzeuge fürs Amt – <em>ein</em> Fenster.</h1>
-  <p class="lead">Rechnungen verbuchen, Scans durchsuchbar machen, PDFs zusammenfügen, schwärzen oder stempeln, Dienstreisen abrechnen: In der Gemeindeverwaltung sind das oft fünf verschiedene Programme. HU-Amt legt sie als Reiter in ein Fenster – für alle Bediensteten, von einer Netzfreigabe aus. Diese Seite zeigt <b>typische Situationen aus dem Alltag</b>: was du tust und was am Ende herauskommt.</p>
+  <p class="lead">Rechnungen verbuchen, Scans durchsuchbar machen, PDFs zusammenfügen, schwärzen oder stempeln, Dienstreisen abrechnen, Räume vermieten, Gutscheine einlösen, Fristen im Blick behalten: In der Gemeindeverwaltung sind das oft lauter verschiedene Programme und Listen. HU-Amt legt sie als Reiter in ein Fenster – für alle Bediensteten, von einer Netzfreigabe aus. Diese Seite zeigt <b>typische Situationen aus dem Alltag</b>: was du tust und was am Ende herauskommt.</p>
   <div class="newhere"><span><b>Neu hier?</b> Herunterladen, auf die Freigabe legen, starten – in etwa 10 Minuten. Die Module trägt der Verwalter mit einer Zugangsdatei ein.</span><a class="go" href="#start">In 10 Minuten startklar ↓</a></div>
   <div class="promise">
     <span>Ohne Installation</span><span>Läuft von der Netzfreigabe</span><span>Keine Lizenz</span><span>Windows 10 / 11, PowerShell 5.1 oder 7</span><span>Signierte Updates</span><span>Hilfe im Tool mit F1</span>
@@ -203,6 +203,9 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     <a href="#schwaerzen" style="--c: var(--red)"><b>Namen müssen raus</b><small>sicher schwärzen</small></a>
     <a href="#stempel" style="--c: var(--peach)"><b>Eingang vermerken</b><small>Eingangsstempel und Notizzettel</small></a>
     <a href="#reise" style="--c: var(--green)"><b>Ich war dienstlich unterwegs</b><small>Reise erfassen, abrechnen, einreichen</small></a>
+    <a href="#saal" style="--c: var(--blue)"><b>Jemand will den Saal mieten</b><small>Buchung, Preis, Termin in Outlook</small></a>
+    <a href="#gutschein" style="--c: var(--yellow)"><b>Ein Betrieb bringt Gutscheine</b><small>einlösen, auszahlen, Quittung</small></a>
+    <a href="#frist" style="--c: var(--red)"><b>Die Prüfung ist bald fällig</b><small>Fristen mit Ampel und Erinnerung</small></a>
     <a href="#wunsch" style="--c: var(--mauve)"><b>Mir fehlt noch etwas</b><small>Ideen &amp; Wünsche, Feedback</small></a>
     <a href="#verwalter" style="--c: var(--blue)"><b>Ich bin der Verwalter</b><small>Freigabe, Module, Sicherung</small></a>
   </nav>
@@ -404,11 +407,94 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </div>
   </article>
 
+  <article class="scn" id="saal" style="--c: var(--blue)">
+    <div class="scn-head">
+      <span class="tag">Buchungen</span>
+      <h3>Jemand will den Saal mieten</h3>
+      <p class="quote">„Ein Verein fragt für Samstag an. Ist der Saal frei, was kostet er, und wissen die Kollegen Bescheid?“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Reiter <span class="ui">🗓️ Buchungen</span>: Objekt wählen und im Kalender den freien Tag anklicken.</span></li>
+          <li><span>Mieter suchen oder neu anlegen, auch aus den Outlook-Kontakten. Teilräume anhaken, Beginn und Ende eintragen.</span></li>
+          <li><span>Rechts steht der Preis. Status wählen: Anfrage, Vormerkung oder gleich bestätigt, dann <span class="ui g">Speichern</span>.</span></li>
+          <li><span>Kommt eine Absage: <span class="ui r">✖ Stornieren</span> mit Grund, der Tag ist wieder frei.</span></li>
+        </ol>
+        <div class="meta"><span>keine Doppelbuchung</span><span>gemeinsamen Kalender stellt der Verwalter ein</span></div>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Eine Buchung mit Nummer, Preis und Verlauf aller Änderungen</li>
+          <li>Veranstaltung, Übergabe und Rückgabe als Termine im gemeinsamen Kalender, bei Änderung und Storno angepasst</li>
+          <li>Einen Hinweis unter „Offen“, wenn eine Vormerkung abläuft oder ein Termin fehlt</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="gutschein" style="--c: var(--yellow)">
+    <div class="scn-head">
+      <span class="tag">Gutscheine</span>
+      <h3>Ein Betrieb bringt Gutscheine</h3>
+      <p class="quote">„Ein Stapel Gutscheine auf dem Tisch. Sind die alle echt, schon eingelöst, und wie viel zahle ich aus?“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Reiter <span class="ui">🎟️ Gutscheine</span> › <span class="ui b">Einlösen</span>: den Betrieb wählen.</span></li>
+          <li><span>Die Nummern mit dem Handscanner scannen oder eintippen. Jede Nummer wird sofort geprüft.</span></li>
+          <li><span>Unten steht die Summe. <span class="ui g">Einlösen und auszahlen</span>, auf Wunsch mit Quittung.</span></li>
+        </ol>
+        <div class="meta"><span>nie zweimal ausbezahlt</span><span>Fehler per Storno mit Grund</span></div>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Eine Quittung zum Unterschreiben</li>
+          <li>Den offenen Betrag aller Gutscheine, auch zu einem Stichtag wie dem 31.12.</li>
+          <li>Auswertungen als PDF oder CSV, z. B. Einlösung je Betrieb</li>
+          <li>Die bisherige Liste aus Excel einmal übernommen, die Datei selbst bleibt unverändert</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="scn" id="frist" style="--c: var(--red)">
+    <div class="scn-head">
+      <span class="tag">Fristen</span>
+      <h3>Die Prüfung ist bald fällig</h3>
+      <p class="quote">„Alle zwei Jahre die Prüfung, jedes Jahr der Antrag. Wer denkt daran, wenn ich im Urlaub bin?“</p>
+    </div>
+    <div class="scn-body">
+      <div>
+        <h4>So gehst du vor</h4>
+        <ol class="steps">
+          <li><span>Reiter <span class="ui">⏰ Fristen</span> › <span class="ui b">➕ Neue Frist</span>: Titel, Kategorie, Fälligkeit, Wiederholung und wer verantwortlich ist.</span></li>
+          <li><span>Den letzten Prüfbericht als PDF anhängen.</span></li>
+          <li><span>Ist es erledigt: <span class="ui g">✔ Erledigt</span>. Eine wiederkehrende Frist bekommt sofort die nächste Fälligkeit.</span></li>
+        </ol>
+        <div class="meta"><span>alle sehen alle Fristen</span><span>Abhaken nur in HU-Amt</span></div>
+      </div>
+      <div>
+        <h4>Was du am Ende hast</h4>
+        <ul class="gets">
+          <li>Eine Ampel: rot fällig, gelb bald fällig, grün in Ordnung</li>
+          <li>Deine offenen Fristen als Aufgabe oder Termin in deinem Outlook</li>
+          <li>Einen Verlauf, wer wann was erledigt oder geändert hat, damit die Vertretung weitermachen kann</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
   <article class="scn" id="wunsch" style="--c: var(--mauve)">
     <div class="scn-head">
       <span class="tag">Ideen &amp; Wünsche</span>
       <h3>Mir fehlt noch etwas</h3>
-      <p class="quote">„Schön wäre noch eine Erinnerung an Fristen. Wem sag ich das?“</p>
+      <p class="quote">„Schön wäre noch eine Inventarliste. Wem sag ich das?“</p>
     </div>
     <div class="scn-body">
       <div>
@@ -463,7 +549,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <div>
     <details><summary>Muss ich etwas installieren?</summary><p>Nein. HU-Amt läuft aus einem Ordner am PC oder auf einer Netzfreigabe. Windows PowerShell 5.1 ist in Windows enthalten; ist PowerShell 7 da, nimmt HU-Amt es automatisch. Das Modul Kostenzuordnung braucht die WebView2-Runtime, die in Windows 11 enthalten ist.</p></details>
     <details><summary>Ändert HU-Amt etwas an unserer Gemeindesoftware?</summary><p>Nein. HU-Amt hat keine Verbindung zu anderen Programmen. Ergebnisse gehen als Datei in einen festen Ordner, den andere Programme abholen können.</p></details>
-    <details><summary>Wo liegen die Daten?</summary><p>Gemeinsame Listen und die Daten der Module im Ordner <code>Data</code> neben dem Programm. Persönliche Einstellungen und Zugangsdaten je Windows-Benutzer. Nichts davon geht ins Internet.</p></details>
+    <details><summary>Wo liegen die Daten?</summary><p>Gemeinsame Listen und die Daten der Module im gemeinsamen Datenordner, normal <code>Data</code> neben dem Programm; ein Verwalter kann einen anderen Ordner einstellen. Persönliche Einstellungen und Zugangsdaten je Windows-Benutzer. Fachdaten gehen nicht ins Internet; Termine aus Buchungen und Fristen liegen in Outlook wie jeder andere Termin. Alles im Detail: <a href="Daten.html">Wo liegen meine Daten?</a></p></details>
     <details><summary>Was passiert, wenn zwei gleichzeitig dieselbe Liste bearbeiten?</summary><p>Eine gemeinsame Liste bearbeitet immer nur eine Person. Die anderen sehen „gerade in Bearbeitung von …“ und können nur lesen. Vor jedem Speichern entsteht eine Kopie mit Zeitstempel.</p></details>
     <details><summary>Wie kommen Updates?</summary><p>HU-Amt meldet neue Versionen selbst (Knopf <b>Update</b> wird gold). Im Kanal <b>Stabil</b> landen nur geprüfte und signierte Versionen; jede Datei wird vor dem Ersetzen geprüft. Module aktualisieren sich genauso.</p></details>
     <details><summary>Was kostet das?</summary><p>Nichts. Die Nutzung ist frei, auch für Gemeinden und Behörden. Details stehen in der Lizenz im Repository.</p></details>

@@ -462,6 +462,18 @@ $script:Window.Add_Closing({
     try { Stop-HUAddons } catch { }
     try { Close-AsyncPool } catch { }
     Write-HULog -Message "=== $($script:AppTitle) beendet ===" -Level 'INFO'
+    # Sperre und Einzelinstanz sofort freigeben (nicht erst nach ShowDialog): Bleibt der Prozess danach haengen,
+    # blockiert er weder den Neustart ("bereits geoeffnet") noch das Update ("jemand hat die App offen").
+    try { Close-HURunLock $script:RunLock; $script:RunLock = $null } catch { }
+    if ($script:InstanceMutex) { try { $script:InstanceMutex.ReleaseMutex() } catch { }; try { $script:InstanceMutex.Dispose() } catch { }; $script:InstanceMutex = $null }
+    # Absicherung: Endet der Prozess nicht von selbst (beobachtet 08.11.2026, Ursache unklar), nach 15 s hart beenden
+    if (-not $SmokeTest) {
+        try {
+            $__xr = [runspacefactory]::CreateRunspace(); $__xr.ThreadOptions = 'UseNewThread'; $__xr.Open()
+            $__xp = [powershell]::Create(); $__xp.Runspace = $__xr
+            [void]$__xp.AddScript({ Start-Sleep -Seconds 15; [Environment]::Exit(0) }).BeginInvoke()
+        } catch { }
+    }
 })
 
 # ============================================================================

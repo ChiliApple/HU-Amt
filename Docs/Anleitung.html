@@ -102,6 +102,9 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <div class="card b"><b>🔍 Texterkennung</b>Gescannte PDFs durchsuchbar machen, sinnvoll benennen und ablegen.</div>
     <div class="card t"><b>📑 PDF-Werkzeuge</b>Zusammenfügen, teilen, Seiten, schwärzen, verkleinern, Bilder zu PDF, Stempel und Notiz.</div>
     <div class="card p"><b>🚗 Reisen</b>Dienstreisen erfassen, Kilometergeld und Tagesgebühren rechnen, Abrechnung als PDF einreichen.</div>
+    <div class="card b"><b>🗓️ Buchungen</b>Räume und Dinge vermieten, Belegungskalender ohne Doppelbuchung, Preis und Termine in Outlook.</div>
+    <div class="card g"><b>🎟️ Gutscheine</b>Nummerierte Gutscheine ausgeben und einlösen, auch mit Handscanner, Quittung und Auswertung.</div>
+    <div class="card r"><b>⏰ Fristen</b>Wiederkehrende Termine mit Ampel und Verlauf, Erinnerung im eigenen Outlook.</div>
     <div class="card m"><b>💡 Ideen &amp; Wünsche</b>Was es gibt und was kommt, abstimmen und Wünsche melden.</div>
     <div class="card p"><b>💾 Sicherung</b>Alle Einstellungen und Daten verschlüsselt, auf Wunsch täglich.</div>
     <div class="card r"><b>🔄 Update</b>Signierte Versionen per Knopf, für Programm und Module.</div>
@@ -316,8 +319,120 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <div class="note warn"><b class="h">Grenzen</b>Die vorgegebenen Sätze sind ein Startwert, keine Rechtsauskunft: Prüfe sie gegen die Vorgaben deiner Gemeinde. PDF-Belege werden nicht in die Abrechnung eingebettet, dafür gibt es das Zusammenfügen. Die Entfernung berechnen geht nur mit eigenem Schlüssel und Internet.</div>
 </section>
 
+<section id="buchung">
+  <h2><span class="n">8</span>Buchungen</h2>
+  <p>Reiter <span class="ui">🗓️ Buchungen</span>: Räume und Dinge vermieten, vom ersten Anruf über die Vormerkung bis zur Abrechnung, ohne Doppelbuchung. Alle Bediensteten sehen alle Buchungen. Oben wählst du das Objekt (oder „Alle Objekte“) und Monat oder Woche, der Kalender zeigt jede Buchung in der Farbe ihres Status.</p>
+  <h3 id="buchung-einst">Einrichten (Verwalter)</h3>
+  <p><span class="ui">⚙ Einstellungen</span> im Reiter: <b>Allgemein</b> (Hauptbearbeiter, wie lange eine Vormerkung hält, Erinnerung, Nachtgrenze, Zielkalender, Weg zu Outlook), <b>Objekte</b> (Teilräume, Übergaberegel, Kaution, eigener Kalender; auch Fahrzeuge oder Geräte), <b>Preise</b> (Preisstände mit „gültig ab“), <b>Rabatte &amp; Tarife</b>. Ändern dürfen Verwalter und die Benutzer im Reiter <b>Rechte</b>, jede Änderung steht im Reiter <b>Verlauf</b>.</p>
+  <div class="note warn"><b class="h">Gemeinsamen Kalender einstellen</b>Termine kommen in den Kalender, der beim Objekt eingestellt ist, sonst in den Zielkalender unter <b>Allgemein</b>. Ist keiner eingestellt, landen sie im eigenen Kalender der Person, die speichert. Die anderen sehen sie dann nicht.</div>
+  <h3 id="buchung-neu">Buchung anlegen</h3>
+  <ol class="steps">
+    <li>Freien Tag im Kalender anklicken oder <span class="ui b">➕ Neue Anfrage</span>.</li>
+    <li>Mieter suchen oder <span class="ui">➕ Neu</span>. Mieter lassen sich mit <span class="ui">📇 Aus Kontakten …</span> aus Outlook oder einer Visitenkarte (.vcf) übernehmen; eine .vcf kannst du auch in den Reiter ziehen.</li>
+    <li>Teilräume anhaken, Beginn und Ende mit Datum und Uhrzeit eintragen. Rechts steht der Preis.</li>
+    <li>Status wählen: Anfrage, Vormerkung (mit Ablaufdatum) oder gleich bestätigt. <span class="ui g">Speichern</span>.</li>
+  </ol>
+  <ul>
+    <li>Ist der Zeitraum belegt, steht das rot im Fenster. Beim Speichern prüft HU-Amt noch einmal auf der Freigabe.</li>
+    <li>Status: Anfrage, Vormerkung, bestätigt, übergeben, zurück, abgerechnet. <span class="ui r">✖ Stornieren</span> nur mit Grund, der Zeitraum ist dann wieder frei. Buchungen werden nie gelöscht.</li>
+    <li>Die Buchungsnummer richtet sich nach dem Jahr der Buchung (erster belegter Tag), nicht nach dem Tag der Eingabe: Eine Buchung für März 2027 bekommt z. B. <code>2027-0001</code>.</li>
+    <li><b>Nachtgrenze</b> (Standard 06:00 Uhr): Endet eine Veranstaltung am Folgetag vor dieser Uhrzeit, zählt das Ende zum Vortag. Samstag 19:00 bis Sonntag 01:00 belegt nur den Samstag und kostet einen Tag.</li>
+    <li>Serien, z. B. Training jeden Montag: bei der Anfrage „jede Woche am“ anhaken. Jeder Termin wird einzeln geprüft, einzelne Termine lassen sich absagen oder verlegen.</li>
+    <li>Preis: Räume je Veranstaltungstag, Leistungen nach Menge, Tarifgruppe, Rabatte nur bewusst angehakt, Kaution getrennt. Es gilt der Preisstand am ersten Veranstaltungstag; die Buchung merkt sich ihre Preise.</li>
+    <li>Der gelbe Kasten <b>Offen</b> zeigt ablaufende Vormerkungen, Anfragen ohne Antwort und fehlende Outlook-Termine.</li>
+  </ul>
+  <h3 id="buchung-outlook">Termine in Outlook</h3>
+  <ul>
+    <li>Nach dem Speichern kommen Veranstaltung, Übergabe, Rückgabe und der Ablauf einer Vormerkung in Outlook (klassisches Outlook). Eine Vormerkung steht dort „mit Vorbehalt“.</li>
+    <li>Ändert sich die Buchung oder wird sie storniert, passt HU-Amt den Termin an oder entfernt ihn. Verlässlich geht das nur mit gemeinsamem Kalender. Ohne ihn nur, wenn dieselbe Person ändert, die gespeichert hat; sonst bleibt der alte Termin stehen.</li>
+    <li>Termine bitte nicht in Outlook ändern, sondern in HU-Amt. Beim nächsten Speichern überschreibt HU-Amt den Termin.</li>
+    <li>Fehlt ein Termin (z. B. kein Schreibrecht auf den Kalender), steht die Buchung unter <b>Offen</b>; <span class="ui">📅 Termine nachtragen</span> holt es nach. Mit gemeinsamem Kalender trägt HU-Amt offene Termine beim Laden des Reiters von selbst nach, nur für Buchungen, die noch nicht vorbei sind.</li>
+    <li>Ohne klassisches Outlook entstehen nur Kalenderdateien (.ics), <span class="ui">📂 Kalenderdateien</span> öffnet den Ordner. Du öffnest sie selbst und löschst den alten Termin bei Änderung oder Storno selbst.</li>
+  </ul>
+  <h3 id="buchung-mieter">Mieter und Datenschutz</h3>
+  <p>Mieter werden inaktiv gesetzt statt gelöscht. Ein Verwalter kann im Mieterfenster <span class="ui r">Anonymisieren …</span> wählen: Name, Adresse, Telefon, Mail und Notiz werden gelöscht, in allen Buchungen des Mieters und im Verlauf steht danach „Anonymisiert (Datum)“. Die Buchungen selbst bleiben. Vorher lässt sich eine Liste seiner Buchungen als PDF speichern.</p>
+  <div class="note stop"><b class="h">Nicht zurücknehmbar</b>Anonymisieren lässt sich nicht rückgängig machen. Die Sicherungen enthalten die alten Mieterdaten, bis sie nach der eingestellten Aufbewahrung herausfallen.</div>
+  <h3 id="buchung-test">Ausprobieren</h3>
+  <p>Im Testmodus (Verwalter, <span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b>) arbeitet der Reiter mit erfundenen Beispieldaten, Outlook-Termine werden nur simuliert. <span class="ui">🧪 Buchungstest starten</span> in der orangen Leiste führt Schritt für Schritt durch einen Test, „Test zurücksetzen“ stellt die Beispiele wieder her. Wo Buchungen, Mieter und Kalenderdateien liegen: <a href="Daten.html#m-buchung">Wo liegen meine Daten? › Buchungen</a>.</p>
+</section>
+
+<section id="gutscheine">
+  <h2><span class="n">9</span>Gutscheine</h2>
+  <p>Reiter <span class="ui">🎟️ Gutscheine</span>: nummerierte Gutscheine ausgeben und einlösen und jederzeit den offenen Betrag kennen. Oben stehen ausgegeben, eingelöst und offen. Mit dem Stichtag siehst du den Stand an einem früheren Tag, z. B. am 31.12. Gutscheine laufen nicht ab. Die Liste lädt alle 20 Sekunden neu, auch mit Eingaben an anderen PCs.</p>
+  <h3 id="gs-ausgeben">Ausgeben</h3>
+  <ol class="steps">
+    <li><span class="ui b">Ausgeben</span>: Nummern einzeln oder als Bereich, z. B. <code>1201-1250, 1300</code>. Führende Nullen zählen nicht.</li>
+    <li>Wert, Datum und Grund wählen, freiwillig Empfänger und Beleg oder Aktenzahl.</li>
+    <li>Schon ausgegebene Nummern stehen sofort rot, dann lässt sich nicht speichern.</li>
+  </ol>
+  <p>Nur ein Grund mit Haken „Einnahme“ zählt als Verkauf. Förderung, Prämie oder Geschenk sind unentgeltlich.</p>
+  <h3 id="gs-einloesen">Einlösen und auszahlen</h3>
+  <ol class="steps">
+    <li><span class="ui b">Einlösen</span>: Betrieb aus der Liste wählen.</li>
+    <li>Nummern eintippen und <kbd>Enter</kbd> drücken oder mit dem Handscanner scannen. Der Scanner tippt nur die Nummer ein, es entsteht keine Datei.</li>
+    <li>Jede Nummer wird sofort geprüft: ✅ offen, ❌ schon eingelöst, ⚠️ nie ausgegeben. Nur ✅ zählt zur Summe.</li>
+    <li><span class="ui g">Einlösen und auszahlen</span>, auf Wunsch mit <i>Quittung drucken</i>. Ohne <i>gleich bar auszahlen</i> wird nur eingelöst, ausbezahlt wird später mit <span class="ui">💵 Auszahlen</span>.</li>
+  </ol>
+  <p>Vor dem Speichern prüft HU-Amt jede Nummer noch einmal gegen alle PCs. Dieselbe Nummer wird nie zweimal ausbezahlt.</p>
+  <h3 id="gs-storno">Fehler korrigieren</h3>
+  <ul>
+    <li>Nichts wird gelöscht. Ein falscher Vorgang wird mit <span class="ui">↩ Stornieren</span> storniert, ganz oder für einzelne Nummern, immer mit Grund. Danach den Vorgang richtig neu erfassen.</li>
+    <li>Eine Ausgabe lässt sich nur stornieren, solange ihre Nummern nicht eingelöst sind. Eine ausbezahlte Einlösung erst, wenn ihre Auszahlung storniert ist.</li>
+    <li>Stornieren dürfen der Verwalter und die Berechtigten aus den Einstellungen.</li>
+  </ul>
+  <h3 id="gs-auswertung">Quittung und Auswertung</h3>
+  <p><span class="ui">🖨 Quittung</span>: eine Seite je Auszahlung mit Feldern zum Unterschreiben, auch später noch einmal. <span class="ui">📊 Auswertung</span>: Zeitraum wählen, dann PDF zum Drucken oder CSV für Excel, z. B. Einlösung je Betrieb oder offene Gutscheine zum Stichtag. Quittungen und Auswertungen landen im gemeinsamen Datenordner und öffnen sich sofort.</p>
+  <h3 id="gs-import">Bisherige Liste übernehmen (einmalig)</h3>
+  <ol class="steps">
+    <li><span class="ui">📥 Aus Excel übernehmen</span> oder die Datei in den Reiter ziehen (Excel oder CSV).</li>
+    <li>Blatt und Zeile mit den Spaltennamen wählen, Spalten zuordnen.</li>
+    <li>Prüfen: zeigt, wie viele Gutscheine übernommen werden, und meldet jede Zeile, die nicht passt.</li>
+    <li>Übernehmen. Danach öffnet sich ein Abstimmungsprotokoll: Zahlen aus der Datei gegen den Stand im Modul.</li>
+  </ol>
+  <ul>
+    <li>Die Datei wird nur gelesen und bleibt, wo sie ist. Ihr Inhalt wird zu Vorgängen in HU-Amt.</li>
+    <li>Liegt ein Einlösedatum vor dem Ausgabedatum, gibt es eine Warnung. Die Zeile wird trotzdem übernommen.</li>
+    <li>War etwas falsch: „Frühere Übernahme stornieren“ und noch einmal übernehmen.</li>
+  </ul>
+  <h3 id="gs-test">Ausprobieren</h3>
+  <p>Im Testmodus startet der Reiter mit erfundenen Gutscheinen und Betrieben, dazu eine Beispiel-Liste zum Übernehmen. Echte Daten bleiben unberührt. Wo Vorgänge, Quittungen und Auswertungen liegen: <a href="Daten.html#m-gs">Wo liegen meine Daten? › Gutscheine</a>.</p>
+</section>
+
+<section id="fristen">
+  <h2><span class="n">10</span>Fristen</h2>
+  <p>Reiter <span class="ui">⏰ Fristen</span>: einmalige und wiederkehrende Termine mit Ampel, Verlauf und Erinnerung im eigenen Outlook, z. B. Prüfungen, Verträge oder Antragsschlüsse. Alle Bediensteten sehen und bearbeiten alle Fristen, damit bei Urlaub oder Krankheit jemand anderer weitermachen kann.</p>
+  <table>
+    <tr><th>Ampel</th><th>Bedeutung</th></tr>
+    <tr><td>🔴 fällig</td><td>heute fällig oder überfällig</td></tr>
+    <tr><td>🟡 bald fällig</td><td>innerhalb des Vorlaufs (Standard 30 Tage, je Kategorie oder Frist änderbar)</td></tr>
+    <tr><td>🟢 in Ordnung</td><td>noch Zeit</td></tr>
+    <tr><td>⚪ erledigt oder ausgesetzt</td><td>nur mit „auch erledigte und ausgesetzte“</td></tr>
+  </table>
+  <p>Ein Klick auf einen Ampel-Knopf zeigt nur diese Farbe. Dazu Filter „nur meine“, Kategorie, Verantwortlicher und Suchtext.</p>
+  <h3 id="fristen-neu">Frist anlegen</h3>
+  <ol class="steps">
+    <li><span class="ui b">➕ Neue Frist</span>: Titel, Kategorie, Fälligkeit (📅 öffnet den Kalender), Verantwortlicher, Notiz.</li>
+    <li>Wiederholung: einmalig (Vorgabe), alle n Monate oder alle n Jahre, gerechnet ab Fälligkeit oder ab dem Tag, an dem erledigt wurde.</li>
+    <li>Anhänge: PDF im Fenster hinzufügen oder auf die markierte Frist ziehen. HU-Amt legt eine Kopie ab, das Original bleibt, wo es war.</li>
+  </ol>
+  <p>Fristen werden nie gelöscht. Entfällt eine, setzt du sie mit <span class="ui">⏸ Aussetzen</span> und Grund aus. Jede Änderung steht im Verlauf.</p>
+  <h3 id="fristen-erledigt">Erledigt</h3>
+  <p><span class="ui g">✔ Erledigt</span>: Datum, Notiz und auf Wunsch den Prüfbericht als PDF. Einmalige Fristen sind danach erledigt, wiederkehrende bekommen sofort die nächste Fälligkeit. Mit einem Folgetermin bleibt die Frist offen und ist an diesem Tag wieder fällig. Versehentlich erledigt: <span class="ui">↩ Erledigt zurücknehmen</span>.</p>
+  <h3 id="fristen-outlook">Erinnerung in Outlook</h3>
+  <ul>
+    <li>Offene Fristen, für die <b>du</b> verantwortlich bist, kommen beim Start von HU-Amt und nach jeder Änderung in dein klassisches Outlook, als Aufgabe oder ganztägiger Termin. Es wird keine Mail verschickt. Sofort: <span class="ui">🔄 In Outlook abgleichen</span>.</li>
+    <li>Der Weg geht nur in eine Richtung: Abhaken in Outlook wirkt nicht zurück. Erledigt wird in HU-Amt, dann hakt HU-Amt die Aufgabe ab.</li>
+    <li>Wer HU-Amt länger nicht öffnet, bekommt keine neuen Einträge. Die Ampel im Reiter ist darum die Hauptanzeige.</li>
+    <li>Ohne klassisches Outlook: Frist markieren, <span class="ui">📅 Kalenderdatei</span>. Die Datei lässt sich in jeden Kalender übernehmen, ein Abgleich ist so nicht möglich.</li>
+    <li>Ob Aufgabe oder Termin, legt der Verwalter fest. Unter <span class="ui">⚙ Einstellungen</span> › <b>Outlook</b> kannst du für dich etwas anderes wählen.</li>
+  </ul>
+  <h3 id="fristen-einst">Einstellungen (Verwalter)</h3>
+  <p><b>Allgemein</b>: Standard-Vorlauf der Ampel, Größe eines Anhangs. <b>Kategorien</b>: Name, Zeichen, Vorlauf; ausblenden statt löschen. <b>Outlook</b>: Aufgabe oder Termin, Erinnerung, Betreff-Anfang. <b>Verantwortliche</b>: Windows-Benutzer und Name, <span class="ui">Aus HU-Amt übernehmen</span> fügt alle an, die HU-Amt schon benutzt haben.</p>
+  <p>Im Testmodus zeigt der Reiter Beispielfristen erfundener Bediensteter, Outlook ist dann gesperrt. Wo Fristen und Anhänge liegen: <a href="Daten.html#m-fristen">Wo liegen meine Daten? › Fristen</a>.</p>
+</section>
+
 <section id="roadmap">
-  <h2><span class="n">8</span>Ideen &amp; Wünsche</h2>
+  <h2><span class="n">11</span>Ideen &amp; Wünsche</h2>
   <p>Reiter <span class="ui">💡 Ideen &amp; Wünsche</span>: Was es gibt, was kommt und woran gerade gearbeitet wird. Mit 👍 zeigst du, was du auch brauchst.</p>
   <figure><a href="screenshot-ideen.png"><img src="screenshot-ideen.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-ideen.png'" style="max-width:620px;width:100%" alt="Ideen und Wünsche"></a><figcaption>Liste mit Status und Abstimmung, darunter die eigenen Wünsche.</figcaption></figure>
   <ul>
@@ -337,7 +452,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="update">
-  <h2><span class="n">9</span>Update</h2>
+  <h2><span class="n">12</span>Update</h2>
   <p>Beim Start sucht HU-Amt im Hintergrund nach Updates; bei einer neuen Version wird <span class="ui">Update</span> gold. Klick: HU-Amt schließt sich, <code>Pull.ps1</code> lädt die neue Version ganz, prüft jede Datei gegen die Prüfsummen-Liste und die Signatur des Herausgebers und ersetzt erst dann. Bei einem Fehler bleibt alles, wie es war. Danach startet HU-Amt neu. <code>Data\</code> und lokale Einstellungen werden nie angefasst.</p>
   <table>
     <tr><th>Rechtsklick auf Update</th><th>Wirkung</th></tr>
@@ -352,7 +467,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="support">
-  <h2><span class="n">10</span>Hilfe und Support</h2>
+  <h2><span class="n">13</span>Hilfe und Support</h2>
   <p><kbd>F1</kbd> oder <span class="ui">?</span> öffnet die Hilfe zum aktuellen Reiter, Rechtsklick auf <span class="ui">?</span> die Übersicht.</p>
   <ol class="steps">
     <li><span class="ui">🛟 Support</span>: aufschreiben, was passiert ist (Schritte, Fehlermeldung, erwartetes Ergebnis).</li>
@@ -363,11 +478,11 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="ordner">
-  <h2><span class="n">11</span>Was passiert mit deinen Dateien</h2>
-  <p class="lead">Hier steht, was HU-Amt selbst mit Dateien macht. Was ein Modul mit seinen Dateien tut (Rechnungen, Scans, PDFs), steht in der Hilfe des Moduls (<kbd>F1</kbd> im Reiter) unter „Was passiert mit deinen Dateien“.</p>
+  <h2><span class="n">14</span>Was passiert mit deinen Dateien</h2>
+  <p class="lead">Wo deine Dateien landen, was jedes Modul mit ihnen macht und was gesichert wird, steht auf einer Seite: <a href="Daten.html">Wo liegen meine Daten?</a> Hier folgen nur Einzelheiten zum Programm selbst.</p>
 
   <h3 id="ordner-wo">Wo liegt was</h3>
-  <p>Alle Daten liegen im Ordner <code>Data</code> im Programmordner. Läuft HU-Amt von einem Netzlaufwerk, liegen die Daten also mit auf der Freigabe. Einen anderen Datenordner kann man nicht einstellen. Ist <code>Data</code> nicht beschreibbar, startet HU-Amt nicht und sagt das.</p>
+  <p>Alle Daten liegen im gemeinsamen Datenordner, normal <code>Data</code> im Programmordner. Ein Verwalter kann einen anderen Ordner einstellen (<a href="#freigabe">Eigener Datenordner</a>); <code>Data\Laufend</code> bleibt immer beim Programm. <code>Data</code> steht unten für den gemeinsamen Datenordner. Ist er nicht erreichbar oder nicht beschreibbar, startet HU-Amt nicht und sagt das.</p>
   <table>
     <tr><th>Ordner oder Datei</th><th>Inhalt</th><th>Für wen</th></tr>
     <tr><td><code>Data\&lt;Modul&gt;\</code></td><td>Daten des Moduls, z. B. Listen, Archiv, Übergabeordner <code>Ausgang</code>; dazu <code>_Kopien</code> mit den Ständen vor dem Speichern</td><td>alle</td></tr>
@@ -422,10 +537,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   </ul>
 
   <h3 id="ordner-sicherung">Was in der Sicherung ist</h3>
-  <table>
-    <tr><th>Drin</th><th>Nicht drin</th></tr>
-    <tr><td>alles unter <code>Data</code>: Daten aller Module, Postfach, <code>_Kopien</code>, Verwalterliste, Einstellungen und Fenster aller Benutzer</td><td>Protokolle, Zugänge der Module (<code>Token</code>), das Kennwort der automatischen Sicherung, Sperrdateien, Programm, Module, <code>Config</code>; Übergabeordner außerhalb von <code>Data</code></td></tr>
-  </table>
+  <p>Was drin ist und was nicht: <a href="Daten.html#sicherung">Wo liegen meine Daten? › Die Sicherung</a>. Dazu gilt beim Zurückholen:</p>
   <ul>
     <li><b>Wiederherstellen</b> geht nur, wenn sonst niemand HU-Amt offen hat. Vorher kommt der aktuelle Stand der betroffenen Dateien nach <code>Data\Wiederherstellung</code>.</li>
     <li>Überschrieben werden nur Dateien, die in der Sicherung stehen. Was seither neu dazugekommen ist, bleibt liegen.</li>
@@ -434,7 +546,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 </section>
 
 <section id="tasten">
-  <h2><span class="n">12</span>Tastenkürzel</h2>
+  <h2><span class="n">15</span>Tastenkürzel</h2>
   <table>
     <tr><th>Taste</th><th>Wirkung</th></tr>
     <tr><td><kbd>F1</kbd></td><td>Hilfe zum aktuellen Reiter</td></tr>

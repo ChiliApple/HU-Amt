@@ -266,6 +266,11 @@ function Start-HUAddonUpdate([switch]$Loud) {
     $tp = if ($cfg -and $cfg.SignerThumbprint) { $cfg.SignerThumbprint } else { "$($script:App.signer)" }
     $chan = if ($cfg) { "$($cfg.Channel)" } else { 'Stable' }
     $script:AddonUpdateLoud = [bool]$Loud
+    # sichtbar machen, dass geladen wird (kann bei mehreren Modulen einige Minuten dauern)
+    if ($Loud) {
+        Write-HULogInfo "Module: $($src.Count) werden geprüft und geladen ..."
+        try { Show-HUToast -Title 'Module werden geladen' -Text "$($src.Count) Module werden geprüft und geladen. Das kann einige Minuten dauern, danach kommt eine Meldung." -Icon Info } catch { }
+    }
     Invoke-AsyncCommand -ScriptBlock {
         param($lib, $addonLib, $pathsMod, $sources, $dir, $ver, $chan, $tp)
         Import-Module $pathsMod -DisableNameChecking
@@ -277,7 +282,7 @@ function Start-HUAddonUpdate([switch]$Loud) {
             $out += "$($r.Status)|$($s.Owner)/$($s.Repo)|$($r.Text)"
         }
         return ($out -join "`n")
-    } -ArgumentList @($script:UpdateLib, (Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src, (Get-HUAddonsDir), "$($script:Version)", $chan, $tp) -TimeoutSec 300 -OnComplete {
+    } -ArgumentList @($script:UpdateLib, (Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src, (Get-HUAddonsDir), "$($script:Version)", $chan, $tp) -TimeoutSec 300 -BusyText 'Module werden geladen ...' -OnComplete {
         param($result)
         $neu = @()
         foreach ($ln in @("$result" -split "`n" | Where-Object { $_ })) {
@@ -289,6 +294,10 @@ function Start-HUAddonUpdate([switch]$Loud) {
             }
         }
         if ($neu.Count) { Show-HUAddonRestartPrompt $neu }
+        elseif ($script:AddonUpdateLoud) {
+            $warn = @("$result" -split "`n" | Where-Object { $_ -and $_ -notmatch '^(Neu|Aktuell)\|' }).Count
+            try { Show-HUToast -Title 'Module geladen' -Text $(if ($warn) { "Nicht alle Module ließen sich laden. Details im Protokoll." } else { 'Alle Module sind aktuell.' }) -Icon $(if ($warn) { 'Warning' } else { 'Success' }) } catch { }
+        }
     }
 }
 
