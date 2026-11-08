@@ -56,7 +56,7 @@ Diese Datei bekommt jede KI, die an einem Modul von HU-Amt mitarbeitet, als fest
 
 ## Tests
 
-- Für jede Änderung ein Test im Testsystem des Moduls (.github	ests), mit Gegenprobe (der Test schlägt gegen den alten Stand fehl).
+- Für jede Änderung ein Test im Testsystem des Moduls (.github\tests), mit Gegenprobe (der Test schlägt gegen den alten Stand fehl).
 - Tests öffnen keine sichtbaren Fenster.
 - .github\tests\Invoke-CITests.ps1 unter PS 5.1 und 7 grün, nacheinander, nicht parallel.
 - Starttest: .github\dev\Test-Start.ps1 (auch -TestMode), Ablauftest des Moduls.
