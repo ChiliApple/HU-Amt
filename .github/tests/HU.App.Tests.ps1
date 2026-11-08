@@ -115,3 +115,21 @@ Describe 'Kodierung und Syntax' {
         }
     }
 }
+
+Describe 'Typografische Anfuehrungszeichen in Zeichenketten' {
+    It 'keine Zeichenkette endet an einem deutschen Anfuehrungszeichen (PowerShell behandelt sie wie ")' {
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        $q = [char[]](0x201C, 0x201D, 0x201E); $hits = @()
+        foreach ($f in @(Get-ChildItem $root -Recurse -Include *.ps1, *.psm1 -File | Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' })) {
+            $tok = $null; $err = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tok, [ref]$err)
+            foreach ($t in $tok) {
+                if ($t.Kind -in 'StringExpandable', 'HereStringExpandable', 'StringLiteral') {
+                    $x = $t.Text
+                    if ($x.Length -ge 2 -and ($q -contains $x[0] -or $q -contains $x[-1])) { $hits += "$($f.Name):$($t.Extent.StartLineNumber)" }
+                }
+            }
+        }
+        $hits | Should -BeNullOrEmpty
+    }
+}

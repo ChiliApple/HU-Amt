@@ -481,7 +481,7 @@ $script:OnContentRendered = {
             }
             $pinned = $true; try { $pinned = Test-HUTaskbarPinned } catch { }
             if (-not $pinned -and (Confirm-HU "$($script:AppTitle) auch an die Taskleiste anheften?`n`nWindows lässt das Anheften nur durch dich selbst zu. Bei Ja zeige ich dir, wie es geht.")) {
-                Show-HUMessage "So heftest du $($script:AppTitle) an:`n`n1. Unten in der Taskleiste das Symbol von $($script:AppTitle) mit der rechten Maustaste anklicken.`n2. „An Taskleiste anheften“ wählen.`n`nDanach startest du die App mit einem Klick auf das Symbol." -Icon Info -Title 'Taskleiste'
+                Show-HUMessage "So heftest du $($script:AppTitle) an:`n`n1. Unten in der Taskleiste das Symbol von $($script:AppTitle) mit der rechten Maustaste anklicken.`n2. $([char]0x201E)An Taskleiste anheften$([char]0x201C) wählen.`n`nDanach startest du die App mit einem Klick auf das Symbol." -Icon Info -Title 'Taskleiste'
             }
         }
     }
