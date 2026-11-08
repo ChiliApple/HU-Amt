@@ -35,7 +35,7 @@ Diese Datei bekommt jede KI, die an einem Modul von HU-Amt mitarbeitet, als fest
 - Jeder Datensatz hat eine feste ID, die sich nie ändert (nicht aus Name, Nummer oder Datum gebildet). Verweise nur per ID, ein Name darf als Anzeigekopie daneben stehen.
 - Jede gespeicherte Datei hat ein Feld "schema" (Formatversion). Fehlt es, gilt 0. Alte Stände müssen weiter lesbar sein.
 - Datum als ISO-Text, Beträge und Mengen als JSON-Zahl, keine Einheiten im Wert.
-- Formatänderungen nur mit automatischem Umbau beim Start (vorher Sicherungskopie), nie mit Handarbeit vor Ort.
+- Formatänderungen nur mit automatischem Umbau beim Start (vorher Sicherungskopie), nie mit Handarbeit an den Daten.
 - Keine Geheimnisse im Klartext in gemeinsamen Dateien.
 
 ## Demo und Testmodus
