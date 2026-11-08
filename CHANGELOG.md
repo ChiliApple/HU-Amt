@@ -1,5 +1,26 @@
 ﻿# Changelog
 
+## v0.1.14
+
+### 💾 Daten auf der Freigabe
+- **Datenordner frei wählbar:** Verwalter legen die Daten aller Module unter Einstellungen › Verwalter › „Datenordner ändern …“ auf eine andere Freigabe, am besten als UNC-Pfad. Das Programm selbst kann bleiben, wo es ist.
+  - Ist der neue Ordner leer, kopiert HU-Amt alle Daten dorthin, prüft jede Datei und stellt erst dann um. Klappt das nicht vollständig, bleibt alles beim Alten.
+  - Liegen dort schon Daten von HU-Amt, werden sie ohne Kopieren übernommen. Ordner mit anderen Dateien lehnt HU-Amt ab.
+  - Vorher müssen alle anderen HU-Amt-Fenster geschlossen sein, die Meldung nennt, wer es noch offen hat.
+  - Der alte Ordner bleibt als Stand erhalten und bekommt den Hinweis UMGEZOGEN.txt.
+  - Danach startet HU-Amt neu, auf den anderen PCs gilt der neue Ordner beim nächsten Start.
+- **Kein stilles Ausweichen:** Ist der eingestellte Ordner nicht erreichbar, startet HU-Amt mit einer klaren Meldung nicht, statt still einen zweiten, leeren Datenbestand anzulegen.
+
+### 🔐 Rechte
+- **Nur Verwalter:** Den Datenordner ändern nur Verwalter, im Testmodus gar nicht.
+- **Rechteprüfung erweitert:** Die Warnzeile unter Einstellungen › Verwalter meldet auch, wenn alle Benutzer die Einstellung des Datenordners ändern dürfen.
+
+### ⚠️ Nach dem Update
+- Die Einstellung liegt in `Config\datenort.json` und gilt für alle, die diese Installation starten. `Config` braucht deshalb dieselben Rechte wie das Programm: für die Benutzer nur Lesen.
+
+### ✅ Qualität
+- 478 Tests, alle im strengen Modus wie die App.
+
 ## v0.1.13
 
 ### 🔐 Rechte

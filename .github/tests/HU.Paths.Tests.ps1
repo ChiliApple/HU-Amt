@@ -51,6 +51,91 @@ Describe 'Datenordner' {
     }
 }
 
+Describe 'Datenordner einstellbar (Config\datenort.json)' {
+    BeforeEach {
+        $script:App = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtLoc-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        $script:Ext = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtExt-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:App, $script:Ext)
+    }
+    AfterEach { Remove-Item -LiteralPath $script:App, $script:Ext -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'ohne Einstellung: Data neben dem Programm' {
+        $l = Get-HUDataLocation -AppRoot $script:App
+        $l.Configured | Should -BeFalse
+        $l.Path | Should -Be (Join-Path $script:App 'Data')
+    }
+    It 'eingestellter Ordner gilt fuer Daten und Testbestand, Laufend bleibt beim Programm' {
+        Set-HUDataLocation -AppRoot $script:App -Path $script:Ext
+        (Get-HUDataLocation -AppRoot $script:App).Configured | Should -BeTrue
+        $p = Initialize-HUDataPaths -AppRoot $script:App -UserName 'anna' -PcName 'PC-1'
+        $p.DataRoot | Should -Be $script:Ext.TrimEnd('\')
+        $p.UserRoot | Should -Be (Join-Path $script:Ext 'Benutzer\anna')
+        $p.RunDir | Should -Be (Join-Path $script:App 'Data\Laufend')
+        (Initialize-HUDataPaths -AppRoot $script:App -UserName 'anna' -PcName 'PC-1' -TestMode).DataRoot | Should -Be (Join-Path $script:Ext '_Test')
+    }
+    It 'eingestellter Ordner fehlt: kein Start statt still neu anlegen' {
+        $gone = Join-Path $script:Ext 'gibt-es-nicht'
+        Set-HUDataLocation -AppRoot $script:App -Path $gone
+        { Initialize-HUDataPaths -AppRoot $script:App -UserName 'u' -PcName 'pc' } | Should -Throw '*nicht erreichbar*'
+        Test-Path -LiteralPath $gone | Should -BeFalse
+    }
+    It 'kaputte Einstellung wirft statt still auf Data zurueckzufallen' {
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Config'))
+        [IO.File]::WriteAllText((Join-Path $script:App 'Config\datenort.json'), '{ kaputt')
+        { Get-HUDataLocation -AppRoot $script:App } | Should -Throw
+    }
+    It 'leer oder Standardpfad entfernt die Einstellung' {
+        Set-HUDataLocation -AppRoot $script:App -Path $script:Ext
+        Set-HUDataLocation -AppRoot $script:App -Path ''
+        Test-Path -LiteralPath (Join-Path $script:App 'Config\datenort.json') | Should -BeFalse
+        Set-HUDataLocation -AppRoot $script:App -Path $script:Ext
+        Set-HUDataLocation -AppRoot $script:App -Path (Join-Path $script:App 'Data')
+        Test-Path -LiteralPath (Join-Path $script:App 'Config\datenort.json') | Should -BeFalse
+    }
+    It 'nur vollstaendige Pfade, keine Laufwerkswurzel' {
+        { Resolve-HUDataLocationPath 'Daten' } | Should -Throw
+        { Resolve-HUDataLocationPath '..\Daten' } | Should -Throw
+        { Resolve-HUDataLocationPath 'C:\' } | Should -Throw
+        Resolve-HUDataLocationPath '\\server\freigabe\HU-Daten\' | Should -Be '\\server\freigabe\HU-Daten'
+        Resolve-HUDataLocationPath '"\\server\freigabe"' | Should -Be '\\server\freigabe'
+    }
+    It 'Zustand eines Ordners: Fehlt, Leer, HU, Fremd' {
+        Get-HUDataFolderState (Join-Path $script:Ext 'x') | Should -Be 'Fehlt'
+        Get-HUDataFolderState $script:Ext | Should -Be 'Leer'
+        [IO.File]::WriteAllText((Join-Path $script:Ext 'notiz.txt'), 'x')
+        Get-HUDataFolderState $script:Ext | Should -Be 'Fremd'
+        [IO.File]::WriteAllText((Join-Path $script:Ext 'Verwalter.txt'), 'anna')
+        Get-HUDataFolderState $script:Ext | Should -Be 'HU'
+    }
+    It 'kopiert alles ausser Laufend und Sperrdateien, Quelle bleibt' {
+        $src = Join-Path $script:App 'Data'
+        foreach ($d in 'Benutzer\anna', 'Buchung\2026', 'Laufend') { [void](New-Item -ItemType Directory -Path (Join-Path $src $d) -Force) }
+        [IO.File]::WriteAllText((Join-Path $src 'Verwalter.txt'), 'anna')
+        [IO.File]::WriteAllText((Join-Path $src 'Buchung\2026\b1.json'), '{"a":1}')
+        [IO.File]::WriteAllText((Join-Path $src 'Buchung\2026\b1.json.lock'), 'anna|PC')
+        [IO.File]::WriteAllText((Join-Path $src 'Benutzer\anna\settings.json'), '{}')
+        [IO.File]::WriteAllText((Join-Path $src 'Laufend\anna_PC.lock'), 'x')
+        $dst = Join-Path $script:Ext 'Neu'
+        $r = Copy-HUDataTree -Source $src -Target $dst
+        $r.Files | Should -Be 3
+        @($r.Errors).Count | Should -Be 0
+        Test-Path -LiteralPath (Join-Path $dst 'Buchung\2026\b1.json') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $dst 'Buchung\2026\b1.json.lock') | Should -BeFalse
+        Test-Path -LiteralPath (Join-Path $dst 'Laufend') | Should -BeFalse
+        Test-Path -LiteralPath (Join-Path $src 'Buchung\2026\b1.json') | Should -BeTrue
+    }
+    It 'kopiert nie in einen vollen Ordner oder ineinander' {
+        $src = Join-Path $script:App 'Data'; [void](New-Item -ItemType Directory -Path $src)
+        [IO.File]::WriteAllText((Join-Path $script:Ext 'alt.txt'), 'x')
+        { Copy-HUDataTree -Source $src -Target $script:Ext } | Should -Throw '*nicht leer*'
+        { Copy-HUDataTree -Source $src -Target (Join-Path $src 'Unter') } | Should -Throw '*ineinander*'
+    }
+    It 'Rechtepruefung kennt die Einstellung' {
+        Set-HUDataLocation -AppRoot $script:App -Path $script:Ext
+        (Test-HUVerwalterAcl -DataRoot $script:Ext -AppRoot $script:App).Status | Should -BeIn 'Ok', 'Warnung'
+    }
+}
+
 Describe 'Regel 2: laufende App' {
     BeforeEach {
         $script:Run = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtRun-' + [guid]::NewGuid().ToString('N').Substring(0, 8))

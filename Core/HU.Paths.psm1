@@ -34,9 +34,129 @@ function Get-HUSafeName([string]$Name) {
     return $n
 }
 
+# Einstellung fuer den Datenordner (Config bleibt bei Updates erhalten, siehe Pull.ps1)
+$script:HUDataLocationFile = 'datenort.json'
+
+<#
+.SYNOPSIS
+    Pfad aus der Einstellung pruefen: vollstaendig (UNC oder Laufwerk), Umgebungsvariablen aufgeloest, ohne "\" am Ende.
+    Wirft bei relativen Pfaden und bei der Wurzel eines Laufwerks.
+#>
+function Resolve-HUDataLocationPath([string]$Raw) {
+    $p = [Environment]::ExpandEnvironmentVariables("$Raw".Trim().Trim('"'))
+    if (-not $p) { throw 'Kein Datenordner angegeben.' }
+    if (-not ($p -match '^\\\\[^\\]+\\[^\\]+' -or $p -match '^[A-Za-z]:\\')) {
+        throw "Der Datenordner muss ein vollständiger Pfad sein (\\server\freigabe\... oder X:\...): $p"
+    }
+    $full = [IO.Path]::GetFullPath($p).TrimEnd('\')
+    if ($full -match '^[A-Za-z]:$') { throw "Bitte einen Ordner angeben, nicht die Wurzel des Laufwerks: $p" }
+    return $full
+}
+
+<#
+.SYNOPSIS
+    Wo liegen die Daten? Config\datenort.json ("datenOrdner"), sonst <App>\Data.
+.DESCRIPTION
+    Der Ordner gilt fuer alle, die diese Installation starten. Ist die Datei kaputt, wirft die Funktion: lieber kein Start
+    als still in einen anderen Ordner schreiben (sonst zerfallen die Daten auf zwei Orte).
+.OUTPUTS
+    @{ Path; Configured (bool); Raw; Default }
+#>
+function Get-HUDataLocation {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$AppRoot)
+    $def = [IO.Path]::Combine($AppRoot, 'Data')
+    $f = [IO.Path]::Combine($AppRoot, 'Config', $script:HUDataLocationFile)
+    $out = [pscustomobject]@{ Path = $def; Configured = $false; Raw = ''; Default = $def }
+    if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { return $out }
+    try { $j = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | ConvertFrom-Json }
+    catch { throw "Config\$($script:HUDataLocationFile) ist nicht lesbar: $($_.Exception.Message)" }
+    $raw = ''
+    if ($j -and $j.PSObject.Properties['datenOrdner']) { $raw = "$($j.datenOrdner)".Trim() }
+    if (-not $raw) { return $out }
+    $out.Path = Resolve-HUDataLocationPath $raw; $out.Configured = $true; $out.Raw = $raw
+    return $out
+}
+
+<#
+.SYNOPSIS
+    Datenordner einstellen ('' = wieder <App>\Data). Schreibt Config\datenort.json ueber eine Zwischendatei.
+#>
+function Set-HUDataLocation {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$AppRoot, [AllowEmptyString()][string]$Path = '')
+    $f = [IO.Path]::Combine($AppRoot, 'Config', $script:HUDataLocationFile)
+    $def = [IO.Path]::GetFullPath([IO.Path]::Combine($AppRoot, 'Data')).TrimEnd('\')
+    $full = $(if ("$Path".Trim()) { Resolve-HUDataLocationPath $Path } else { '' })
+    if (-not $full -or $full.Equals($def, [StringComparison]::OrdinalIgnoreCase)) {
+        if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force }
+        return
+    }
+    $dir = Split-Path -Parent $f
+    if (-not (Test-Path -LiteralPath $dir)) { [void](New-Item -ItemType Directory -Path $dir -Force) }
+    $json = [pscustomobject][ordered]@{ datenOrdner = $full; geaendert = (Get-Date).ToString('s') } | ConvertTo-Json
+    $tmp = $f + '.tmp-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+    [IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding $true))
+    if (Test-Path -LiteralPath $f) { [IO.File]::Replace($tmp, $f, $null) } else { [IO.File]::Move($tmp, $f) }
+}
+
+<#
+.SYNOPSIS
+    Zustand eines moeglichen Datenordners: 'Fehlt' | 'Leer' | 'HU' (Daten der App: Verwalter.txt oder Benutzer) | 'Fremd'.
+#>
+function Get-HUDataFolderState {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return 'Fehlt' }
+    $items = @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop | Where-Object { $_.Name -notin 'desktop.ini', 'Thumbs.db' })
+    if (-not $items.Count) { return 'Leer' }
+    if (@($items | Where-Object { $_.Name -in 'Verwalter.txt', 'Benutzer' }).Count) { return 'HU' }
+    return 'Fremd'
+}
+
+<#
+.SYNOPSIS
+    Kopiert einen Datenordner in einen leeren Zielordner und prueft jede Datei (Groesse).
+.DESCRIPTION
+    Ohne Data\Laufend (gehoert zur Installation) und ohne Sperrdateien (*.lock). Die Quelle bleibt unveraendert.
+    Wirft, wenn das Ziel nicht leer ist oder Quelle und Ziel ineinander liegen.
+.OUTPUTS
+    @{ Files; Bytes; Errors (string[]) }
+#>
+function Copy-HUDataTree {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Target)
+    $src = [IO.Path]::GetFullPath($Source).TrimEnd('\'); $dst = [IO.Path]::GetFullPath($Target).TrimEnd('\')
+    $oic = [StringComparison]::OrdinalIgnoreCase
+    if ($dst.Equals($src, $oic) -or $dst.StartsWith($src + '\', $oic) -or $src.StartsWith($dst + '\', $oic)) { throw 'Quelle und Ziel dürfen nicht ineinander liegen.' }
+    if (-not (Test-Path -LiteralPath $src -PathType Container)) { throw "Quellordner fehlt: $src" }
+    $state = Get-HUDataFolderState $dst
+    if ($state -notin 'Leer', 'Fehlt') { throw "Der Zielordner ist nicht leer: $dst" }
+    if ($state -eq 'Fehlt') { [void][IO.Directory]::CreateDirectory($dst) }
+    $files = 0; $bytes = [long]0
+    $err = New-Object System.Collections.Generic.List[string]
+    foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force -ErrorAction Stop)) {
+        $rel = $i.FullName.Substring($src.Length + 1)
+        if ($rel -ieq 'Laufend' -or $rel.StartsWith('Laufend\', $oic)) { continue }
+        $to = [IO.Path]::Combine($dst, $rel)
+        if ($i.PSIsContainer) { [void][IO.Directory]::CreateDirectory($to); continue }
+        if ($i.Name -like '*.lock') { continue }
+        try {
+            [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($to))
+            [IO.File]::Copy($i.FullName, $to, $false)
+            if ((New-Object System.IO.FileInfo $to).Length -ne $i.Length) { throw 'Größe nach dem Kopieren verschieden' }
+            $files++; $bytes += $i.Length
+        } catch { $err.Add("$($rel): $($_.Exception.Message)") }
+    }
+    return [pscustomobject]@{ Files = $files; Bytes = $bytes; Errors = @($err.ToArray()) }
+}
+
 <#
 .SYNOPSIS
     Liefert die Datenpfade der App und legt die Ordner an.
+.DESCRIPTION
+    Datenstamm laut Get-HUDataLocation (Standard <App>\Data). Ein eingestellter Ordner wird nie still angelegt: Fehlt er
+    (Netz weg, Pfad falsch), wirft die Funktion. Data\Laufend bleibt immer beim Programm (laufende Apps dieser Installation).
 #>
 function Initialize-HUDataPaths {
     [CmdletBinding()]
@@ -46,15 +166,19 @@ function Initialize-HUDataPaths {
         [string]$PcName = $env:COMPUTERNAME,
         [switch]$TestMode   # Datenstamm Data\_Test\ (Testbestand); laufende Apps bleiben in Data\Laufend
     )
-    $base = Join-Path $AppRoot 'Data'
+    $loc = Get-HUDataLocation -AppRoot $AppRoot
+    $base = $loc.Path
+    if ($loc.Configured -and -not (Test-Path -LiteralPath $base -PathType Container)) { throw "Der eingestellte Datenordner ist nicht erreichbar: $base" }
     $data = $(if ($TestMode) { Join-Path $base '_Test' } else { $base })
     $user = Join-Path (Join-Path $data 'Benutzer') (Get-HUSafeName $UserName)
-    $run = Join-Path $base 'Laufend'
+    $run = Join-Path (Join-Path $AppRoot 'Data') 'Laufend'
     foreach ($d in $data, $user, $run) {
         if (-not (Test-Path -LiteralPath $d)) { [void](New-Item -ItemType Directory -Path $d -Force) }
     }
     return [pscustomobject]@{
         DataRoot     = $data
+        DataBase     = $base
+        DataConfigured = [bool]$loc.Configured
         UserRoot     = $user
         RunDir       = $run
         DocsDir      = Join-Path $data 'Docs'
@@ -301,7 +425,7 @@ function Get-HUAclBroadWriters($Acl, [int]$Mask, [switch]$ForContainer) {
     @{ Status = 'Ok' | 'Warnung' | 'NichtPruefbar'; Text; ToolTip; Funde (string[]) }
 #>
 function Test-HUVerwalterAcl {
-    param([Parameter(Mandatory)][string]$DataRoot)
+    param([Parameter(Mandatory)][string]$DataRoot, [string]$AppRoot = '')
     $smb = 'Freigaberechte (SMB) sind von hier aus nicht sichtbar und wurden nicht geprüft.'
     $funde = New-Object System.Collections.Generic.List[string]
     $file = [IO.Path]::Combine($DataRoot, 'Verwalter.txt')   # Join-Path wirft unter 5.1 bei fehlendem Laufwerk
@@ -314,6 +438,12 @@ function Test-HUVerwalterAcl {
             foreach ($x in @(Get-HUAclBroadWriters $dirAcl 0x2 -ForContainer)) { $funde.Add("Verwalter.txt fehlt und darf neu angelegt werden: $x") }
         }
         foreach ($x in @(Get-HUAclBroadWriters $dirAcl $script:HUAclFolderWrite -ForContainer)) { $funde.Add("Ordner Data mit Vollzugriff (darf jede Datei löschen): $x") }
+        if ($AppRoot) {
+            $loc = [IO.Path]::Combine($AppRoot, 'Config', $script:HUDataLocationFile)
+            if (Test-Path -LiteralPath $loc -PathType Leaf) {
+                foreach ($x in @(Get-HUAclBroadWriters (Get-HUAclAccessOnly $loc) $script:HUAclFileWrite)) { $funde.Add("Config\datenort.json ändern (lenkt alle Daten samt Verwalter-Liste um): $x") }
+            }
+        }
     } catch {
         return [pscustomobject]@{ Status = 'NichtPruefbar'; Text = 'Rechte der Verwalter-Liste: nicht prüfbar.'
             ToolTip = "Die Rechte von Data\Verwalter.txt ließen sich nicht lesen.`n$smb"; Funde = @()
@@ -333,6 +463,7 @@ function Test-HUVerwalterAcl {
     }
 }
 
-Export-ModuleMember -Function Initialize-HUDataPaths, Assert-HUWritable, Get-HUModuleDataPath, Get-HUSafeName,
+Export-ModuleMember -Function Initialize-HUDataPaths, Get-HUDataLocation, Set-HUDataLocation, Resolve-HUDataLocationPath,
+    Get-HUDataFolderState, Copy-HUDataTree, Assert-HUWritable, Get-HUModuleDataPath, Get-HUSafeName,
     Open-HURunLock, Close-HURunLock, Get-HURunningInstances,
     Lock-HUDataFile, Unlock-HUDataFile, Get-HULockInfoText, Backup-HUDataFile, Test-HUVerwalterAcl

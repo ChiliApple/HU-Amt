@@ -410,7 +410,9 @@ function Start-HUSplashThread([string]$AppRoot, [string]$Version) {
     $sync = [hashtable]::Synchronized(@{ Status = 'wird geladen ...'; Go = $false; MainReady = $false; Close = $false; Ready = $false; Error = ''; Anim = $true })
     # Einstellung direkt aus der Datei (die Einstellungen sind noch nicht geladen)
     try {
-        $sf = Join-Path $AppRoot "Data\Benutzer\$($env:USERNAME)\settings.json"
+        $db = Join-Path $AppRoot 'Data'
+        if (Get-Command Get-HUDataLocation -ErrorAction SilentlyContinue) { $db = (Get-HUDataLocation -AppRoot $AppRoot).Path }
+        $sf = Join-Path $db "Benutzer\$($env:USERNAME)\settings.json"
         if (Test-Path -LiteralPath $sf) { $j = Get-Content -LiteralPath $sf -Raw -Encoding UTF8 | ConvertFrom-Json; if ($j.ui -and $j.ui.PSObject.Properties['splashAnimation'] -and -not [bool]$j.ui.splashAnimation) { $sync.Anim = $false } }
     } catch { }
     try {

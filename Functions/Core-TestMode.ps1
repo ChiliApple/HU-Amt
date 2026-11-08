@@ -22,7 +22,8 @@ $script:HUTestResetMarker = '.zuruecksetzen'
 #>
 function Test-HUTestMode { return ($env:HUAMT_TESTMODE -eq '1') }
 
-function Get-HUTestDataRoot([string]$AppRoot = $script:AppRoot) { return (Join-Path (Join-Path $AppRoot 'Data') '_Test') }
+# Unter dem eingestellten Datenordner (Get-HUDataLocation, Standard <App>\Data)
+function Get-HUTestDataRoot([string]$AppRoot = $script:AppRoot) { return (Join-Path (Get-HUDataLocation -AppRoot $AppRoot).Path '_Test') }
 
 <#
 .SYNOPSIS
@@ -61,7 +62,7 @@ function Initialize-HUTestData([string]$AppRoot = $script:AppRoot) {
     }
     # Verwalter bleiben im Test Verwalter (sonst fehlte der Reiter Verwalter und der Weg zurueck).
     # Bei jedem Start neu kopieren (KERN-B17): Aenderungen der echten Liste gelten auch im Testmodus.
-    $real = Join-Path (Join-Path $AppRoot 'Data') 'Verwalter.txt'
+    $real = Join-Path (Get-HUDataLocation -AppRoot $AppRoot).Path 'Verwalter.txt'
     $test = Join-Path $root 'Verwalter.txt'
     if (Test-Path -LiteralPath $real) { Copy-Item -LiteralPath $real -Destination $test -Force }
     return $reset

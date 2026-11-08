@@ -74,6 +74,112 @@ function Open-HUSettings([string]$Tab = '') {
     [void](Show-HUSettingsDialog -Tab $Tab)
 }
 
+# ---------------------------------------------------------------- Datenordner ----------------------------------------------------------------
+# Anzeige im Reiter Verwalter
+function Update-HUDataLocationInfo($Info) {
+    try {
+        $loc = Get-HUDataLocation -AppRoot $script:AppRoot
+        $Info.Text = "Datenordner: $($loc.Path)$(if ($loc.Configured) { '' } else { '  (Standard: neben dem Programm)' })"
+    } catch { $Info.Text = "Datenordner: $($_.Exception.Message)" }
+}
+
+<#
+.SYNOPSIS
+    Datenordner aendern (nur Verwalter, nicht im Testmodus). Leerer Ordner: alle Daten kopieren und pruefen, dann umstellen.
+    Ordner mit Daten der App: nur umstellen. Anderer Inhalt: ablehnen. Danach Neustart.
+.DESCRIPTION
+    Vorher muessen alle anderen Fenster dieser Installation zu sein (Data\Laufend), sonst schreiben sie in den alten Ordner.
+    Der alte Ordner bleibt als Stand erhalten und bekommt UMGEZOGEN.txt.
+#>
+function Invoke-HUDataLocationChange($Owner, $Info, $Button) {
+    $t = 'Datenordner'
+    if (Test-HUTestMode) { Show-HUMessage 'Im Testmodus lässt sich der Datenordner nicht ändern.' $t -Icon Warning -Owner $Owner; return }
+    if (-not (Test-HUVerwalter)) { Show-HUMessage 'Den Datenordner können nur Verwalter ändern.' $t -Icon Warning -Owner $Owner; return }
+    try { $loc = Get-HUDataLocation -AppRoot $script:AppRoot } catch { Show-HUMessage $_.Exception.Message $t -Icon Error -Owner $Owner; return }
+    $cur = [IO.Path]::GetFullPath($loc.Path).TrimEnd('\')
+    $def = [IO.Path]::GetFullPath($loc.Default).TrimEnd('\')
+    $in = Read-HUText -Title $t -Owner $Owner -AllowEmpty -StateKey 'Datenordner' -Default $loc.Raw `
+        -Prompt "Neuer Ordner für die Daten aller Module, am besten auf einer Freigabe als UNC-Pfad (\\server\freigabe\HU-Amt-Daten). Leer lassen = wieder neben dem Programm.`n`nJetzt: $cur"
+    if ($null -eq $in) { return }
+    try { $new = $(if ("$in".Trim()) { Resolve-HUDataLocationPath $in } else { $def }) } catch { Show-HUMessage $_.Exception.Message $t -Icon Warning -Owner $Owner; return }
+    if ($new.Equals($cur, [StringComparison]::OrdinalIgnoreCase)) { Show-HUMessage "Das ist schon der aktuelle Datenordner:`n$cur" $t -Owner $Owner; return }
+    if ($new -match '^[A-Za-z]:' -and -not $new.Equals($def, [StringComparison]::OrdinalIgnoreCase) -and
+        -not (Confirm-HU -Warning "Laufwerksbuchstaben sind nicht auf jedem PC gleich verbunden. Sicherer ist ein UNC-Pfad (\\server\freigabe\...).`n`nTrotzdem $new verwenden?" $t -Owner $Owner)) { return }
+    $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock)
+    if ($others.Count) {
+        Show-HUMessage ("Zuerst müssen alle anderen Fenster von $($script:AppTitle) geschlossen sein, sonst schreiben sie weiter in den alten Ordner:`n`n" +
+            (($others | ForEach-Object { "  $($_.UserName) am $($_.ComputerName)" }) -join "`n")) $t -Icon Warning -Owner $Owner
+        return
+    }
+    try { $state = Get-HUDataFolderState $new } catch { Show-HUMessage "Der Ordner lässt sich nicht lesen:`n$new`n`n$($_.Exception.Message)" $t -Icon Warning -Owner $Owner; return }
+    if ($state -eq 'Fehlt') {
+        if (-not (Confirm-HU "Den Ordner gibt es noch nicht:`n$new`n`nAnlegen?" $t -Owner $Owner)) { return }
+        try { [void](New-Item -ItemType Directory -Path $new -Force -ErrorAction Stop); $state = 'Leer' } catch { Show-HUMessage "Ordner nicht angelegt:`n$($_.Exception.Message)" $t -Icon Error -Owner $Owner; return }
+    }
+    try { Assert-HUWritable $new } catch { Show-HUMessage "In diesem Ordner darf $($script:AppTitle) nicht schreiben:`n$new`n`n$($_.Exception.Message)" $t -Icon Warning -Owner $Owner; return }
+    if ($state -eq 'Fremd') { Show-HUMessage "Im Ordner liegen schon andere Dateien. Bitte einen leeren Ordner wählen oder einen, in dem schon Daten von $($script:AppTitle) liegen:`n`n$new" $t -Icon Warning -Owner $Owner; return }
+    $ctx = @{ Owner = $Owner; Info = $Info; Button = $Button; Cur = $cur; New = $new; Def = $def }
+    if ($state -eq 'HU') {
+        $adm = $false
+        try { $adm = @([IO.File]::ReadAllLines((Join-Path $new 'Verwalter.txt')) | ForEach-Object { "$_".Trim() } | Where-Object { $_ -ieq $script:UserName -or $_ -ieq "$env:USERDOMAIN\$($script:UserName)" }).Count -gt 0 } catch { }
+        $old = Test-Path -LiteralPath (Join-Path $new 'UMGEZOGEN.txt')
+        $q = "Im Ordner liegen schon Daten von $($script:AppTitle):`n$new`n`nDiese verwenden? Es wird nichts kopiert, der jetzige Ordner bleibt, wie er ist." +
+        $(if ($old) { "`n`nAchtung: Dieser Ordner ist als alter Stand gekennzeichnet (UMGEZOGEN.txt). Neuere Daten liegen woanders." }) +
+        $(if (-not $adm) { "`n`nAchtung: Du stehst dort nicht in der Verwalter-Liste und siehst danach die Verwaltung nicht mehr." })
+        if (-not (Confirm-HU -Warning $q $t -Owner $Owner)) { return }
+        Complete-HUDataLocationChange $null '' $ctx -NoCopy
+        return
+    }
+    $q = "Alle Daten von`n  $cur`nnach`n  $new`nkopieren, jede Datei prüfen und dann umstellen?`n`n" +
+    "Der alte Ordner bleibt als Stand erhalten (Hinweis UMGEZOGEN.txt). Danach startet $($script:AppTitle) neu, auf den anderen PCs gilt der neue Ordner beim nächsten Start."
+    if (-not (Confirm-HU $q $t -Owner $Owner)) { return }
+    try { $Button.IsEnabled = $false; $Info.Text = 'Daten werden kopiert und geprüft …' } catch { }
+    Write-HULogInfo "Datenordner: kopiere $cur nach $new"
+    try {
+        Start-HUBackgroundJob -Owner 'Datenordner' -LogPrefix 'Datenordner' -TimeoutSec 0 -Context $ctx -Arguments @($script:AppRoot, $cur, $new) -Script {
+            param($AppRoot, $Src, $Dst)
+            Import-Module (Join-Path $AppRoot 'Core\HU.Paths.psm1') -DisableNameChecking -ErrorAction Stop
+            Copy-HUDataTree -Source $Src -Target $Dst
+        } -Done { param($Res, $Err, $Ctx) Complete-HUDataLocationChange $Res $Err $Ctx }
+    } catch { Complete-HUDataLocationChange $null "$($_.Exception.Message)" $ctx }
+}
+
+# Abschluss im Fenster-Thread: Einstellung schreiben, alten Ordner kennzeichnen, Neustart
+function Complete-HUDataLocationChange($Res, $Err, $Ctx, [switch]$NoCopy) {
+    $t = 'Datenordner'
+    try { $Ctx.Button.IsEnabled = $true } catch { }
+    if (-not $NoCopy) {
+        if ($Err -or -not $Res) {
+            try { Update-HUDataLocationInfo $Ctx.Info } catch { }
+            Write-HULogError "Datenordner: Kopieren fehlgeschlagen ($Err)"
+            Show-HUMessage "Kopieren fehlgeschlagen, es wurde nichts umgestellt:`n$Err`n`nIm Zielordner können Teile liegen. Vor einem neuen Versuch leeren." $t -Icon Error -Owner $Ctx.Owner
+            return
+        }
+        $errs = @($Res.Errors)
+        if ($errs.Count) {
+            try { Update-HUDataLocationInfo $Ctx.Info } catch { }
+            Write-HULogError "Datenordner: $($errs.Count) Dateien nicht kopiert, nichts umgestellt"
+            Show-HUMessage ("Nicht alle Dateien ließen sich kopieren, es wurde nichts umgestellt:`n`n" + (($errs | Select-Object -First 8) -join "`n") +
+                $(if ($errs.Count -gt 8) { "`n... und $($errs.Count - 8) weitere" }) + "`n`nIm Zielordner liegen Teile. Vor einem neuen Versuch leeren.") $t -Icon Error -Owner $Ctx.Owner
+            return
+        }
+    }
+    try { Set-HUDataLocation -AppRoot $script:AppRoot -Path $(if ($Ctx.New -ieq $Ctx.Def) { '' } else { $Ctx.New }) }
+    catch { Show-HUMessage "Einstellung nicht gespeichert, es wurde nichts umgestellt:`n$($_.Exception.Message)" $t -Icon Error -Owner $Ctx.Owner; return }
+    if (-not $NoCopy) {
+        try {
+            $txt = "Die Daten von $($script:AppTitle) liegen seit $(Get-Date -Format 'dd.MM.yyyy HH:mm') in:`r`n$($Ctx.New)`r`n`r`n" +
+            "Dieser Ordner ist ein alter Stand. Er wird nicht mehr benutzt und kann nach einer Prüfung gelöscht werden.`r`n"
+            [IO.File]::WriteAllText((Join-Path $Ctx.Cur 'UMGEZOGEN.txt'), $txt, (New-Object System.Text.UTF8Encoding $true))
+        } catch { Write-HULogWarn "Datenordner: UMGEZOGEN.txt nicht geschrieben ($($_.Exception.Message))" }
+    }
+    $info = $(if ($NoCopy) { 'Umgestellt.' } else { "$($Res.Files) Dateien ($([math]::Round([double]$Res.Bytes / 1MB, 1)) MB) kopiert und geprüft." })
+    Write-HULogOK "Datenordner: $($Ctx.Cur) -> $($Ctx.New). $info"
+    Show-HUMessage "$info`n`n$($script:AppTitle) startet jetzt neu und arbeitet mit`n$($Ctx.New)`n`nAuf den anderen PCs gilt der neue Ordner beim nächsten Start." $t -Owner $Ctx.Owner
+    try { $Ctx.Owner.Close() } catch { }
+    Restart-HUApp
+}
+
 function Show-HUSettingsDialog {
     param([string]$Tab = '')
     $adm = Test-HUVerwalter
@@ -175,7 +281,7 @@ function Show-HUSettingsDialog {
             -Arguments @($script:AppRoot, $script:DataRoot) -Script {
                 param($AppRoot, $DataRoot)
                 Import-Module (Join-Path $AppRoot 'Core\HU.Paths.psm1') -DisableNameChecking -ErrorAction Stop
-                Test-HUVerwalterAcl -DataRoot $DataRoot
+                Test-HUVerwalterAcl -DataRoot $DataRoot -AppRoot $AppRoot
             } -Done {
                 param($Res, $Err, $Ctx)
                 try {
@@ -185,6 +291,9 @@ function Show-HUSettingsDialog {
                 } catch { }   # Fenster schon zu
             }
     } catch { $c.txtAdminAcl.Visibility = 'Collapsed' }
+    # Datenordner (nur Verwalter sehen den Reiter)
+    Update-HUDataLocationInfo $c.txtDataLocation
+    $c.btnDataLocation.Add_Click({ Invoke-HUDataLocationChange -Owner $w -Info $c.txtDataLocation -Button $c.btnDataLocation })
     $addName = { param($n) $n = "$n".Trim(); if (-not $n) { return }; if (@($st.Names | Where-Object { $_ -ieq $n }).Count) { return }; [void]$st.Names.Add($n); $st.Changed = $true; & $fillAdm }
     $c.btnAdminAdd.Add_Click({ & $addName $c.txtAdminName.Text; $c.txtAdminName.Text = '' })
     $c.btnAdminMe.Add_Click({ & $addName $script:UserName })

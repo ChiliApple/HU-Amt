@@ -51,7 +51,7 @@ Was das Programm kann und wie es geht:
 ## Was der Kern mitbringt
 
 - **Module als Reiter:** Jedes Modul kommt signiert aus seinem eigenen Repository und wird über **Einstellungen › Module** oder eine Zugangsdatei hinzugefügt und aktualisiert. Module können Dateien untereinander weitergeben.
-- **Für mehrere PCs auf einer Freigabe:** Daten liegen unter `Data\`, gespeichert wird mit Sperre, Stand-Prüfung und atomarem Schreiben. Ist die Freigabe kurz weg, meldet sich die App, statt leere Listen zu zeigen.
+- **Für mehrere PCs auf einer Freigabe:** Daten liegen unter `Data\` neben dem Programm oder in einem frei wählbaren Datenordner (Einstellungen › Verwalter), gespeichert wird mit Sperre, Stand-Prüfung und atomarem Schreiben. Ist die Freigabe kurz weg, meldet sich die App, statt leere Listen zu zeigen.
 - **Outlook und Word:** Termine, Aufgaben und Mails (nur anzeigen, Absender wählbar) sowie Word-Vorlagen als PDF, alles über einen gemeinsamen Baustein. Word öffnet Vorlagen mit gesperrten Makros.
 - **Sicherung und Update:** verschlüsselte Sicherung aller Einstellungen, signierte Updates von App und Modulen per Knopf.
 - **Testmodus:** Verwalter probieren neue Module mit einem eigenen Testbestand aus, echte Daten bleiben unberührt; ein geführter Test protokolliert die Schritte.
@@ -59,7 +59,7 @@ Was das Programm kann und wie es geht:
 
 ## Rechte auf der Freigabe
 
-Wer `Data\Verwalter.txt` ändern darf, kann sich selbst zum Verwalter machen. Empfehlung: `Data` mit **Ändern** für die Benutzer der App (ohne Vollzugriff), `Data\Verwalter.txt` nur **Lesen** für Benutzer und **Ändern** nur für Verwalter, Vererbung an dieser Datei unterbrochen. Unter **Einstellungen › Verwalter** zeigt HU-Amt eine Warnung, wenn die NTFS-Rechte zu breit sind. Freigaberechte (SMB) sieht die App nicht, die prüft der Administrator selbst. Details: [Module entwickeln › Rechte auf der Freigabe](MODULE-DEVELOPMENT.md#rechte-auf-der-freigabe).
+Wer `Data\Verwalter.txt` ändern darf, kann sich selbst zum Verwalter machen. Empfehlung: `Data` mit **Ändern** für die Benutzer der App (ohne Vollzugriff), `Data\Verwalter.txt` nur **Lesen** für Benutzer und **Ändern** nur für Verwalter, Vererbung an dieser Datei unterbrochen. Unter **Einstellungen › Verwalter** zeigt HU-Amt eine Warnung, wenn die NTFS-Rechte zu breit sind. Wird ein eigener Datenordner verwendet, gilt das dort genauso. `Config` (mit der Einstellung `datenort.json`) braucht wie das Programm nur **Lesen** für Benutzer. Freigaberechte (SMB) sieht die App nicht, die prüft der Administrator selbst. Details: [Module entwickeln › Rechte auf der Freigabe](MODULE-DEVELOPMENT.md#rechte-auf-der-freigabe).
 
 ## Module entwickeln
 

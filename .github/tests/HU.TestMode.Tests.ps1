@@ -4,6 +4,7 @@
 BeforeAll {
     Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+    Import-Module (Join-Path $script:Root 'Core\HU.Paths.psm1') -Force -DisableNameChecking   # Get-HUDataLocation
     . (Join-Path $script:Root 'Functions\Core-TestMode.ps1')
 }
 
@@ -33,6 +34,18 @@ Describe 'Testbestand' {
         Test-Path (Join-Path $script:T '.hu-testbestand') | Should -BeTrue
         Test-Path (Join-Path $script:T 'Verwalter.txt') | Should -BeTrue
         Test-Path (Join-Path $script:App 'Data\echt.json') | Should -BeTrue
+    }
+    It 'eingestellter Datenordner: Testbestand und Verwalter-Liste kommen von dort' {
+        $ext = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtTmExt-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        try {
+            [void](New-Item -ItemType Directory -Path $ext)
+            [IO.File]::WriteAllText((Join-Path $ext 'Verwalter.txt'), "berta`r`n")
+            Set-HUDataLocation -AppRoot $script:App -Path $ext
+            Get-HUTestDataRoot -AppRoot $script:App | Should -Be (Join-Path $ext '_Test')
+            [void](Initialize-HUTestData -AppRoot $script:App)
+            [IO.File]::ReadAllText((Join-Path $ext '_Test\Verwalter.txt')) | Should -Match 'berta'
+            Test-Path (Join-Path $script:T '.hu-testbestand') | Should -BeFalse
+        } finally { Remove-Item -LiteralPath $ext -Recurse -Force -ErrorAction SilentlyContinue }
     }
     It 'Pfad-Pruefung: nur unter Data\_Test und nur mit Kennungsdatei' {
         Test-HUTestDataPath (Join-Path $script:T 'x') -AppRoot $script:App | Should -BeFalse

@@ -116,6 +116,10 @@ try {
     $script:Paths = Initialize-HUDataPaths -AppRoot $script:AppRoot
     Assert-HUWritable $script:Paths.UserRoot
 } catch {
+    $__loc = $null; try { $__loc = Get-HUDataLocation -AppRoot $script:AppRoot } catch { }
+    if ($__loc -and $__loc.Configured) {
+        Show-HUFatal "Der Datenordner ist nicht erreichbar oder nicht beschreibbar:`n$($__loc.Path)`n`nNetzwerk bzw. VPN prüfen. Eingestellt ist er in Config\datenort.json (Einstellungen › Verwalter).`n`n$($_.Exception.Message)"
+    }
     Show-HUFatal "Der Datenordner ist nicht beschreibbar:`n$(Join-Path $script:AppRoot 'Data')`n`nBitte Schreibrechte auf den Ordner Data geben lassen.`n`n$($_.Exception.Message)"
 }
 $script:DataRoot = $script:Paths.DataRoot
@@ -417,7 +421,7 @@ $script:OnContentRendered = {
             Start-HUBackgroundJob -Owner 'Start' -LogPrefix 'Rechte' -TimeoutSec 30 -Arguments @($script:AppRoot, $script:DataRoot) -Script {
                 param($AppRoot, $DataRoot)
                 Import-Module (Join-Path $AppRoot 'Core\HU.Paths.psm1') -DisableNameChecking -ErrorAction Stop
-                Test-HUVerwalterAcl -DataRoot $DataRoot
+                Test-HUVerwalterAcl -DataRoot $DataRoot -AppRoot $AppRoot
             } -Done { param($Res, $Err, $Ctx) if ($Res -and $Res.Status -eq 'Warnung') { Write-HULogWarn "Rechte: $($Res.Text) $(@($Res.Funde) -join '; ')" } }
         } catch { }
     }

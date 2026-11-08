@@ -245,6 +245,10 @@ Nur für Eingaben im Fenster. Für Dateien und Hintergrund-Aufträge weiter `Con
 
 `HU-Amt\.github\modul-vorlage\` enthält `Format-Dateien.ps1`, `Test-Start.ps1` und `Deploy-Dev.ps1`. Module kopieren sie **unverändert** nach `.github\dev\`, wie die Wächter-Vorlage. Was nur ein Modul braucht, steht in `.github\dev\modul-dev.json`; Aufbau und Felder in der `LIESMICH.md` dort. `Deploy-Dev.ps1` bricht ab, wenn die Test-App läuft. Ab 0.1.12 gilt für die Modul-Id dieselbe Regel wie im Kern (Buchstabe, dann 1 bis 30 Buchstaben oder Ziffern), und Dateien, die kein gültiges UTF-8 sind, werden nicht umgeschrieben, sondern als Warnung gemeldet.
 
+## Datenordner
+
+Wo die Daten liegen, bestimmt der Kern: `<App>\Data` oder der Ordner aus `Config\datenort.json` (Einstellungen › Verwalter, ab 0.1.14). Module nehmen ihren Ordner deshalb immer über `Get-HUAddonDataDir` bzw. `$script:DataRoot` und bauen nie selbst einen Pfad aus dem Programmordner und `Data`. Dann ziehen sie beim Umzug ohne Änderung mit, Testmodus inklusive. Nur `Data\Laufend` (laufende Apps) bleibt immer beim Programm.
+
 ## Rechte auf der Freigabe
 
 HU-Amt läuft meist aus einem Netzordner. Wer dort was darf, entscheiden Freigabe- und NTFS-Rechte, nicht die App. Die App kann keine Rechte erzwingen, sie zeigt nur, was ihr auffällt.
@@ -264,6 +268,8 @@ Was die App prüft (`Test-HUVerwalterAcl`, ab 0.1.12):
 - „Verweigern“-Einträge werden nicht verrechnet. Die Prüfung kann deshalb warnen, obwohl ein Verweigern-Eintrag das Recht wieder nimmt.
 - **Freigaberechte (SMB) sieht die App nicht**, sie liegen an der Freigabe und nicht in der NTFS-Liste. Sie werden nicht geprüft, auch nicht, wenn die Zeile „keine breiten Schreibrechte“ zeigt.
 - Der Verwalter sieht das Ergebnis unter Einstellungen › Verwalter als Zeile mit Tooltip. Beim Start steht eine Warnung nur im Protokoll, normale Benutzer bekommen keine Meldung. Lassen sich die Rechte nicht lesen, steht dort still „nicht prüfbar“.
+
+- `Config\datenort.json` prüft sie ab 0.1.14 mit: Wer diese Datei ändern darf, lenkt alle Daten samt Verwalter-Liste um. `Config` braucht wie das Programm nur Lesen für die Benutzer.
 
 Wer unter `Data` schreiben darf, kann auch Modul-Einstellungen ändern, etwa Ordnerangaben der Texterkennung in `ordner.json` oder gemeinsame Verläufe. Module prüfen deshalb Pfade aus solchen Dateien selbst, bevor sie etwas öffnen oder starten. Die Texterkennung tut das seit 0.1.1. Die App ersetzt also keine sauber gesetzten Freigabe- und NTFS-Rechte.
 
