@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 ## v0.1.14
 
@@ -14,6 +14,12 @@
 ### ❓ Hilfe
 - **Wo liegen meine Daten?** Neue Hilfeseite mit Grafik: für jedes Modul, was mit hineingezogenen Dateien passiert, wo Ergebnisse landen, was gesichert wird und was ins Internet geht. Erreichbar über die Hilfe (F1) und die Anleitung.
 
+### 🧪 Testmodus
+- **Beispieldaten:** Bringt ein Modul Beispieldaten mit, legt HU-Amt sie beim ersten Start im Testmodus und nach „Test zurücksetzen“ in den Testbestand. So lässt sich jedes Modul gleich ausprobieren. Echte Daten bleiben unberührt.
+
+### 💾 Sicherung
+- **Warnung, wenn die Sicherung fehlt:** Ist keine Sicherung eingerichtet, die Automatik aus oder die letzte erfolgreiche Sicherung zu alt (täglich: 2 Tage, wöchentlich: 9 Tage), wird die Diskette oben orange. Verwalter bekommen einmal am Tag einen Hinweis.
+
 ### 🔐 Rechte
 - **Nur Verwalter:** Den Datenordner ändern nur Verwalter, im Testmodus gar nicht.
 - **Anleitung für die IT:** `RECHTE-IT.md` im Programmordner beschreibt Ordner, Gruppen und Rechte, mit fertigen Befehlen für den Server.
@@ -23,7 +29,7 @@
 - Die Einstellung liegt in `Config\datenort.json` und gilt für alle, die diese Installation starten. `Config` braucht deshalb dieselben Rechte wie das Programm: für die Benutzer nur Lesen.
 
 ### ✅ Qualität
-- 478 Tests, alle im strengen Modus wie die App.
+- 483 Tests, alle im strengen Modus wie die App.
 
 ## v0.1.13
 

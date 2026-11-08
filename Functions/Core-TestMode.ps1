@@ -70,6 +70,32 @@ function Initialize-HUTestData([string]$AppRoot = $script:AppRoot) {
 
 <#
 .SYNOPSIS
+    Beispieldaten eines Moduls in den Testbestand legen: <Modul>\Testdaten\ -> Data\_Test\<Id>\.
+.DESCRIPTION
+    Nur im Testmodus, nur unter dem gekennzeichneten Testbestand und nur, wenn dort fuer das Modul noch nichts liegt
+    (beim ersten Start im Testmodus und nach "Test zuruecksetzen"). Echte Daten werden nie beruehrt.
+    Verknuepfungen werden uebersprungen. Rueckgabe: Anzahl kopierter Dateien.
+#>
+function Initialize-HUAddonTestData($Addon, [string]$AppRoot = $script:AppRoot) {
+    if (-not (Test-HUTestMode) -or -not $Addon -or -not "$($Addon.Dir)" -or -not "$($Addon.Id)") { return 0 }
+    $src = [IO.Path]::GetFullPath((Join-Path $Addon.Dir 'Testdaten')).TrimEnd('\')
+    if (-not (Test-Path -LiteralPath $src -PathType Container)) { return 0 }
+    $dst = Join-Path (Get-HUTestDataRoot $AppRoot) $Addon.Id
+    if (-not (Test-HUTestDataPath $dst $AppRoot)) { throw 'Der Testbestand ist nicht gekennzeichnet.' }
+    if ((Test-Path -LiteralPath $dst) -and @(Get-ChildItem -LiteralPath $dst -Force).Count) { return 0 }
+    $n = 0
+    foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force)) {
+        if ($i.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+        $to = [IO.Path]::Combine($dst, $i.FullName.Substring($src.Length + 1))
+        if ($i.PSIsContainer) { [void][IO.Directory]::CreateDirectory($to); continue }
+        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($to))
+        [IO.File]::Copy($i.FullName, $to, $false); $n++
+    }
+    return $n
+}
+
+<#
+.SYNOPSIS
     Testmodus starten (nur Verwalter) oder beenden. Beides startet die App neu.
 #>
 function Switch-HUTestMode {

@@ -81,6 +81,7 @@ mark{background:var(--yellow);color:#1e1e2e;border-radius:3px}
 .dia .ds{font:12.5px "Segoe UI",system-ui,sans-serif;fill:var(--sub)}
 .dia .dw{font:600 13px "Segoe UI",system-ui,sans-serif}
 .ds2{color:var(--sub);font-size:12px}
+.mt{margin:6px 0 18px}.mt th{width:190px;background:var(--panel2);vertical-align:top}.mt td{vertical-align:top}
 footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 @media (max-width:900px){.wrap{grid-template-columns:1fr}nav{display:none}main{padding:16px}section{padding:18px 16px}#q{width:150px}}
 @media print{header,nav,#q,.tbtn{display:none!important}.wrap{display:block}section{box-shadow:none;break-inside:avoid-page}body{background:#fff;color:#000}}
@@ -103,7 +104,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <h1>Wo liegen meine Daten?</h1>
   <p class="lead">Was passiert mit deinen Dateien, wenn du sie in HU-Amt ziehst? Wo landen die Ergebnisse? Was wird gesichert? Hier steht es auf einer Seite, für jedes Modul.</p>
   <figure class="dia">
-  <svg viewBox="0 0 960 430" role="img" aria-label="Übersicht: dein PC, der gemeinsame Datenordner, der Sicherungsordner und das Internet">
+  <svg viewBox="0 0 960 420" role="img" aria-label="Übersicht: dein PC, der gemeinsame Datenordner, der Sicherungsordner und das Internet">
     <defs>
       <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--sub)"/></marker>
     </defs>
@@ -152,20 +153,31 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <line x1="300" y1="125" x2="343" y2="125" style="stroke:var(--sub);stroke-width:2" marker-end="url(#ar)"/>
     <line x1="635" y1="110" x2="678" y2="110" style="stroke:var(--sub);stroke-width:2" marker-end="url(#ar)"/>
     <text x="160" y="372" text-anchor="middle" class="ds">Ziehst du einen Beleg oder Anhang hinein,</text>
-    <text x="160" y="390" text-anchor="middle" class="ds">kommt eine Kopie in den Datenordner.</text>
+    <text x="160" y="390" text-anchor="middle" class="ds">kommt eine Kopie in den gemeinsamen</text>
+    <text x="160" y="408" text-anchor="middle" class="ds">Datenordner, in den Ordner des Moduls.</text>
     <text x="490" y="372" text-anchor="middle" class="ds">Alle mit Zugriff auf die Freigabe</text>
     <text x="490" y="390" text-anchor="middle" class="ds">arbeiten mit denselben Daten.</text>
     <text x="815" y="372" text-anchor="middle" class="ds">Fachdaten gehen nie ins Internet,</text>
-    <text x="815" y="390" text-anchor="middle" class="ds">nur die Adressen der Reisen.</text>
+    <text x="815" y="390" text-anchor="middle" class="ds">nur die Adressen der Reisen</text>
+    <text x="815" y="408" text-anchor="middle" class="ds">bei der Abfrage der Kilometer.</text>
   </svg>
   <figcaption>Drei Orte: dein PC, der gemeinsame Datenordner und der Sicherungsordner. Nur was im Datenordner liegt, ist in der Sicherung von HU-Amt.</figcaption>
   </figure>
 </section>
 
+<section id="begriffe">
+  <h2>Zwei Orte, die du kennen musst</h2>
+  <div class="cards">
+    <div class="card b"><b>Deine Ordner</b>Wo du selbst Dateien ablegst: Desktop, Dokumente, Downloads oder dein Ordner auf der Freigabe. Was dort liegt, sieht nur, wer auf diesen Ordner Zugriff hat. Meist nur du.</div>
+    <div class="card g"><b>Gemeinsamer Datenordner</b>Der Ordner von HU-Amt auf der Freigabe. Alle, die HU-Amt benutzen, arbeiten darin. Wo er liegt, steht unter <span class="ui">⚙ Einstellungen</span> ganz unten: „Datenordner: …“. Nur er kommt in die Sicherung.</div>
+  </div>
+  <p>Kurzzeichen in den Karten unten: <span class="ui b">nur du</span> nur du siehst es, <span class="ui g">alle</span> alle mit HU-Amt sehen es, <span class="ui m">Verwalter</span> nur ein Verwalter stellt es ein.</p>
+</section>
+
 <section id="regeln">
   <h2>Die Grundregeln</h2>
   <div class="cards">
-    <div class="card g"><b>Originale bleiben</b>HU-Amt liest deine Datei nur. Belege und Anhänge werden kopiert. Ausnahme: ein überwachter Eingangsordner der Texterkennung, siehe unten.</div>
+    <div class="card g"><b>Originale bleiben</b>HU-Amt liest deine Datei nur. Belege und Anhänge werden in den gemeinsamen Datenordner kopiert, in den Ordner des Moduls. Ausnahme: ein überwachter Eingangsordner der Texterkennung, siehe unten.</div>
     <div class="card b"><b>Nichts wird überschrieben</b>Gibt es den Namen schon, hängt HU-Amt eine Nummer an (<code>_2</code>). Ausnahme: beim Excel-Export der Kostenzuordnung ist „überschreiben“ einstellbar.</div>
     <div class="card t"><b>Gemeinsam ist gemeinsam</b>Was im Datenordner liegt, sehen alle mit Zugriff auf die Freigabe. Persönlich sind nur deine Einstellungen.</div>
     <div class="card p"><b>Entfernen ist kein Löschen</b>Entfernte Belege und Anhänge wandern in einen Unterordner <code>_entfernt</code>. Gemeinsame Listen bekommen vor jedem Speichern eine Kopie in <code>_Kopien</code>.</div>
@@ -173,20 +185,107 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   </div>
 </section>
 
+
 <section id="module">
   <h2>Modul für Modul</h2>
-  <table>
-    <tr><th>Modul</th><th>Was du hineingibst</th><th>Wo das Ergebnis landet</th><th>In der Sicherung?</th></tr>
-    <tr><td><b>PDF-Werkzeuge</b></td><td>PDFs und Bilder hineinziehen. Das Original wird nur gelesen.</td><td>Neben dem Original oder im Ordner, den du in den Einstellungen des Reiters wählst. Name mit Zusatz, z. B. <code>_zusammengefuegt</code>, <code>_geschwaerzt</code>, <code>_klein</code>, beim Teilen ein Ordner <code>…_geteilt</code>.</td><td><span class="ui p">nein</span> liegt bei deinen Dateien</td></tr>
-    <tr><td><b>Texterkennung</b><br><span class="ds2">hineinziehen</span></td><td>PDF oder Scan hineinziehen. Das Original bleibt.</td><td><code>&lt;Name&gt;_OCR.pdf</code> neben dem Original oder im gewählten Ordner. „Weitergeben“ schickt eine Kopie an ein anderes Modul.</td><td><span class="ui p">nein</span></td></tr>
-    <tr><td><b>Texterkennung</b><br><span class="ds2">Eingangsordner</span></td><td>Scanner legt in einen überwachten Ordner. Das Original wird <b>verschoben</b>: erst nach <code>_inArbeit</code>, dann nach <code>processed</code>, bei Fehlern nach <code>quarantine</code>. Gelöscht wird nie.</td><td>Im Ausgang, den der Verwalter für diesen Ordner einstellt, sonst im Datenordner unter <code>OCR\Ausgang</code>.</td><td><span class="ui g">ja</span> wenn im Datenordner, sonst nein</td></tr>
-    <tr><td><b>Kostenzuordnung</b></td><td>Rechnungs-PDFs und Excel hineinziehen. Wird nur gelesen.</td><td>Excel-Export in <code>Downloads\Kostenzuordnung</code> (Ordner und Name einstellbar). Die Zuordnung jeder Rechnung kommt ins gemeinsame Rechnungsarchiv, <b>ohne das PDF</b>.</td><td><span class="ui g">ja</span> Archiv und Kostenstellen<br><span class="ui p">nein</span> Export und PDFs</td></tr>
-    <tr><td><b>Reisen</b></td><td>Reisen eintippen, Belege (PDF, Bild) hineinziehen. Belege werden kopiert.</td><td>Abrechnung und Jahresliste als PDF und CSV im Datenordner unter <code>Reiseabrechnung\abrechnungen\&lt;dein Name&gt;</code>. Sie öffnen sich gleich.</td><td><span class="ui g">ja</span></td></tr>
-    <tr><td><b>Buchungen</b></td><td>Buchungen und Mieter eintippen, Kontakte aus Outlook oder Visitenkarte (.vcf).</td><td>Termine im gemeinsamen Outlook-Kalender (eingestellt vom Verwalter). Bei Storno oder Änderung werden diese Termine in Outlook entfernt bzw. angepasst.</td><td><span class="ui g">ja</span> Buchungen<br><span class="ui p">nein</span> Outlook</td></tr>
-    <tr><td><b>Gutscheine</b></td><td>Nummern eintippen oder scannen, Liste aus Excel oder CSV einlesen (nur gelesen).</td><td>Quittungen und Auswertungen als PDF und CSV im Datenordner unter <code>Gutscheine</code>. Sie öffnen sich gleich.</td><td><span class="ui g">ja</span></td></tr>
-    <tr><td><b>Fristen</b></td><td>Fristen eintippen, PDF-Anhänge hineinziehen (werden kopiert).</td><td>Deine offenen Fristen als Aufgabe oder Termin in deinem eigenen Outlook. Abhaken in Outlook wirkt nicht zurück, bitte in HU-Amt erledigen.</td><td><span class="ui g">ja</span> Fristen und Anhänge<br><span class="ui p">nein</span> Outlook</td></tr>
-    <tr><td><b>Ideen &amp; Wünsche</b></td><td>Ideen, Stimmen, Rückmeldung mit Anhang (wird kopiert).</td><td>Bleibt im Datenordner. Eine Mail an den Verwalter wird nur angezeigt.</td><td><span class="ui g">ja</span></td></tr>
+
+  <h3 id="m-pdf">PDF-Werkzeuge</h3>
+  <table class="mt">
+    <tr><th>Was machst du?</th><td>Du ziehst PDFs oder Bilder in den Reiter und wählst eine Aktion: zusammenfügen, teilen, Seiten drehen oder löschen, schwärzen, verkleinern, stempeln.</td></tr>
+    <tr><th>Dein Original</th><td>Bleibt <b>unverändert dort, wo es war</b>, z. B. auf deinem Desktop.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Eine <b>neue</b> PDF <b>im selben Ordner wie das Original</b>. Der Name bekommt einen Zusatz, z. B. <code>_zusammengefuegt</code>, <code>_geschwaerzt</code>, <code>_klein</code>, <code>_gestempelt</code>. Beim Teilen entsteht ein Ordner <code>&lt;Name&gt;_geteilt</code>.<br>Willst du alle Ergebnisse an einem Ort: im Reiter unter Einstellungen einen Ergebnisordner wählen.</td></tr>
+    <tr><th>Beispiel</th><td><code>Desktop\Rechnung.pdf</code> → <code>Desktop\Rechnung_klein.pdf</code></td></tr>
+    <tr><th>Wer sieht es?</th><td><span class="ui b">nur du</span> wenn es in deinem Ordner liegt. Liegt das Original in einem gemeinsamen Ordner, liegt auch das Ergebnis dort.</td></tr>
+    <tr><th>Wer legt den Ort fest?</th><td><span class="ui b">nur du</span> Der Ergebnisordner gilt nur für dich.</td></tr>
+    <tr><th>Gesichert?</th><td><span class="ui p">nein</span> Es liegt bei deinen Dateien, nicht im Datenordner.</td></tr>
   </table>
+
+  <h3 id="m-ocr">Texterkennung: Datei hineinziehen</h3>
+  <table class="mt">
+    <tr><th>Was machst du?</th><td>Du ziehst eine gescannte PDF in den Reiter. HU-Amt macht daraus eine PDF, in der man Text suchen und kopieren kann.</td></tr>
+    <tr><th>Dein Original</th><td>Bleibt <b>unverändert dort, wo es war</b>.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Eine neue PDF <code>&lt;Name&gt;_OCR.pdf</code> <b>im selben Ordner wie das Original</b>. Oder im Ergebnisordner, den du im Reiter einstellst.</td></tr>
+    <tr><th>Beispiel</th><td><code>Desktop\Scan.pdf</code> → <code>Desktop\Scan_OCR.pdf</code></td></tr>
+    <tr><th>Weitergeben</th><td>Der Knopf „Weitergeben“ öffnet die fertige PDF sofort in einem anderen Modul, z. B. Kostenzuordnung. Dein Ergebnis bleibt, wo es ist.</td></tr>
+    <tr><th>Wer sieht es?</th><td><span class="ui b">nur du</span> wenn es in deinem Ordner liegt.</td></tr>
+    <tr><th>Wer legt den Ort fest?</th><td><span class="ui b">nur du</span></td></tr>
+    <tr><th>Gesichert?</th><td><span class="ui p">nein</span></td></tr>
+  </table>
+
+  <h3 id="m-scan">Texterkennung: Scanner-Ordner (automatisch)</h3>
+  <table class="mt">
+    <tr><th>Was ist das?</th><td>Ein Ordner, in den z. B. der Scanner seine PDFs speichert. HU-Amt schaut dort laufend nach und bearbeitet jede neue PDF <b>von selbst</b>. Du musst nichts hineinziehen, nur scannen.</td></tr>
+    <tr><th>Wer richtet ihn ein?</th><td><span class="ui m">Verwalter</span> für alle (dann bearbeitet ihn jeder PC, auf dem HU-Amt offen ist). Oder <span class="ui b">nur du</span> für dich, dann nur auf deinem PC.</td></tr>
+    <tr><th>Dein Original (der Scan)</th><td>Wird <b>verschoben, nie gelöscht</b>: danach liegt er im Unterordner <code>processed</code> desselben Ordners. Klappt etwas nicht, im Unterordner <code>quarantine</code> mit einer Textdatei, die den Fehler nennt.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Im <b>Ausgangsordner</b>, der bei diesem Scanner-Ordner eingetragen ist. Ist keiner eingetragen: im gemeinsamen Datenordner unter <code>OCR\Ausgang</code>.</td></tr>
+    <tr><th>Beispiel</th><td>Scanner speichert <code>Scan-Eingang\Brief.pdf</code> → Ergebnis im Ausgangsordner, der Scan liegt danach in <code>Scan-Eingang\processed\Brief.pdf</code></td></tr>
+    <tr><th>Danach an</th><td>Ist bei dem Ordner „Danach an“ ein Modul eingetragen (z. B. Kostenzuordnung), bekommt es eine Kopie. Am Reiter erscheint eine Zahl, dort lädst du die Datei.</td></tr>
+    <tr><th>Wer sieht es?</th><td><span class="ui g">alle</span> mit Zugriff auf diese Ordner.</td></tr>
+    <tr><th>Gesichert?</th><td><span class="ui g">ja</span> wenn der Ausgang im Datenordner liegt (<code>OCR\Ausgang</code>). <span class="ui p">nein</span> für den Scanner-Ordner selbst.</td></tr>
+  </table>
+
+  <h3 id="m-kz">Kostenzuordnung</h3>
+  <table class="mt">
+    <tr><th>Was machst du?</th><td>Du ziehst Rechnungs-PDFs in den Reiter. HU-Amt liest die Beträge und ordnet sie den Kostenstellen zu.</td></tr>
+    <tr><th>Dein Original</th><td>Die Rechnungs-PDF bleibt <b>unverändert dort, wo sie war</b>. HU-Amt kopiert sie nicht.</td></tr>
+    <tr><th>Ergebnis 1: Excel</th><td>Eine Excel-Datei in <b>deinem</b> Ordner <code>Downloads\Kostenzuordnung</code>, je Monat ein Unterordner. Ordner und Name kannst du im Reiter ändern.</td></tr>
+    <tr><th>Ergebnis 2: Archiv</th><td>Was welcher Kostenstelle zugeordnet wurde, kommt ins <b>gemeinsame Rechnungsarchiv</b> im Datenordner (<code>Kostenzuordnung\Rechnungen</code>). Das zeigt die Übersicht im Reiter. Die PDF selbst ist nicht im Archiv.</td></tr>
+    <tr><th>Beispiel</th><td><code>Desktop\Strom_Oktober.pdf</code> → <code>Downloads\Kostenzuordnung\&lt;Monat&gt;\….xlsx</code> und ein Eintrag im Archiv</td></tr>
+    <tr><th>Wer sieht es?</th><td>Excel: <span class="ui b">nur du</span>. Archiv: <span class="ui g">alle</span> mit dem Reiter.</td></tr>
+    <tr><th>Wer legt den Ort fest?</th><td>Excel-Ordner: <span class="ui b">nur du</span>. Kostenstellen: <span class="ui m">Verwalter</span></td></tr>
+    <tr><th>Gesichert?</th><td>Archiv und Kostenstellen <span class="ui g">ja</span>. Excel-Dateien und Rechnungs-PDFs <span class="ui p">nein</span>: die PDFs bitte wie bisher selbst ablegen.</td></tr>
+  </table>
+
+  <h3 id="m-reisen">Reisen</h3>
+  <table class="mt">
+    <tr><th>Was machst du?</th><td>Du trägst deine Dienstreisen ein und ziehst Belege (PDF, Foto) hinein. HU-Amt erstellt die Abrechnung.</td></tr>
+    <tr><th>Dein Original</th><td>Der Beleg bleibt <b>dort, wo er war</b>. HU-Amt legt eine <b>Kopie</b> im Datenordner ab.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Abrechnung und Jahresliste als PDF und CSV im gemeinsamen Datenordner unter <code>Reiseabrechnung\abrechnungen\&lt;dein Benutzername&gt;</code>. Sie öffnen sich sofort zum Drucken.</td></tr>
+    <tr><th>Wer sieht es?</th><td>In HU-Amt siehst du nur deine Reisen, ein Verwalter alle. Die Dateien liegen im gemeinsamen Datenordner: wer auf der Freigabe Zugriff hat, kann sie öffnen.</td></tr>
+    <tr><th>Wer legt den Ort fest?</th><td>Fest vorgegeben, nicht änderbar.</td></tr>
+    <tr><th>Internet</th><td>Für die Kilometer gehen Start- und Zieladresse an einen Routenplaner (openrouteservice). „Route ansehen“ öffnet Google Maps.</td></tr>
+    <tr><th>Gesichert?</th><td><span class="ui g">ja</span> Reisen, Belege und Abrechnungen.</td></tr>
+  </table>
+
+  <h3 id="m-buchung">Buchungen</h3>
+  <table class="mt">
+    <tr><th>Was machst du?</th><td>Du trägst Buchungen und Mieter ein. Mieter kannst du aus deinen Outlook-Kontakten oder aus einer Visitenkarte (.vcf) holen.</td></tr>
+    <tr><th>Dein Original</th><td>Eine Visitenkarte wird nur gelesen und bleibt, wo sie war.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Buchungen und Mieter im gemeinsamen Datenordner unter <code>Buchung</code>. Termine (Veranstaltung, Übergabe, Rückgabe) im <b>gemeinsamen Outlook-Kalender</b>, den der Verwalter einstellt. Bei Storno oder Änderung passt HU-Amt die Termine an bzw. entfernt sie.</td></tr>
+    <tr><th>Wer sieht es?</th><td><span class="ui g">alle</span> mit dem Reiter sehen alle Buchungen, den Kalender alle mit Zugriff darauf.</td></tr>
+    <tr><th>Wer legt den Ort fest?</th><td><span class="ui m">Verwalter</span> (Kalender)</td></tr>
+    <tr><th>Gesichert?</th><td>Buchungen <span class="ui g">ja</span>. Der Outlook-Kalender <span class="ui p">nein</span>, der liegt im Mailsystem.</td></tr>
+  </table>
+
+  <h3 id="m-gs">Gutscheine</h3>
+  <table class="mt">
+    <tr><th>Was machst du?</th><td>Du tippst Gutscheinnummern ein oder scannst sie mit dem Handscanner. Eine Liste aus Excel oder CSV kannst du einlesen.</td></tr>
+    <tr><th>Dein Original</th><td>Die Liste wird nur gelesen und bleibt, wo sie war.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Quittungen als PDF im gemeinsamen Datenordner unter <code>Gutscheine\quittungen</code>, Auswertungen (PDF, CSV) unter <code>Gutscheine\auswertungen</code>. Sie öffnen sich sofort.</td></tr>
+    <tr><th>Wer sieht es?</th><td><span class="ui g">alle</span> mit dem Reiter.</td></tr>
+    <tr><th>Wer legt den Ort fest?</th><td>Fest vorgegeben.</td></tr>
+    <tr><th>Gesichert?</th><td><span class="ui g">ja</span></td></tr>
+  </table>
+
+  <h3 id="m-fristen">Fristen</h3>
+  <table class="mt">
+    <tr><th>Was machst du?</th><td>Du trägst Fristen ein und kannst eine PDF anhängen.</td></tr>
+    <tr><th>Dein Original</th><td>Die PDF bleibt, wo sie war. HU-Amt legt eine <b>Kopie</b> ab.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Fristen und Anhänge im gemeinsamen Datenordner unter <code>Fristen</code>. Deine eigenen offenen Fristen erscheinen zusätzlich als Aufgabe oder Termin in <b>deinem</b> Outlook.</td></tr>
+    <tr><th>Wer sieht es?</th><td>Fristen: <span class="ui g">alle</span> mit dem Reiter. Outlook-Eintrag: <span class="ui b">nur du</span>.</td></tr>
+    <tr><th>Achtung</th><td>Abhaken in Outlook wirkt nicht zurück. Erledigt wird in HU-Amt.</td></tr>
+    <tr><th>Gesichert?</th><td>Fristen und Anhänge <span class="ui g">ja</span>, Outlook <span class="ui p">nein</span>.</td></tr>
+  </table>
+
+  <h3 id="m-ideen">Ideen &amp; Wünsche</h3>
+  <table class="mt">
+    <tr><th>Was machst du?</th><td>Ideen eintragen, abstimmen, Rückmeldung schreiben, auf Wunsch mit einer Datei.</td></tr>
+    <tr><th>Dein Original</th><td>Die Datei bleibt, wo sie war. HU-Amt legt eine Kopie ab.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Im gemeinsamen Datenordner unter <code>Roadmap</code>. Eine Mail an den Verwalter wird nur angezeigt, senden musst du selbst.</td></tr>
+    <tr><th>Wer sieht es?</th><td><span class="ui g">alle</span> mit dem Reiter.</td></tr>
+    <tr><th>Gesichert?</th><td><span class="ui g">ja</span></td></tr>
+  </table>
+
   <div class="note warn"><b class="h">Kennwortgeschützte PDFs</b>Ergebnisse aus geschützten PDFs (z. B. zusammengefügt oder verkleinert) haben <b>keinen</b> Kennwortschutz mehr. Bei heiklen Unterlagen das Ergebnis selbst wieder schützen oder gut ablegen.</div>
 </section>
 
@@ -198,7 +297,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <div class="card m"><b>Wo und wie</b>In einem Ordner, den der Verwalter wählt (Freigabe oder USB, nie im Programmordner). Verschlüsselt, ohne Kennwort nicht zu öffnen. Täglich, wöchentlich oder von Hand, die letzten Stände je PC bleiben.</div>
     <div class="card b"><b>Zurückholen</b>Nur ein Verwalter. Vorher legt HU-Amt eine Kopie des jetzigen Stands an. Alle anderen müssen HU-Amt dafür schließen.</div>
   </div>
-  <div class="note stop"><b class="h">Wichtig</b>Die Sicherung ist nach der Installation <b>aus</b>. Ein Verwalter muss unter <span class="ui">⚙ Einstellungen</span> › <b>Sicherung</b> den Ordner wählen, ein Kennwort festlegen (für die Automatik merken) und „täglich“ einstellen. Das Kennwort gut aufbewahren: ohne Kennwort ist die Sicherung wertlos.</div>
+  <div class="note stop"><b class="h">Wichtig</b>Die Sicherung ist nach der Installation <b>aus</b>. Ein Verwalter muss unter <span class="ui">⚙ Einstellungen</span> › <b>Sicherung</b> den Ordner wählen, ein Kennwort festlegen (für die Automatik merken) und „täglich“ einstellen. Das Kennwort gut aufbewahren: ohne Kennwort ist die Sicherung wertlos. Fehlt die Sicherung oder ist sie überfällig, wird die Diskette oben orange und Verwalter bekommen einmal am Tag einen Hinweis. Die Automatik läuft nur, solange HU-Amt bei einem Verwalter offen ist, der das Kennwort gemerkt hat.</div>
 </section>
 
 <section id="internet">

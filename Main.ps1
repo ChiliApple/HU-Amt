@@ -295,6 +295,11 @@ try { Set-HUOutputTools $script:Window } catch { }
 Set-HUSplashStatus 'Module werden eingebaut ...'
 foreach ($__a in @(Get-HUAddonStartList)) {
     try {
+        # Testmodus: Beispieldaten des Moduls (Testdaten\) in den leeren Testbestand legen, bevor das Modul liest
+        if ($script:TestModeActive) {
+            try { $__n = Initialize-HUAddonTestData $__a; if ($__n) { Write-HULogInfo "Testmodus: $__n Beispieldateien für $($__a.Title) angelegt" } }
+            catch { Write-HULogWarn "Testmodus: Beispieldaten für $($__a.Id) nicht angelegt: $($_.Exception.Message)" }
+        }
         . (Join-Path $__a.Dir $__a.Script)
         Add-HUAddonTab $__a
         & $__a.Init

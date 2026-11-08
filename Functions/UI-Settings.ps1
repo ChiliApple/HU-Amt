@@ -350,7 +350,7 @@ function Show-HUSettingsDialog {
     $w.Add_Closing({ Save-HUDialogState $w 'SettingsWindow'; $script:AbDlg = $null })
 
     switch ($Tab) { 'Update' { $c.tabSettings.SelectedItem = $c.tabUpdate } 'Sicherung' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabAppBackup } } 'Module' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabModules } } 'Verwalter' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabAdmins } } default { } }
-    $c.txtSettingsInfo.Text = "Programmordner: $($script:AppRoot)$(if ($adm) { "  |  Verwalter: $($script:UserName)" })"
+    $c.txtSettingsInfo.Text = "Programmordner: $($script:AppRoot)  |  Datenordner: $($script:DataRoot)$(if ($adm) { "  |  Verwalter: $($script:UserName)" })"
     [void]$w.ShowDialog()
     return $st.Saved
 }
