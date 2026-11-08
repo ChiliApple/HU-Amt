@@ -59,7 +59,7 @@ Was das Programm kann und wie es geht:
 
 ## Rechte auf der Freigabe
 
-Wer `Data\Verwalter.txt` ändern darf, kann sich selbst zum Verwalter machen. Empfehlung: `Data` mit **Ändern** für die Benutzer der App (ohne Vollzugriff), `Data\Verwalter.txt` nur **Lesen** für Benutzer und **Ändern** nur für Verwalter, Vererbung an dieser Datei unterbrochen. Unter **Einstellungen › Verwalter** zeigt HU-Amt eine Warnung, wenn die NTFS-Rechte zu breit sind. Wird ein eigener Datenordner verwendet, gilt das dort genauso. `Config` (mit der Einstellung `datenort.json`) braucht wie das Programm nur **Lesen** für Benutzer. Freigaberechte (SMB) sieht die App nicht, die prüft der Administrator selbst. Details: [Module entwickeln › Rechte auf der Freigabe](MODULE-DEVELOPMENT.md#rechte-auf-der-freigabe).
+Wer `Data\Verwalter.txt` ändern darf, kann sich selbst zum Verwalter machen. Empfehlung: `Data` mit **Ändern** für die Benutzer der App (ohne Vollzugriff), `Data\Verwalter.txt` nur **Lesen** für Benutzer und **Ändern** nur für Verwalter, Vererbung an dieser Datei unterbrochen. Unter **Einstellungen › Verwalter** zeigt HU-Amt eine Warnung, wenn die NTFS-Rechte zu breit sind. Wird ein eigener Datenordner verwendet, gilt das dort genauso. `Config` (mit der Einstellung `datenort.json`) braucht wie das Programm nur **Lesen** für Benutzer. Freigaberechte (SMB) sieht die App nicht, die prüft der Administrator selbst. Anleitung mit fertigen Befehlen für die IT: [RECHTE-IT.md](RECHTE-IT.md). Details: [Module entwickeln › Rechte auf der Freigabe](MODULE-DEVELOPMENT.md#rechte-auf-der-freigabe).
 
 ## Module entwickeln
 

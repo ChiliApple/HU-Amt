@@ -13,6 +13,7 @@
 
 ### 🔐 Rechte
 - **Nur Verwalter:** Den Datenordner ändern nur Verwalter, im Testmodus gar nicht.
+- **Anleitung für die IT:** `RECHTE-IT.md` im Programmordner beschreibt Ordner, Gruppen und Rechte, mit fertigen Befehlen für den Server.
 - **Rechteprüfung erweitert:** Die Warnzeile unter Einstellungen › Verwalter meldet auch, wenn alle Benutzer die Einstellung des Datenordners ändern dürfen.
 
 ### ⚠️ Nach dem Update
