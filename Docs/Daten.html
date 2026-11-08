@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -251,7 +251,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <table class="mt">
     <tr><th>Was machst du?</th><td>Du trägst Buchungen und Mieter ein. Mieter kannst du aus deinen Outlook-Kontakten oder aus einer Visitenkarte (.vcf) holen.</td></tr>
     <tr><th>Dein Original</th><td>Eine Visitenkarte wird nur gelesen und bleibt, wo sie war.</td></tr>
-    <tr><th>Das Ergebnis</th><td>Buchungen und Mieter im gemeinsamen Datenordner unter <code>Buchung</code>. Termine (Veranstaltung, Übergabe, Rückgabe) im <b>gemeinsamen Outlook-Kalender</b>, den der Verwalter einstellt. Bei Storno oder Änderung passt HU-Amt die Termine an bzw. entfernt sie.</td></tr>
+    <tr><th>Das Ergebnis</th><td>Buchungen und Mieter im gemeinsamen Datenordner unter <code>Buchung</code>.<br>Termine (Veranstaltung, Übergabe, Rückgabe) kommen in Outlook in den Kalender, der <b>beim Objekt</b> eingestellt ist, sonst in den Kalender aus den <b>Einstellungen</b> des Reiters.<br><b>Ist kein gemeinsamer Kalender eingestellt, landen die Termine im eigenen Kalender der Person, die speichert</b>, und die anderen sehen sie nicht. Darum muss der Verwalter einen gemeinsamen Kalender einstellen.<br>Erinnerungs-Aufgaben kommen immer in die eigenen Aufgaben der Person, die speichert.<br>Bei Storno oder Änderung passt HU-Amt die Termine an bzw. entfernt sie.</td></tr>
     <tr><th>Wer sieht es?</th><td><span class="ui g">alle</span> mit dem Reiter sehen alle Buchungen, den Kalender alle mit Zugriff darauf.</td></tr>
     <tr><th>Wer legt den Ort fest?</th><td><span class="ui m">Verwalter</span> (Kalender)</td></tr>
     <tr><th>Gesichert?</th><td>Buchungen <span class="ui g">ja</span>. Der Outlook-Kalender <span class="ui p">nein</span>, der liegt im Mailsystem.</td></tr>
@@ -259,12 +259,13 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 
   <h3 id="m-gs">Gutscheine</h3>
   <table class="mt">
-    <tr><th>Was machst du?</th><td>Du tippst Gutscheinnummern ein oder scannst sie mit dem Handscanner. Eine Liste aus Excel oder CSV kannst du einlesen.</td></tr>
-    <tr><th>Dein Original</th><td>Die Liste wird nur gelesen und bleibt, wo sie war.</td></tr>
+    <tr><th>Was machst du?</th><td>Du erfasst Ausgabe und Einlösung: Nummer eintippen oder mit dem Handscanner vom Gutschein scannen. Einmalig kannst du die <b>bisherige Gutschein-Liste</b> (Excel oder CSV) übernehmen.</td></tr>
+    <tr><th>Gescannte Nummern</th><td>Der Handscanner tippt nur die Nummer ein, es entsteht <b>keine Datei</b>. Die Nummer wird sofort als Vorgang im gemeinsamen Datenordner gespeichert, unter <code>Gutscheine\vorgaenge</code>.</td></tr>
+    <tr><th>Deine bisherige Liste</th><td>Die Excel- oder CSV-Datei wird nur gelesen und bleibt <b>unverändert dort, wo sie liegt</b>. Beim Übernehmen überträgt HU-Amt ihren <b>Inhalt</b>: jede Ausgabe und Einlösung wird ein eigener Vorgang im gemeinsamen Datenordner unter <code>Gutscheine\vorgaenge</code>. Die Datei selbst wird nicht kopiert.</td></tr>
     <tr><th>Das Ergebnis</th><td>Quittungen als PDF im gemeinsamen Datenordner unter <code>Gutscheine\quittungen</code>, Auswertungen (PDF, CSV) unter <code>Gutscheine\auswertungen</code>. Sie öffnen sich sofort.</td></tr>
     <tr><th>Wer sieht es?</th><td><span class="ui g">alle</span> mit dem Reiter.</td></tr>
     <tr><th>Wer legt den Ort fest?</th><td>Fest vorgegeben.</td></tr>
-    <tr><th>Gesichert?</th><td><span class="ui g">ja</span></td></tr>
+    <tr><th>Gesichert?</th><td><span class="ui g">ja</span> alle Vorgänge, auch die übernommenen, dazu Quittungen und Auswertungen. <span class="ui p">nein</span> die Excel-Datei selbst, sie liegt bei deinen Dateien. Ihr Inhalt ist nach der Übernahme in HU-Amt gesichert.</td></tr>
   </table>
 
   <h3 id="m-fristen">Fristen</h3>
