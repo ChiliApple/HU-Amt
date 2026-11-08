@@ -171,7 +171,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <div class="card b"><b>Deine Ordner</b>Wo du selbst Dateien ablegst: Desktop, Dokumente, Downloads oder dein Ordner auf der Freigabe. Was dort liegt, sieht nur, wer auf diesen Ordner Zugriff hat. Meist nur du.</div>
     <div class="card g"><b>Gemeinsamer Datenordner</b>Der Ordner, in dem HU-Amt die Daten aller Module ablegt. Normal liegt er neben dem Programm auf der Freigabe, ein Verwalter kann einen anderen Ordner einstellen. Alle, die HU-Amt benutzen, arbeiten darin. Wo er liegt, steht unter <span class="ui">⚙ Einstellungen</span> ganz unten: „Datenordner: …“. Nur er kommt in die Sicherung.</div>
   </div>
-  <p>Kurzzeichen in den Karten unten: <span class="ui b">nur du</span> nur du siehst es, <span class="ui g">alle</span> alle mit HU-Amt sehen es, <span class="ui m">Verwalter</span> nur ein Verwalter stellt es ein.</p>
+  <p>Kurzzeichen in den Karten unten: <span class="ui b">nur du</span> nur du siehst es, <span class="ui g">alle</span> alle mit HU-Amt sehen es, <span class="ui m">Verwalter</span> nur ein Verwalter stellt es ein oder sieht es, <span class="ui t">fest</span> vom Programm vorgegeben.</p>
 </section>
 
 <section id="regeln">
@@ -241,8 +241,8 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><th>Was machst du?</th><td>Du trägst deine Dienstreisen ein und ziehst Belege (PDF, Foto) hinein. HU-Amt erstellt die Abrechnung.</td></tr>
     <tr><th>Dein Original</th><td>Der Beleg bleibt <b>dort, wo er war</b>. HU-Amt legt eine <b>Kopie</b> im gemeinsamen Datenordner ab, unter <code>Reiseabrechnung\belege\&lt;dein Benutzername&gt;</code>. Mit dieser Kopie arbeitet HU-Amt weiter, dein Original brauchst du dafür nicht mehr.</td></tr>
     <tr><th>Das Ergebnis</th><td>Abrechnung und Jahresliste als PDF und CSV im gemeinsamen Datenordner unter <code>Reiseabrechnung\abrechnungen\&lt;dein Benutzername&gt;</code>. Sie öffnen sich sofort zum Drucken. Die Jahresübersicht für alle legt der Verwalter unter <code>abrechnungen\_alle</code> ab.</td></tr>
-    <tr><th>Wer sieht es?</th><td>In HU-Amt siehst du nur deine Reisen, ein Verwalter alle. Die Dateien liegen im gemeinsamen Datenordner: wer auf der Freigabe Zugriff hat, kann sie öffnen.</td></tr>
-    <tr><th>Wer legt den Ort fest?</th><td>Fest vorgegeben, nicht änderbar.</td></tr>
+    <tr><th>Wer sieht es?</th><td>In HU-Amt: deine Reisen <span class="ui b">nur du</span>, alle Reisen <span class="ui m">Verwalter</span>. Die Dateien liegen aber im gemeinsamen Datenordner: <span class="ui g">alle</span> mit Zugriff auf die Freigabe können sie öffnen.</td></tr>
+    <tr><th>Wer legt den Ort fest?</th><td><span class="ui t">fest</span> vom Programm vorgegeben, nicht änderbar.</td></tr>
     <tr><th>Internet</th><td>Für die Kilometer gehen Start- und Zieladresse an einen Routenplaner (openrouteservice). „Route ansehen“ öffnet Google Maps. Der Verwalter kann den Routenplaner abschalten, dann geht nichts hinaus.</td></tr>
     <tr><th>Gesichert?</th><td><span class="ui g">ja</span> Reisen, die <b>Kopien</b> der Belege und die Abrechnungen. <span class="ui p">nein</span> dein Original-Beleg, der liegt bei deinen Dateien.</td></tr>
   </table>
@@ -266,7 +266,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><th>Deine bisherige Liste</th><td>Die Excel- oder CSV-Datei wird nur gelesen und bleibt <b>unverändert dort, wo sie liegt</b>. Beim Übernehmen überträgt HU-Amt ihren <b>Inhalt</b>: jede Ausgabe und Einlösung wird ein eigener Vorgang im gemeinsamen Datenordner unter <code>Gutscheine\vorgaenge</code>. Die Datei selbst wird nicht kopiert.</td></tr>
     <tr><th>Das Ergebnis</th><td>Quittungen als PDF im gemeinsamen Datenordner unter <code>Gutscheine\quittungen</code>, Auswertungen (PDF, CSV) unter <code>Gutscheine\auswertungen</code>. Sie öffnen sich sofort.</td></tr>
     <tr><th>Wer sieht es?</th><td><span class="ui g">alle</span> mit dem Reiter.</td></tr>
-    <tr><th>Wer legt den Ort fest?</th><td>Fest vorgegeben.</td></tr>
+    <tr><th>Wer legt den Ort fest?</th><td><span class="ui t">fest</span> vom Programm vorgegeben, nicht änderbar.</td></tr>
     <tr><th>Gesichert?</th><td><span class="ui g">ja</span> alle Vorgänge, auch die übernommenen, dazu Quittungen und Auswertungen. <span class="ui p">nein</span> die Excel-Datei selbst, sie liegt bei deinen Dateien. Ihr Inhalt ist nach der Übernahme in HU-Amt gesichert.</td></tr>
   </table>
 
