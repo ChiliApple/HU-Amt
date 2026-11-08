@@ -174,6 +174,7 @@ function Export-HUTestProtocol {
 #>
 function Show-HUTestAssistant {
     param([Parameter(Mandatory)][string]$ModuleId, [string]$ModuleVersion = '', [Parameter(Mandatory)][object[]]$Scenarios, [string]$Title = '')
+    if (Test-HUDemoMode) { Show-HUMessage 'In der Demo gibt es keine Prüflisten. Einfach ausprobieren!' -Icon Info; return }
     if (-not (Test-HUTestMode)) { Show-HUMessage 'Den geführten Test gibt es nur im Testmodus (Einstellungen › Verwalter › Testmodus starten).' -Icon Info; return }
     if ($script:HUTaWindow -and $script:HUTaWindow.IsVisible) { [void]$script:HUTaWindow.Activate(); return }
     $run = New-HUTestRun -ModuleId $ModuleId -ModuleVersion $ModuleVersion -Scenarios $Scenarios

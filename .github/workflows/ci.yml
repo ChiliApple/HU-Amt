@@ -100,6 +100,46 @@ jobs:
           "### Starttest Testmodus ${{ matrix.name }}: $r" | Add-Content $env:GITHUB_STEP_SUMMARY
           if ($r -notmatch '^OK' -or $r -notmatch 'Testmodus') { throw "Starttest Testmodus fehlgeschlagen: $r" }
           if (Test-Path .\Data\_Test\Benutzer) { 'Testbestand angelegt: ok' } else { throw 'Testbestand fehlt' }
+      - name: Starttest Demo (Main.ps1 -SmokeTest -Demo)
+        if: always()
+        shell: pwsh
+        timeout-minutes: 6
+        run: |
+          $f = Join-Path $env:RUNNER_TEMP 'smoke-demo.txt'
+          $a = @('-NoProfile')
+          if ($env:HU_STA) { $a += $env:HU_STA }
+          $a += @('-ExecutionPolicy', 'Bypass', '-File', "`"$((Resolve-Path .\Main.ps1).Path)`"", '-ShowConsole', '-SmokeTest', "`"$f`"", '-Demo')
+          $p = Start-Process $env:HU_EXE -ArgumentList $a -PassThru
+          if (-not $p.WaitForExit(240000)) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            throw "Starttest Demo: keine Antwort nach 240 s$(if (Test-Path $f) { ' - ' + (Get-Content $f -Raw) })"
+          }
+          if (-not (Test-Path $f)) { throw "Starttest Demo: kein Ergebnis (Exitcode $($p.ExitCode))" }
+          $r = Get-Content $f -Raw
+          "Starttest Demo: $r"
+          "### Starttest Demo ${{ matrix.name }}: $r" | Add-Content $env:GITHUB_STEP_SUMMARY
+          if ($r -notmatch '^OK' -or $r -notmatch 'Demo') { throw "Starttest Demo fehlgeschlagen: $r" }
+      - name: Starttest helles Farbschema (Main.ps1 -SmokeTest, HUAMT_SMOKE_THEME=Hell)
+        if: always()
+        shell: pwsh
+        timeout-minutes: 6
+        env:
+          HUAMT_SMOKE_THEME: Hell
+        run: |
+          $f = Join-Path $env:RUNNER_TEMP 'smoke-hell.txt'
+          $a = @('-NoProfile')
+          if ($env:HU_STA) { $a += $env:HU_STA }
+          $a += @('-ExecutionPolicy', 'Bypass', '-File', "`"$((Resolve-Path .\Main.ps1).Path)`"", '-ShowConsole', '-SmokeTest', "`"$f`"")
+          $p = Start-Process $env:HU_EXE -ArgumentList $a -PassThru
+          if (-not $p.WaitForExit(240000)) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            throw "Starttest Hell: keine Antwort nach 240 s$(if (Test-Path $f) { ' - ' + (Get-Content $f -Raw) })"
+          }
+          if (-not (Test-Path $f)) { throw "Starttest Hell: kein Ergebnis (Exitcode $($p.ExitCode))" }
+          $r = Get-Content $f -Raw
+          "Starttest Hell: $r"
+          "### Starttest Hell ${{ matrix.name }}: $r" | Add-Content $env:GITHUB_STEP_SUMMARY
+          if ($r -notmatch '^OK' -or $r -notmatch 'Hell') { throw "Starttest Hell fehlgeschlagen: $r" }
       - name: Protokoll bei Fehler
         if: failure()
         shell: pwsh

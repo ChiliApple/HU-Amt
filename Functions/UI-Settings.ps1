@@ -4,7 +4,7 @@
     Einstellungen wie in der Vorlage: Allgemein (Verknuepfungen, Start und Darstellung), Sicherung, Update.
     Dazu (nur HU-Amt) Module und Verwalter. Verwalter-Ansicht im Hauptfenster.
 .DESCRIPTION
-    Persoenlich:  Data\Benutzer\<Name>\settings.json (ui.startTab, ui.splashAnimation, ui.checkUpdatesOnStart, logging.logLevel)
+    Persoenlich:  Data\Benutzer\<Name>\settings.json (ui.startTab, ui.splashAnimation, ui.checkUpdatesOnStart, ui.theme, logging.logLevel)
                   Data\Benutzer\<Name>\ui-state.json (Oberflaechengroesse)
     Installation: Config\update.json (Kanal, Signaturpflicht), Config\powershell-host.txt (auto | 5 | 7)
     Sicherung:    Data\sicherung.json (UI-AppBackup.ps1)
@@ -117,6 +117,7 @@ function Invoke-HUDataLocationChange($Owner, $Info, $Button) {
         try { [void](New-Item -ItemType Directory -Path $new -Force -ErrorAction Stop); $state = 'Leer' } catch { Show-HUMessage "Ordner nicht angelegt:`n$($_.Exception.Message)" $t -Icon Error -Owner $Owner; return }
     }
     try { Assert-HUWritable $new } catch { Show-HUMessage "In diesem Ordner darf $($script:AppTitle) nicht schreiben:`n$new`n`n$($_.Exception.Message)" $t -Icon Warning -Owner $Owner; return }
+    if ($state -eq 'Unvollstaendig') { Show-HUMessage "In diesem Ordner liegt eine unvollständige Kopie von einem abgebrochenen Umzug:`n$new`n`nBitte den Ordner leeren und es noch einmal versuchen." $t -Icon Warning -Owner $Owner; return }
     if ($state -eq 'Fremd') { Show-HUMessage "Im Ordner liegen schon andere Dateien. Bitte einen leeren Ordner wählen oder einen, in dem schon Daten von $($script:AppTitle) liegen:`n`n$new" $t -Icon Warning -Owner $Owner; return }
     $ctx = @{ Owner = $Owner; Info = $Info; Button = $Button; Cur = $cur; New = $new; Def = $def }
     if ($state -eq 'HU') {
@@ -164,6 +165,29 @@ function Complete-HUDataLocationChange($Res, $Err, $Ctx, [switch]$NoCopy) {
             return
         }
     }
+    # Hat waehrend des Kopierens jemand im alten Ordner gespeichert (auch wenn er HU-Amt schon wieder zu hat)? Dann fehlt das in der Kopie.
+    if (-not $NoCopy -and $Res.Snapshot) {
+        $own = @(); $c0 = "$($Ctx.Cur)".TrimEnd('\')
+        if ("$($script:UserRoot)".StartsWith($c0 + '\', [StringComparison]::OrdinalIgnoreCase)) { $own = @("$($script:UserRoot)".Substring($c0.Length + 1).TrimEnd('\') + '\') }
+        $chg = @(); try { $chg = @(Get-HUDataTreeChanges -Source $Ctx.Cur -Snapshot $Res.Snapshot -SkipPrefix $own) } catch { $chg = @("(nicht prüfbar: $($_.Exception.Message))") }
+        if ($chg.Count) {
+            try { [IO.File]::WriteAllText((Join-Path $Ctx.New '.hu-kopie-unvollstaendig'), "Umzug abgebrochen $((Get-Date).ToString('s')): im alten Ordner wurde während des Kopierens gespeichert.") } catch { }
+            try { Update-HUDataLocationInfo $Ctx.Info } catch { }
+            Write-HULogWarn "Datenordner: $($chg.Count) Dateien während des Kopierens geändert, nichts umgestellt"
+            Show-HUMessage ("Während des Kopierens wurde im alten Ordner gespeichert. Es wurde nichts umgestellt, die Kopie wäre nicht mehr aktuell:`n`n" + (($chg | Select-Object -First 8) -join "`n") +
+                $(if ($chg.Count -gt 8) { "`n... und $($chg.Count - 8) weitere" }) + "`n`nBitte dafür sorgen, dass niemand $($script:AppTitle) offen hat, den neuen Ordner leeren und es noch einmal versuchen.") $t -Icon Warning -Owner $Ctx.Owner
+            return
+        }
+    }
+    # unmittelbar vor dem Umstellen noch einmal: hat inzwischen jemand anderer HU-Amt geoeffnet? (Pruefung 090, KERN-B3)
+    $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock)
+    if ($others.Count) {
+        # die Kopie ist nun veraltet: als unvollstaendig kennzeichnen, damit sie nicht spaeter ungefragt verwendet wird (Pruefung 091, KERN-B2)
+        if (-not $NoCopy) { try { [IO.File]::WriteAllText((Join-Path $Ctx.New '.hu-kopie-unvollstaendig'), "Umzug abgebrochen $((Get-Date).ToString('s')): jemand hatte $($script:AppTitle) offen. Diese Kopie ist veraltet.") } catch { } }
+        Show-HUMessage ("Inzwischen hat jemand anderer $($script:AppTitle) geöffnet. Es wurde nichts umgestellt$(if (-not $NoCopy) { ', die Kopie im neuen Ordner bleibt liegen' }).`n`n" +
+            (($others | ForEach-Object { "  $($_.UserName) am $($_.ComputerName)" }) -join "`n") + "`n`nBitte alle anderen Fenster schließen lassen und es noch einmal versuchen$(if (-not $NoCopy) { ' (den neuen Ordner vorher leeren)' }).") $t -Icon Warning -Owner $Ctx.Owner
+        return
+    }
     try { Set-HUDataLocation -AppRoot $script:AppRoot -Path $(if ($Ctx.New -ieq $Ctx.Def) { '' } else { $Ctx.New }) }
     catch { Show-HUMessage "Einstellung nicht gespeichert, es wurde nichts umgestellt:`n$($_.Exception.Message)" $t -Icon Error -Owner $Ctx.Owner; return }
     if (-not $NoCopy) {
@@ -207,6 +231,12 @@ function Show-HUSettingsDialog {
     $it = New-Object System.Windows.Controls.ComboBoxItem; $it.Content = 'Zuletzt verwendeter Reiter'; $it.Tag = 'Last'; [void]$c.cmbStartTab.Items.Add($it)
     & $selTag $c.cmbStartTab (Get-HUProp $S.ui 'startTab' 'Last')
     $c.chkSplashAnim.IsChecked = [bool](Get-HUProp $S.ui 'splashAnimation' $true)
+    $themeOld = $(if ("$(Get-HUProp $S.ui 'theme' 'Dunkel')" -eq 'Hell') { 'Hell' } else { 'Dunkel' })
+    & $selTag $c.cmbTheme $themeOld
+    # Demo (fuer alle): starten oder beenden, beides mit Neustart
+    if (Test-HUDemoMode) { $c.btnDemo.Content = 'Demo beenden ...'; $c.btnDemo.ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten' }
+    elseif (Test-HUTestMode) { $c.btnDemo.IsEnabled = $false; $c.btnDemo.ToolTip = 'Im Testmodus nicht möglich. Zuerst den Testmodus beenden.' }
+    $c.btnDemo.Add_Click({ $w.Close(); Switch-HUDemoMode })
     foreach ($p in @(80, 90, 100, 110, 120, 130, 140, 150)) {
         $it = New-Object System.Windows.Controls.ComboBoxItem; $it.Content = "$p %"; $it.Tag = "$($p / 100)"; [void]$c.cmbScale.Items.Add($it)
     }
@@ -287,7 +317,7 @@ function Show-HUSettingsDialog {
                 try {
                     if ($Err -or -not $Res) { $Ctx.Text = 'Rechte der Verwalter-Liste: nicht prüfbar.'; $Ctx.ToolTip = "$(if ($Err) { $Err } else { 'Keine Antwort.' })"; return }
                     $Ctx.Text = $Res.Text; $Ctx.ToolTip = $Res.ToolTip
-                    if ($Res.Status -eq 'Warnung') { $Ctx.Foreground = Get-HUBrush '#FFB74D' }
+                    if ($Res.Status -eq 'Warnung') { $Ctx.Foreground = Get-HUBrush '#FFB74D' 'Fg' }
                 } catch { }   # Fenster schon zu
             }
     } catch { $c.txtAdminAcl.Visibility = 'Collapsed' }
@@ -298,7 +328,8 @@ function Show-HUSettingsDialog {
     $c.btnAdminAdd.Add_Click({ & $addName $c.txtAdminName.Text; $c.txtAdminName.Text = '' })
     $c.btnAdminMe.Add_Click({ & $addName $script:UserName })
     # Testmodus (nur Verwalter sehen den Reiter): starten oder beenden, beides mit Neustart
-    if (Test-HUTestMode) { $c.btnTestMode.Content = 'Testmodus beenden ...'; $c.btnTestMode.ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten' }
+    if (Test-HUDemoMode) { $c.btnTestMode.IsEnabled = $false; $c.btnTestMode.ToolTip = 'In der Demo nicht möglich. Zuerst die Demo beenden (Leiste oben).' }
+    elseif (Test-HUTestMode) { $c.btnTestMode.Content = 'Testmodus beenden ...'; $c.btnTestMode.ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten' }
     $c.btnTestMode.Add_Click({ $w.Close(); Switch-HUTestMode })
     $c.btnAdminDel.Add_Click({
             $sel = "$($c.lstAdmins.SelectedItem)"
@@ -318,6 +349,8 @@ function Show-HUSettingsDialog {
             # persoenlich
             Set-HUProp $S.ui 'startTab' "$($c.cmbStartTab.SelectedItem.Tag)"
             Set-HUProp $S.ui 'splashAnimation' ([bool]$c.chkSplashAnim.IsChecked)
+            $themeNew = $(if ($c.cmbTheme.SelectedItem) { "$($c.cmbTheme.SelectedItem.Tag)" } else { $themeOld })
+            Set-HUProp $S.ui 'theme' $themeNew
             Set-HUProp $S.ui 'checkUpdatesOnStart' ([bool]$c.chkCheckOnStart.IsChecked)
             if ($adm -and $c.cmbLogLevel.SelectedItem) { Set-HUProp $S.logging 'logLevel' "$($c.cmbLogLevel.SelectedItem.Tag)".ToUpper() }
             try { Save-HUUserSettings } catch { Show-HUMessage "Einstellungen nicht gespeichert:`n$($_.Exception.Message)" -Icon Error -Owner $w; return }
@@ -345,6 +378,7 @@ function Show-HUSettingsDialog {
             Write-HULogOK 'Einstellungen gespeichert.'
             Update-HUAdminView
             $w.Close()
+            if ($themeNew -ne $themeOld -and (Confirm-HU "Das Farbschema $([char]0x201E)$themeNew$([char]0x201C) wirkt nach dem Neustart.`n`nJetzt neu starten?" 'Farbschema' -Owner $script:Window)) { Restart-HUApp }
         })
     $c.btnCancel.Add_Click({ $w.Close() })
     $w.Add_Closing({ Save-HUDialogState $w 'SettingsWindow'; $script:AbDlg = $null })

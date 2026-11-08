@@ -36,6 +36,8 @@ function Get-HUSafeName([string]$Name) {
 
 # Einstellung fuer den Datenordner (Config bleibt bei Updates erhalten, siehe Pull.ps1)
 $script:HUDataLocationFile = 'datenort.json'
+# Kennzeichen einer laufenden bzw. abgebrochenen Kopie im Zielordner
+$script:HUDataCopyMarker = '.hu-kopie-unvollstaendig'
 
 <#
 .SYNOPSIS
@@ -97,12 +99,14 @@ function Set-HUDataLocation {
     $json = [pscustomobject][ordered]@{ datenOrdner = $full; geaendert = (Get-Date).ToString('s') } | ConvertTo-Json
     $tmp = $f + '.tmp-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
     [IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding $true))
-    if (Test-Path -LiteralPath $f) { [IO.File]::Replace($tmp, $f, $null) } else { [IO.File]::Move($tmp, $f) }
+    # [NullString]::Value statt $null: PowerShell gaebe sonst '' weiter und Replace wuerfe (Pruefung 090, KERN-B1)
+    if (Test-Path -LiteralPath $f) { [IO.File]::Replace($tmp, $f, [NullString]::Value) } else { [IO.File]::Move($tmp, $f) }
 }
 
 <#
 .SYNOPSIS
-    Zustand eines moeglichen Datenordners: 'Fehlt' | 'Leer' | 'HU' (Daten der App: Verwalter.txt oder Benutzer) | 'Fremd'.
+    Zustand eines moeglichen Datenordners: 'Fehlt' | 'Leer' | 'Unvollstaendig' (abgebrochene Kopie) | 'HU' (Daten der App:
+    Verwalter.txt oder Benutzer) | 'Fremd'.
 #>
 function Get-HUDataFolderState {
     [CmdletBinding()]
@@ -110,6 +114,7 @@ function Get-HUDataFolderState {
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return 'Fehlt' }
     $items = @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop | Where-Object { $_.Name -notin 'desktop.ini', 'Thumbs.db' })
     if (-not $items.Count) { return 'Leer' }
+    if (@($items | Where-Object { $_.Name -eq $script:HUDataCopyMarker }).Count) { return 'Unvollstaendig' }
     if (@($items | Where-Object { $_.Name -in 'Verwalter.txt', 'Benutzer' }).Count) { return 'HU' }
     return 'Fremd'
 }
@@ -133,11 +138,17 @@ function Copy-HUDataTree {
     $state = Get-HUDataFolderState $dst
     if ($state -notin 'Leer', 'Fehlt') { throw "Der Zielordner ist nicht leer: $dst" }
     if ($state -eq 'Fehlt') { [void][IO.Directory]::CreateDirectory($dst) }
+    # Kennzeichen, solange kopiert wird: bleibt es liegen, ist die Kopie unvollstaendig (Pruefung 090, KERN-B4)
+    $mark = [IO.Path]::Combine($dst, $script:HUDataCopyMarker)
+    [IO.File]::WriteAllText($mark, "Kopie von $src begonnen $((Get-Date).ToString('s')). Liegt diese Datei noch hier, ist die Kopie unvollständig.")
     $files = 0; $bytes = [long]0
     $err = New-Object System.Collections.Generic.List[string]
+    # Stand jeder Quelldatei (Zeitstempel des Servers und Groesse): danach erkennt Get-HUDataTreeChanges, ob waehrend des Kopierens
+    # jemand etwas geaendert hat - ohne Vergleich mit der Uhr dieses PCs
+    $snap = @{}
     foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force -ErrorAction Stop)) {
         $rel = $i.FullName.Substring($src.Length + 1)
-        if ($rel -ieq 'Laufend' -or $rel.StartsWith('Laufend\', $oic)) { continue }
+        if ($rel -ieq 'Laufend' -or $rel.StartsWith('Laufend\', $oic) -or $rel -ieq '_Demo' -or $rel.StartsWith('_Demo\', $oic)) { continue }
         $to = [IO.Path]::Combine($dst, $rel)
         if ($i.PSIsContainer) { [void][IO.Directory]::CreateDirectory($to); continue }
         if ($i.Name -like '*.lock') { continue }
@@ -145,10 +156,40 @@ function Copy-HUDataTree {
             [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($to))
             [IO.File]::Copy($i.FullName, $to, $false)
             if ((New-Object System.IO.FileInfo $to).Length -ne $i.Length) { throw 'Größe nach dem Kopieren verschieden' }
+            $snap[$rel] = "$($i.LastWriteTimeUtc.Ticks)/$($i.Length)"
             $files++; $bytes += $i.Length
         } catch { $err.Add("$($rel): $($_.Exception.Message)") }
     }
-    return [pscustomobject]@{ Files = $files; Bytes = $bytes; Errors = @($err.ToArray()) }
+    if (-not $err.Count) { Remove-Item -LiteralPath $mark -Force -ErrorAction SilentlyContinue }
+    return [pscustomobject]@{ Files = $files; Bytes = $bytes; Errors = @($err.ToArray()); Snapshot = $snap }
+}
+
+<#
+.SYNOPSIS
+    Was hat sich im Quellordner seit Copy-HUDataTree geaendert? (Pruefung 1.0.0: jemand oeffnet HU-Amt waehrend des Kopierens,
+    speichert und schliesst wieder - dann fehlt seine Aenderung in der Kopie.)
+.PARAMETER Snapshot
+    Snapshot aus dem Ergebnis von Copy-HUDataTree.
+.PARAMETER SkipPrefix
+    Relative Pfade, die nicht zaehlen (z. B. der eigene Benutzerordner, in den die eigene App waehrenddessen schreibt).
+.OUTPUTS
+    [string[]] relative Pfade: neu, geaendert oder verschwunden. Leer = unveraendert.
+#>
+function Get-HUDataTreeChanges {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][hashtable]$Snapshot, [string[]]$SkipPrefix = @())
+    $src = [IO.Path]::GetFullPath($Source).TrimEnd('\'); $oic = [StringComparison]::OrdinalIgnoreCase
+    $skip = { param($r) foreach ($p in $SkipPrefix) { if ($p -and $r.StartsWith($p, $oic)) { return $true } }; return $false }
+    $out = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force -File -ErrorAction Stop)) {
+        $rel = $i.FullName.Substring($src.Length + 1)
+        if ($rel.StartsWith('Laufend\', $oic) -or $rel.StartsWith('_Demo\', $oic) -or $i.Name -like '*.lock' -or $i.Name -ieq 'UMGEZOGEN.txt' -or (& $skip $rel)) { continue }
+        $seen[$rel] = $true
+        if ("$($Snapshot[$rel])" -ne "$($i.LastWriteTimeUtc.Ticks)/$($i.Length)") { $out.Add($rel) }
+    }
+    foreach ($k in @($Snapshot.Keys)) { if (-not $seen.ContainsKey($k) -and -not (& $skip $k)) { $out.Add($k) } }
+    return @($out.ToArray() | Sort-Object)
 }
 
 <#
@@ -164,12 +205,13 @@ function Initialize-HUDataPaths {
         [Parameter(Mandatory)][string]$AppRoot,
         [string]$UserName = $env:USERNAME,
         [string]$PcName = $env:COMPUTERNAME,
-        [switch]$TestMode   # Datenstamm Data\_Test\ (Testbestand); laufende Apps bleiben in Data\Laufend
+        [switch]$TestMode,  # Datenstamm Data\_Test\ (Testbestand); laufende Apps bleiben in Data\Laufend
+        [switch]$Demo       # Datenstamm Data\_Demo\<Benutzer>_<PC>\ (Demo, je Benutzer und PC, bei jedem Start frisch)
     )
     $loc = Get-HUDataLocation -AppRoot $AppRoot
     $base = $loc.Path
     if ($loc.Configured -and -not (Test-Path -LiteralPath $base -PathType Container)) { throw "Der eingestellte Datenordner ist nicht erreichbar: $base" }
-    $data = $(if ($TestMode) { Join-Path $base '_Test' } else { $base })
+    $data = $(if ($Demo) { Join-Path (Join-Path $base '_Demo') (Get-HUSafeName "$($UserName)_$($PcName)") } elseif ($TestMode) { Join-Path $base '_Test' } else { $base })
     $user = Join-Path (Join-Path $data 'Benutzer') (Get-HUSafeName $UserName)
     $run = Join-Path (Join-Path $AppRoot 'Data') 'Laufend'
     foreach ($d in $data, $user, $run) {
@@ -464,6 +506,6 @@ function Test-HUVerwalterAcl {
 }
 
 Export-ModuleMember -Function Initialize-HUDataPaths, Get-HUDataLocation, Set-HUDataLocation, Resolve-HUDataLocationPath,
-    Get-HUDataFolderState, Copy-HUDataTree, Assert-HUWritable, Get-HUModuleDataPath, Get-HUSafeName,
+    Get-HUDataFolderState, Copy-HUDataTree, Get-HUDataTreeChanges, Assert-HUWritable, Get-HUModuleDataPath, Get-HUSafeName,
     Open-HURunLock, Close-HURunLock, Get-HURunningInstances,
     Lock-HUDataFile, Unlock-HUDataFile, Get-HULockInfoText, Backup-HUDataFile, Test-HUVerwalterAcl

@@ -370,7 +370,10 @@ function Stop-HUSplashSweep {
 # Startbildschirm im eigenen Thread: Die Animation laeuft fluessig, waehrend die App Module und Oberflaeche laedt.
 # Main.ps1 ruft Start-HUSplashThread ganz am Anfang; Status, Losfahren und Schliessen gehen ueber $sync.
 # ----------------------------------------------------------------------------
-function Get-HUSplashXaml([string]$Version, [string]$Title, [string]$Subtitle) {
+# -Light: helles Farbschema (Flaeche und Schrift hell-warm wie der Kern, Saugroboter und Goldrand bleiben)
+function Get-HUSplashXaml([string]$Version, [string]$Title, [string]$Subtitle, [switch]$Light) {
+    $cBg = '#FF1E1E1E'; $cTitle = '#FFEDEDED'; $cStatus = '#FF8A8A8A'; $cVer = '#FF6A6A6A'; $cSub = '#FFB9A88A'
+    if ($Light) { $cBg = '#FFF2EFE9'; $cTitle = '#FF2E2A24'; $cStatus = '#FF6E675C'; $cVer = '#FF7A7366'; $cSub = '#FF7D6B45' }
     $v = [System.Security.SecurityElement]::Escape("$Version")
     $t = [System.Security.SecurityElement]::Escape("$Title")
     $st = [System.Security.SecurityElement]::Escape("$Subtitle")
@@ -379,15 +382,15 @@ function Get-HUSplashXaml([string]$Version, [string]$Title, [string]$Subtitle) {
         WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" Width="440" Height="310"
         WindowStartupLocation="CenterScreen" Topmost="True" ShowInTaskbar="False" Title="$t">
   <Grid>
-  <Border x:Name="bd" Background="#FF1E1E1E" CornerRadius="12" BorderBrush="#FFB9A88A" BorderThickness="2">
+  <Border x:Name="bd" Background="$cBg" CornerRadius="12" BorderBrush="#FFB9A88A" BorderThickness="2">
     <Grid>
       <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
         <Image x:Name="img" Width="112" Height="112" RenderOptions.BitmapScalingMode="HighQuality"/>
-        <TextBlock Text="$t" FontSize="32" FontWeight="Bold" Foreground="#FFEDEDED" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-        <TextBlock Text="$st" FontSize="14" Foreground="#FFB9A88A" HorizontalAlignment="Center" Margin="0,2,0,0"/>
-        <TextBlock x:Name="status" Text="wird geladen ..." FontSize="11" Foreground="#FF8A8A8A" HorizontalAlignment="Center" Margin="0,14,0,0"/>
+        <TextBlock Text="$t" FontSize="32" FontWeight="Bold" Foreground="$cTitle" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+        <TextBlock Text="$st" FontSize="14" Foreground="$cSub" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+        <TextBlock x:Name="status" Text="wird geladen ..." FontSize="11" Foreground="$cStatus" HorizontalAlignment="Center" Margin="0,14,0,0"/>
       </StackPanel>
-      <TextBlock Text="v$v" FontSize="11" Foreground="#FF6A6A6A" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,12,8"/>
+      <TextBlock Text="v$v" FontSize="11" Foreground="$cVer" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,12,8"/>
     </Grid>
   </Border>
   <Canvas x:Name="ov" ClipToBounds="True" IsHitTestVisible="False"/>
@@ -407,13 +410,13 @@ function Get-HUSplashIcon([string]$AppRoot) {
 
 # Startet den Startbildschirm im eigenen STA-Thread. Rueckgabe: $sync (Status/Go/Close) oder $null (dann alter Weg).
 function Start-HUSplashThread([string]$AppRoot, [string]$Version) {
-    $sync = [hashtable]::Synchronized(@{ Status = 'wird geladen ...'; Go = $false; MainReady = $false; Close = $false; Ready = $false; Error = ''; Anim = $true })
+    $sync = [hashtable]::Synchronized(@{ Status = 'wird geladen ...'; Go = $false; MainReady = $false; Close = $false; Ready = $false; Error = ''; Anim = $true; Light = $false })
     # Einstellung direkt aus der Datei (die Einstellungen sind noch nicht geladen)
     try {
         $db = Join-Path $AppRoot 'Data'
         if (Get-Command Get-HUDataLocation -ErrorAction SilentlyContinue) { $db = (Get-HUDataLocation -AppRoot $AppRoot).Path }
         $sf = Join-Path $db "Benutzer\$($env:USERNAME)\settings.json"
-        if (Test-Path -LiteralPath $sf) { $j = Get-Content -LiteralPath $sf -Raw -Encoding UTF8 | ConvertFrom-Json; if ($j.ui -and $j.ui.PSObject.Properties['splashAnimation'] -and -not [bool]$j.ui.splashAnimation) { $sync.Anim = $false } }
+        if (Test-Path -LiteralPath $sf) { $j = Get-Content -LiteralPath $sf -Raw -Encoding UTF8 | ConvertFrom-Json; if ($j.ui -and $j.ui.PSObject.Properties['splashAnimation'] -and -not [bool]$j.ui.splashAnimation) { $sync.Anim = $false }; if ($j.ui -and $j.ui.PSObject.Properties['theme'] -and "$($j.ui.theme)" -eq 'Hell') { $sync.Light = $true } }
     } catch { }
     try {
         $rs = [runspacefactory]::CreateRunspace()
@@ -440,7 +443,7 @@ function Start-HUSplashThread([string]$AppRoot, [string]$Version) {
 # laeuft im Splash-Thread: Fenster zeigen, Animation, auf Status/Go/Close hoeren, dann Thread beenden
 function Invoke-HUSplashThread($Sync, [string]$AppRoot, [string]$Version) {
     $app = $null; try { $app = [IO.File]::ReadAllText((Join-Path $AppRoot 'Config\app.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json } catch { }
-    $w = [System.Windows.Markup.XamlReader]::Parse((Get-HUSplashXaml $Version "$(if ($app) { $app.title })" "$(if ($app) { $app.subtitle })"))
+    $w = [System.Windows.Markup.XamlReader]::Parse((Get-HUSplashXaml $Version "$(if ($app) { $app.title })" "$(if ($app) { $app.subtitle })" -Light:([bool]$Sync.Light)))
     try { $big = Get-HUSplashIcon $AppRoot; if ($big) { $w.FindName('img').Source = $big; $w.Icon = $big } } catch { }
     $script:Splash = $w; $script:SplashStatus = $w.FindName('status'); $script:SplashSync = $Sync
     $script:SplashAnimOn = [bool]$Sync.Anim

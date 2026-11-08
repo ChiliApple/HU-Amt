@@ -135,7 +135,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <div class="topbar">
     <div class="brand">
       <div class="logo"><img src="../Assets/logo64.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Assets/logo64.png'" alt=""></div>
-      HU-Amt · Funktionsübersicht <span class="ver">v0.1.12</span>
+      HU-Amt · Funktionsübersicht <span class="ver">v1.0.0</span>
     </div>
     <nav aria-label="Seiten">
       <a href="Einstieg.html">Einstieg</a>
@@ -145,12 +145,12 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </nav>
   </div>
   <h1>Alles, was HU-Amt <em>kann</em> – auf einer Seite.</h1>
-  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen auf Kostenstellen verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Dienstreisen abrechnen, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
+  <p class="lead">Werkzeuge für die Gemeindeverwaltung in einem Fenster: Rechnungen auf Kostenstellen verbuchen, Scans durchsuchbar machen, PDFs bearbeiten, Dienstreisen abrechnen, Räume vermieten, Gutscheine verwalten, Fristen im Blick behalten, Wünsche sammeln – dazu Update, Sicherung und Verwaltung für alle Module. Zuerst die zehn stärksten Funktionen, darunter alle Bereiche im Detail.</p>
   <div class="promise">
     <span>Windows 10 / 11</span><span>PowerShell 5.1 und 7</span><span>Ohne Installation</span><span>Selbst-Update aus GitHub</span><span>Signierte Releases</span>
   </div>
   <div class="stats" aria-label="Kennzahlen">
-    <div style="--c: var(--blue)"><b>5</b><span>Module als Reiter</span></div>
+    <div style="--c: var(--blue)"><b>8</b><span>Module als Reiter</span></div>
     <div style="--c: var(--yellow)"><b>8</b><span>PDF-Werkzeuge</span></div>
     <div style="--c: var(--green)"><b>1</b><span>Ordner für alle, auch auf der Freigabe</span></div>
     <div style="--c: var(--peach)"><b>AES-256</b><span>verschlüsselte Sicherung</span></div>
@@ -195,8 +195,12 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     <a href="#ocr" style="--c: var(--blue)">Texterkennung</a>
     <a href="#pdf" style="--c: var(--teal)">PDF-Werkzeuge</a>
     <a href="#reisen" style="--c: var(--green)">Reisen</a>
+    <a href="#buchung" style="--c: var(--blue)">Buchungen</a>
+    <a href="#gutscheine" style="--c: var(--yellow)">Gutscheine</a>
+    <a href="#fristen" style="--c: var(--red)">Fristen</a>
     <a href="#roadmap" style="--c: var(--mauve)">Ideen &amp; Wünsche</a>
     <a href="#fenster" style="--c: var(--blue)">Hauptfenster</a>
+    <a href="#demo" style="--c: var(--teal)">Demo und Testmodus</a>
     <a href="#update" style="--c: var(--peach)">Update</a>
     <a href="#sicherung" style="--c: var(--green)">Sicherung</a>
     <a href="#module" style="--c: var(--mauve)">Module</a>
@@ -207,7 +211,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <div class="cats">
     <div class="col">
     <article class="cat" id="eg" style="--c: var(--yellow)">
-      <div class="cat-head"><span class="chip">🧾 Kostenzuordnung</span><h3>Kostenzuordnung</h3><span class="count">Modul 0.1.5</span></div>
+      <div class="cat-head"><span class="chip">🧾 Kostenzuordnung</span><h3>Kostenzuordnung</h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <div class="group"><h4>Rechnungen</h4>
           <ul>
@@ -240,7 +244,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="reisen" style="--c: var(--green)">
-      <div class="cat-head"><span class="chip">🚗 Reisen</span><h3>Reiseabrechnung <span class="new">neu</span></h3><span class="count">Modul 0.1.2</span></div>
+      <div class="cat-head"><span class="chip">🚗 Reisen</span><h3>Reiseabrechnung <span class="new">neu</span></h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <div class="group"><h4>Erfassen</h4>
           <ul>
@@ -262,8 +266,48 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
       </div>
     </article>
 
+    <article class="cat" id="buchung" style="--c: var(--blue)">
+      <div class="cat-head"><span class="chip">🗓️ Buchungen</span><h3>Buchungen <span class="new">neu</span></h3><span class="count">Modul 1.0.0</span></div>
+      <div class="cat-body">
+        <div class="group"><h4>Belegung</h4>
+          <ul>
+            <li>Belegungskalender je Objekt oder für alle, Monat oder Woche, Farbe nach Status</li>
+            <li>Anfrage, Vormerkung mit Ablaufdatum, bestätigt, übergeben, zurück, abgerechnet; Storno mit Grund, nie gelöscht</li>
+            <li>Keine Doppelbuchung, je Teilraum geprüft, beim Speichern noch einmal auf der Freigabe</li>
+            <li>Serien, z. B. jeden Montag, einzelne Termine absagen oder verlegen</li>
+            <li>Nachtgrenze: eine Nacht bis in den Morgen zählt zum Vortag</li>
+            <li>Buchungsnummer nach dem Jahr der Buchung</li>
+          </ul>
+        </div>
+        <div class="group"><h4>Preis, Mieter, Outlook</h4>
+          <ul>
+            <li>Preisstände mit „gültig ab“, Tarifgruppen, Rabatte nur bewusst angehakt, Kaution getrennt</li>
+            <li>Mieter aus Outlook-Kontakten oder Visitenkarte (.vcf), anonymisieren durch den Verwalter</li>
+            <li>Termine im gemeinsamen Kalender, Änderung und Storno passen sie an; fehlende werden beim Laden nachgetragen</li>
+            <li>Ohne klassisches Outlook als Kalenderdateien (.ics)</li>
+            <li>Geführter Buchungstest im Testmodus</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="cat" id="gutscheine" style="--c: var(--yellow)">
+      <div class="cat-head"><span class="chip">🎟️ Gutscheine</span><h3>Gutscheine <span class="new">neu</span></h3><span class="count">Modul 1.0.0</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Ausgeben einzeln oder als Bereich, Verkauf oder unentgeltlich (Förderung, Geschenk)</li>
+          <li>Einlösen per Tastatur oder Handscanner, jede Nummer sofort geprüft</li>
+          <li>Summe zum Bar-Auszahlen, Quittung zum Unterschreiben</li>
+          <li>Ausgegeben, eingelöst und offen, auch zu einem Stichtag</li>
+          <li>Fehler nur per Storno mit Grund, nie gelöscht; nie zweimal ausbezahlt, auch zwischen PCs</li>
+          <li>Auswertungen als PDF oder CSV</li>
+          <li>Bisherige Liste aus Excel oder CSV einmalig übernehmen, mit Abstimmungsprotokoll</li>
+        </ul>
+      </div>
+    </article>
+
     <article class="cat" id="roadmap" style="--c: var(--mauve)">
-      <div class="cat-head"><span class="chip">💡 Ideen &amp; Wünsche</span><h3>Ideen &amp; Wünsche</h3><span class="count">Modul 0.1.3</span></div>
+      <div class="cat-head"><span class="chip">💡 Ideen &amp; Wünsche</span><h3>Ideen &amp; Wünsche</h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <ul>
           <li>Liste mit Status: In Arbeit, Im Test, Geplant, Idee, Fertig, Zurückgestellt</li>
@@ -285,7 +329,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
           <li>Fenster, Reiter und Einstellungen bleiben je Benutzer gespeichert</li>
           <li>Strg + Mausrad skaliert die Oberfläche</li>
           <li>Erster Start: Desktop-Symbol und Taskleiste</li>
-          <li>Dunkles Farbschema, Startbildschirm abschaltbar</li>
+          <li>Farbschema dunkel oder hell je Benutzer, Startbildschirm abschaltbar</li>
           <li>Ergebnisse als Datei in einen festen Übergabeordner, auch für andere Programme</li>
         </ul>
       </div>
@@ -303,11 +347,25 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
         </ul>
       </div>
     </article>
+
+    <article class="cat" id="demo" style="--c: var(--teal)">
+      <div class="cat-head"><span class="chip">🧪 Ausprobieren</span><h3>Demo und Testmodus <span class="new">neu</span></h3><span class="count">6 Punkte</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Demo für alle: ⚙ Einstellungen › Allgemein › „Demo starten …“</li>
+          <li>Beispieldaten in allen Modulen, eigener Bestand je Benutzer</li>
+          <li>Bei jedem Demo-Start wieder wie neu, blaue Leiste „DEMO“</li>
+          <li>Outlook, Word und Mails gesperrt, echte Daten bleiben unberührt</li>
+          <li>Testmodus für Verwalter: orange Leiste, Testbestand bleibt bis „Test zurücksetzen“</li>
+          <li>Geführte Tests der Module mit Protokoll, nur im Testmodus</li>
+        </ul>
+      </div>
+    </article>
     </div>
 
     <div class="col">
     <article class="cat" id="ocr" style="--c: var(--blue)">
-      <div class="cat-head"><span class="chip">🔍 Texterkennung</span><h3>Texterkennung</h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-head"><span class="chip">🔍 Texterkennung</span><h3>Texterkennung</h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <div class="group"><h4>Ordner überwachen</h4>
           <ul>
@@ -328,7 +386,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="pdf" style="--c: var(--teal)">
-      <div class="cat-head"><span class="chip">📑 PDF-Werkzeuge</span><h3>PDF-Werkzeuge</h3><span class="count">Modul 0.1.2 · 8 Werkzeuge</span></div>
+      <div class="cat-head"><span class="chip">📑 PDF-Werkzeuge</span><h3>PDF-Werkzeuge</h3><span class="count">Modul 1.0.0 · 8 Werkzeuge</span></div>
       <div class="cat-body">
         <ul>
           <li>🔗 Zusammenfügen, auf Wunsch mit Lesezeichen je Datei</li>
@@ -339,6 +397,21 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
           <li>🖼 Bilder zu PDF, Handyfotos gedreht, auf Wunsch durchsuchbar</li>
           <li>📬 Eingangsstempel mit Vorlagen und 🗒 Notizzettel als Anmerkung</li>
           <li>Geschützte PDFs: Kennwort wird abgefragt und nie gespeichert</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="cat" id="fristen" style="--c: var(--red)">
+      <div class="cat-head"><span class="chip">⏰ Fristen</span><h3>Fristen <span class="new">neu</span></h3><span class="count">Modul 1.0.0</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Ampel rot, gelb, grün mit Vorlauf je Kategorie oder Frist</li>
+          <li>Einmalig oder alle n Monate bzw. Jahre, ab Fälligkeit oder ab Erledigt</li>
+          <li>Kategorien, Verantwortliche, Filter „nur meine“</li>
+          <li>PDF-Anhänge als Kopie, z. B. der letzte Prüfbericht</li>
+          <li>Erledigt mit Datum und Notiz, nächste Fälligkeit von selbst, aussetzen statt löschen</li>
+          <li>Eigene offene Fristen als Aufgabe oder Termin im eigenen Outlook, nur in eine Richtung</li>
+          <li>Ohne Outlook als Kalenderdatei (.ics)</li>
         </ul>
       </div>
     </article>
@@ -385,10 +458,11 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="betrieb" style="--c: var(--teal)">
-      <div class="cat-head"><span class="chip">🏢 Betrieb</span><h3>Freigabe und Verwalter</h3><span class="count">6 Punkte</span></div>
+      <div class="cat-head"><span class="chip">🏢 Betrieb</span><h3>Freigabe und Verwalter</h3><span class="count">7 Punkte</span></div>
       <div class="cat-body">
         <ul>
           <li>Ein Ordner auf der Freigabe für alle Bediensteten</li>
+          <li>Datenordner frei wählbar, auch auf einer anderen Freigabe</li>
           <li>Gemeinsame Listen: immer nur eine Person bearbeitet, die anderen lesen</li>
           <li>Vor jedem Speichern eine Kopie mit Zeitstempel</li>
           <li>Verwalter-Liste: Protokoll, Sicherung und Module nur für Verwalter</li>
@@ -402,7 +476,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
 </section>
 
 <footer>
-  <span>Stand 07.11.2026 · Version 0.1.12</span>
+  <span>Stand 08.11.2026 · Version 1.0.0</span>
   <a href="Einstieg.html">Einstieg</a>
   <a href="Anleitung.html">Anleitung</a>
   <a href="https://github.com/ChiliApple/HU-Amt">Projekt auf GitHub</a>

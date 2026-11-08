@@ -11,6 +11,7 @@ Die drei Skripte kommen **unverändert** nach `.github/dev/` im Modul-Repository
 | `Format-Dateien.ps1` | `.github/dev/Format-Dateien.ps1` | Textdateien auf UTF-8 mit BOM und CRLF bringen (`.yml` und `.py` ohne BOM, mit LF). Vor jedem Commit. Beachtet `formatAusschluss` und `ohneFormat` aus `modul-dev.json` wie `Deploy-Dev.ps1`. |
 | `Deploy-Dev.ps1` | `.github/dev/Deploy-Dev.ps1` | Modul in die Test-App kopieren (`<App>\AddonsDev\<Modul-Id>`). |
 | `Test-Start.ps1` | `.github/dev/Test-Start.ps1` | Starttest der App mit nur diesem Modul in einer Temp-Kopie der Test-App, unter PowerShell 5.1 und 7. |
+| `KI-REGELN.md` | `.github/dev/KI-REGELN.md` | Verbindliche Regeln für jede KI, die am Modul mitarbeitet (Arbeitsweise, Technik, Daten, Oberfläche, Tests, Git). Unverändert übernehmen. |
 
 Ändert sich eine Vorlage im Kern, wird sie wieder unverändert kopiert. Was nur ein Modul braucht, steht in `modul-dev.json` (unten) oder in einem eigenen Skript daneben, nie in der Kopie.
 

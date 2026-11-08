@@ -1,7 +1,7 @@
 ﻿<h1 align="center"><img src="Assets/logo64.png" width="44" alt="" align="absmiddle"/> HU-Amt</h1>
 
 <p align="center"><b>Werkzeuge für die Gemeindeverwaltung – aus einem Fenster</b><br>
-Jeder Reiter ist ein Modul: mitgeliefert oder signiert aus einem eigenen Repository. Dazu Update per Knopf, verschlüsselte Sicherung aller Einstellungen, Hilfe mit F1 und dunkles Farbschema.<br>
+Jeder Reiter ist ein Modul: mitgeliefert oder signiert aus einem eigenen Repository. Dazu Update per Knopf, verschlüsselte Sicherung aller Einstellungen, Hilfe mit F1 und Farbschema dunkel oder hell.<br>
 Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe, für mehrere Bedienstete gleichzeitig.</p>
 
 <p align="center">
@@ -41,22 +41,26 @@ Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe, fü
 2. **Start-HU-Amt.cmd** → beim ersten Start Desktop-Symbol und Taskleiste wählen
 3. Wer installiert, ist automatisch Verwalter (sonst fragt HU-Amt beim ersten Start). Dann die Zugangsdatei `*.humodule` ins Fenster ziehen. Weitere Verwalter unter **Einstellungen › Verwalter**.
 
+Erst einmal ausprobieren? **Einstellungen › Allgemein › Demo starten …** – mit Beispieldaten, ohne Risiko für echte Daten.
+
 Was das Programm kann und wie es geht:
 
 - **[Einstieg](https://chiliapple.github.io/HU-Amt/Docs/Einstieg.html)** – typische Situationen aus dem Alltag
 - **[Funktionen](https://chiliapple.github.io/HU-Amt/Docs/Funktionen.html)** – alles auf einer Seite
 - **[Anleitung](https://chiliapple.github.io/HU-Amt/Docs/Anleitung.html)** – Schritt für Schritt; im Programm zeigt **F1** die Hilfe zum Reiter
+- **[Wo liegen meine Daten?](https://chiliapple.github.io/HU-Amt/Docs/Daten.html)** – was mit deinen Dateien passiert, was gesichert wird und was ins Internet geht
 
 ---
 
 ## Was der Kern mitbringt
 
-- **Module als Reiter:** Jedes Modul kommt signiert aus seinem eigenen Repository und wird über **Einstellungen › Module** oder eine Zugangsdatei hinzugefügt und aktualisiert. Module können Dateien untereinander weitergeben.
-- **Für mehrere PCs auf einer Freigabe:** Daten liegen unter `Data\` neben dem Programm oder in einem frei wählbaren Datenordner (Einstellungen › Verwalter), gespeichert wird mit Sperre, Stand-Prüfung und atomarem Schreiben. Ist die Freigabe kurz weg, meldet sich die App, statt leere Listen zu zeigen.
+- **Module als Reiter:** Acht Module gibt es derzeit: Kostenzuordnung, Texterkennung, PDF-Werkzeuge, Reisen, Buchungen, Gutscheine, Fristen sowie Ideen & Wünsche. Jedes kommt signiert aus seinem eigenen Repository und wird über **Einstellungen › Module** oder eine Zugangsdatei hinzugefügt und aktualisiert. Module können Dateien untereinander weitergeben.
+- **Für mehrere PCs auf einer Freigabe:** Daten liegen unter `Data\` neben dem Programm oder in einem frei wählbaren Datenordner (Einstellungen › Verwalter), gespeichert wird mit Sperre, Stand-Prüfung und atomarem Schreiben. Ist die Freigabe kurz weg, meldet sich die App, statt leere Listen zu zeigen. Was wo liegt: [Wo liegen meine Daten?](https://chiliapple.github.io/HU-Amt/Docs/Daten.html)
 - **Outlook und Word:** Termine, Aufgaben und Mails (nur anzeigen, Absender wählbar) sowie Word-Vorlagen als PDF, alles über einen gemeinsamen Baustein. Word öffnet Vorlagen mit gesperrten Makros.
 - **Sicherung und Update:** verschlüsselte Sicherung aller Einstellungen, signierte Updates von App und Modulen per Knopf.
+- **Demo für alle:** Jeder probiert alle Module mit Beispieldaten aus, in einem eigenen Bestand, der bei jedem Demo-Start wieder wie neu ist. Outlook, Word und Mails sind dabei gesperrt.
 - **Testmodus:** Verwalter probieren neue Module mit einem eigenen Testbestand aus, echte Daten bleiben unberührt; ein geführter Test protokolliert die Schritte.
-- **Einheitliche Oberfläche:** dunkles Farbschema, Tooltips, verschiebbare Bereiche und Fenstergrößen bleiben erhalten, Hilfe mit **F1**.
+- **Einheitliche Oberfläche:** dunkles oder helles Farbschema je Benutzer, Tooltips, verschiebbare Bereiche und Fenstergrößen bleiben erhalten, Hilfe mit **F1**.
 
 ## Rechte auf der Freigabe
 

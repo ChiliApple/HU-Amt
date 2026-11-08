@@ -16,7 +16,8 @@
 .NOTES
     Zielmaschine: der PC, auf dem HU-Amt laeuft (Windows 10/11, Windows PowerShell 5.1 oder PowerShell 7).
 #>
-param([switch]$ShowConsole, [string]$SmokeTest = '', [int]$WaitForPid = 0, [switch]$TestMode)
+# -Hell: nur fuer das kleine Neustart-Fenster (die Einstellungen sind dort noch nicht geladen), setzt Restart-HUApp
+param([switch]$ShowConsole, [string]$SmokeTest = '', [int]$WaitForPid = 0, [switch]$TestMode, [switch]$Demo, [switch]$Hell)
 
 # Konsolenfenster ausblenden (nur die WPF-Oberflaeche ist sichtbar)
 if (-not $ShowConsole) {
@@ -67,7 +68,8 @@ if ($WaitForPid -gt 0 -and -not $SmokeTest) {
         $rw = $null
         try {
             $tx = [System.Security.SecurityElement]::Escape("$($script:AppTitle) wird neu gestartet ...")
-            $rw = [System.Windows.Markup.XamlReader]::Parse("<Window xmlns=`"http://schemas.microsoft.com/winfx/2006/xaml/presentation`" WindowStyle=`"None`" ResizeMode=`"NoResize`" AllowsTransparency=`"True`" Background=`"Transparent`" Width=`"360`" Height=`"90`" WindowStartupLocation=`"CenterScreen`" Topmost=`"True`" ShowInTaskbar=`"False`"><Border Background=`"#FF1E1E1E`" CornerRadius=`"10`" BorderBrush=`"#FFB9A88A`" BorderThickness=`"2`"><TextBlock Text=`"$tx`" Foreground=`"#FFEDEDED`" FontSize=`"15`" HorizontalAlignment=`"Center`" VerticalAlignment=`"Center`"/></Border></Window>")
+            $rbg = $(if ($Hell) { '#FFF2EFE9' } else { '#FF1E1E1E' }); $rfg = $(if ($Hell) { '#FF2E2A24' } else { '#FFEDEDED' })
+            $rw = [System.Windows.Markup.XamlReader]::Parse("<Window xmlns=`"http://schemas.microsoft.com/winfx/2006/xaml/presentation`" WindowStyle=`"None`" ResizeMode=`"NoResize`" AllowsTransparency=`"True`" Background=`"Transparent`" Width=`"360`" Height=`"90`" WindowStartupLocation=`"CenterScreen`" Topmost=`"True`" ShowInTaskbar=`"False`"><Border Background=`"$rbg`" CornerRadius=`"10`" BorderBrush=`"#FFB9A88A`" BorderThickness=`"2`"><TextBlock Text=`"$tx`" Foreground=`"$rfg`" FontSize=`"15`" HorizontalAlignment=`"Center`" VerticalAlignment=`"Center`"/></Border></Window>")
             $rw.Show()
         } catch { $rw = $null }
         $until = (Get-Date).AddSeconds(90)
@@ -126,7 +128,8 @@ $script:DataRoot = $script:Paths.DataRoot
 $script:UserRoot = $script:Paths.UserRoot
 $script:UserName = $script:Paths.UserName
 # angemeldet als laufend (Regel 2) - nicht im Starttest, damit die CI keine Sperren hinterlaesst
-if (-not $SmokeTest) { try { $script:RunLock = Open-HURunLock -RunDir $script:Paths.RunDir } catch { $script:RunLock = $null } }
+$script:RunLockError = ''
+if (-not $SmokeTest) { try { $script:RunLock = Open-HURunLock -RunDir $script:Paths.RunDir } catch { $script:RunLock = $null; $script:RunLockError = "$($_.Exception.Message)" } }
 
 # ============================================================================
 # STARTBILDSCHIRM - im eigenen Thread, erscheint sofort, waehrend Module und Oberflaeche laden
@@ -155,7 +158,7 @@ foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Theme', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -165,10 +168,27 @@ foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'U
 # 1b. TESTMODUS (nur Verwalter, nur diese Sitzung): Datenstamm Data\_Test\, Outlook/Word/Mail gesperrt
 # ============================================================================
 Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue   # nie vom Vorgaenger-Prozess erben
+Remove-Item -LiteralPath Env:\HUAMT_DEMO -ErrorAction SilentlyContinue
 # Achtung: $script:TestMode waere der Parameter selbst (Skript-Parameter sind Skriptvariablen), darum TestModeActive
-$script:TestModeRequested = [bool]$TestMode; $script:TestModeActive = $false; $script:TestResetDone = $false
+$script:TestModeRequested = [bool]($TestMode -or $Demo); $script:TestModeActive = $false; $script:TestResetDone = $false
+$script:DemoActive = $false
+# Demo (alle Benutzer): eigener Bestand je Benutzer unter _Demo, bei jedem Start geleert und mit Beispieldaten neu gefuellt
+$script:RealUserRoot = $script:UserRoot   # echter Benutzerordner (Demo: Farbschema von dort)
+if ($Demo) {
+    try {
+        $env:HUAMT_DEMO = '1'
+        Initialize-HUDemoData
+        $script:Paths = Initialize-HUDataPaths -AppRoot $script:AppRoot -Demo
+        Assert-HUWritable $script:Paths.UserRoot
+        $script:DataRoot = $script:Paths.DataRoot
+        $script:UserRoot = $script:Paths.UserRoot
+        $script:StateFilePath = Join-Path $script:UserRoot 'ui-state.json'
+        $env:HUAMT_TESTMODE = '1'
+        $script:TestModeActive = $true; $script:DemoActive = $true
+    } catch { Remove-Item -LiteralPath Env:\HUAMT_DEMO -ErrorAction SilentlyContinue; Show-HUFatal "Die Demo konnte nicht starten:`n$($_.Exception.Message)" }
+}
 # im Starttest (CI) ohne Verwalter-Pruefung, damit auch der Testmodus automatisch geprueft wird
-if ($TestMode) {
+if ($TestMode -and -not $script:DemoActive) {
     if ($SmokeTest -or (Test-HUVerwalter)) {
         try {
             $script:TestResetDone = Initialize-HUTestData
@@ -191,9 +211,11 @@ Set-HUSplashStatus 'Einstellungen ...'
 $script:SettingsPath = Join-Path $script:UserRoot 'settings.json'
 $script:FirstRun = -not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))
 $script:Settings = [pscustomobject]@{
-    ui      = [pscustomobject]@{ startTab = 'Last'; splashAnimation = $true; maxLogLines = 1000; checkUpdatesOnStart = $true }
+    ui      = [pscustomobject]@{ startTab = 'Last'; splashAnimation = $true; maxLogLines = 1000; checkUpdatesOnStart = $true; theme = 'Dunkel' }
     logging = [pscustomobject]@{ logLevel = 'INFO'; retentionDays = 30 }
 }
+# Demo: der Bestand ist leer, das eigene Farbschema gilt trotzdem
+if ($script:DemoActive) { try { $real = Read-HUJsonFile (Join-Path $script:RealUserRoot 'settings.json'); if ($real -and $real.ui -and $real.ui.PSObject.Properties['theme']) { $script:Settings.ui.theme = "$($real.ui.theme)" } } catch { } }
 $saved = Read-HUJsonFile $script:SettingsPath
 if ($saved) {
     foreach ($sec in 'ui', 'logging') {
@@ -203,6 +225,11 @@ if ($saved) {
         }
     }
 }
+
+# Farbschema (persoenlich, wirkt ab dem Start): Hell setzt die dunklen Farben beim Laden um (Functions\UI-Theme.ps1)
+Set-HUTheme "$($script:Settings.ui.theme)"
+if ($SmokeTest -and "$env:HUAMT_SMOKE_THEME" -eq 'Hell') { Set-HUTheme 'Hell' }   # Starttest im hellen Schema (CI)
+if (Test-HULightTheme) { try { Set-HULogColors @{ OK = '#2E7D32'; WARN = '#C25E00'; ERROR = '#C62828'; INFO = '#1565C0'; DEBUG = '#6E675C' } '#2E2A24' } catch { } }
 
 $iconPath = Join-Path $script:AppRoot 'Assets\icon.ico'
 if (Test-Path -LiteralPath $iconPath) { try { $script:AppIcon = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]::new($iconPath, [System.UriKind]::Absolute)) } catch { } }
@@ -239,7 +266,20 @@ $minLevel = "$($script:Settings.logging.logLevel)".ToUpper()
 if ($minLevel -notin 'DEBUG', 'INFO', 'OK', 'WARN', 'ERROR') { $minLevel = 'INFO' }
 Initialize-Logging -LogFilePath $logFile -RichTextBox $c['rtbLog'] -MinLevel $minLevel -MaxGuiLines ([int]$script:Settings.ui.maxLogLines)
 Write-HULogInfo "$($script:AppTitle) v$($script:Version) startet (PowerShell $($PSVersionTable.PSVersion), Benutzer $($script:UserName)) ..."
-if ($script:TestModeActive) {
+# ohne Anmeldung in Data\Laufend sehen Update und Datenordner-Wechsel diesen PC nicht (Pruefung 090, KERN-U1)
+if ($script:RunLockError) { Write-HULogWarn "Anmeldung als laufende App fehlgeschlagen, Update und Datenordner-Wechsel sehen diesen PC nicht: $($script:RunLockError)" }
+if ($script:DemoActive) {
+    Write-HULogWarn "DEMO: Beispieldaten in $($script:DataRoot). Outlook, Word und Mails sind gesperrt, die automatische Sicherung ruht."
+    $c['bdrTestMode'].Visibility = 'Visible'
+    $c['bdrTestMode'].Background = Get-HUBrush '#1565C0'
+    $c['bdrTestMode'].ToolTip = 'Demo: eigene Beispieldaten nur für dich, echte Daten bleiben unberührt'
+    $c['txtTestMode'].Text = "$([char]::ConvertFromUtf32(0x1F3AC)) DEMO – Beispieldaten zum Ausprobieren, nichts davon ist echt. Kein Outlook, kein Word, keine Mails."
+    $c['txtTestMode'].ToolTip = 'Beim nächsten Demo-Start ist alles wieder wie neu. Die automatische Sicherung ruht.'
+    $c['btnTestReset'].Visibility = 'Collapsed'
+    $c['btnTestEnd'].Content = 'Demo beenden'
+    $c['btnTestEnd'].ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten'
+    $c['btnTestEnd'].Add_Click({ Switch-HUDemoMode })
+} elseif ($script:TestModeActive) {
     Write-HULogWarn "TESTMODUS: Daten in $($script:DataRoot). Outlook, Word und Mails sind gesperrt, die automatische Sicherung ruht."
     if ($script:TestResetDone) { Write-HULogOK 'Testbestand wurde zurückgesetzt.' }
     $c['bdrTestMode'].Visibility = 'Visible'
@@ -264,9 +304,9 @@ function Update-VersionDisplay {
     elseif ($cfg -and "$($cfg.Channel)" -eq 'Test') { $txt = 'Kanal Test'; $col = '#FFA726' }
     $t = $script:Controls['txtVersion']
     $t.Text = "v$($script:Version)  |  $txt"
-    $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($col)
+    $t.Foreground = Get-HUBrush $col 'Fg'
     $t.ToolTip = $(if ($cfg -and $cfg.UseBranch) { "Updates kommen direkt aus dem Repo (Branch $($cfg.Branch)), ohne freigegebene Version" } elseif ($txt -eq 'Kanal Test') { 'Updates: auch Testversionen.' } else { 'Updates: nur freigegebene Versionen.' })
-    $script:Window.Title = "$(if ($script:TestModeActive) { 'TEST - ' })$($script:AppTitle) v$($script:Version)"
+    $script:Window.Title = "$(if ($script:DemoActive) { 'DEMO - ' } elseif ($script:TestModeActive) { 'TEST - ' })$($script:AppTitle) v$($script:Version)"
 }
 
 # ============================================================================
@@ -297,7 +337,7 @@ foreach ($__a in @(Get-HUAddonStartList)) {
     try {
         # Testmodus: Beispieldaten des Moduls (Testdaten\) in den leeren Testbestand legen, bevor das Modul liest
         if ($script:TestModeActive) {
-            try { $__n = Initialize-HUAddonTestData $__a; if ($__n) { Write-HULogInfo "Testmodus: $__n Beispieldateien für $($__a.Title) angelegt" } }
+            try { $__n = Initialize-HUAddonTestData $__a; if ($__n) { Write-HULogInfo "$(if ($script:DemoActive) { 'Demo' } else { 'Testmodus' }): $__n Beispieldateien für $($__a.Title) angelegt" } }
             catch { Write-HULogWarn "Testmodus: Beispieldaten für $($__a.Id) nicht angelegt: $($_.Exception.Message)" }
         }
         . (Join-Path $__a.Dir $__a.Script)
@@ -347,17 +387,32 @@ $script:OnContentRendered = {
                 $script:SmokeSteps = @()
                 if ($script:Controls['tabMain'].Items.Count -lt 1) { throw 'keine Reiter' }
                 $script:SmokeSteps += 'Reiter'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
+                if (Test-HULightTheme) { $script:SmokeSteps += 'Hell'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',') }
+                # Bilder fuer die Sichtpruefung (nur mit HUAMT_SMOKE_SHOTS = Ordner): Hauptfenster mit jedem Reiter
+                if ($env:HUAMT_SMOKE_SHOTS) {
+                    $selShot = $script:Controls['tabMain'].SelectedItem
+                    foreach ($it in @($script:Controls['tabMain'].Items)) {
+                        $script:Controls['tabMain'].SelectedItem = $it
+                        Save-HUWindowShot $script:Window (Join-Path $env:HUAMT_SMOKE_SHOTS "Reiter-$($it.Header).png")
+                    }
+                    $script:Controls['tabMain'].SelectedItem = $selShot
+                }
                 if ("$($script:Controls['txtAppTitle'].Text)" -ne $script:AppTitle) { throw 'Titel nicht aus app.json' }
                 $script:SmokeSteps += 'Titel'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 if (-not ('HUTaskbar' -as [type])) { throw 'Taskleiste' }
                 $script:SmokeSteps += 'Taskleiste'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 if ($script:TestModeRequested) {
                     if (-not $script:TestModeActive -or -not (Test-HUTestMode)) { throw 'Testmodus nicht aktiv' }
-                    if (-not $script:DataRoot.EndsWith('Data' + [IO.Path]::DirectorySeparatorChar + '_Test')) { throw "Testmodus: Datenstamm $($script:DataRoot)" }
+                    $sep = [IO.Path]::DirectorySeparatorChar
+                    if ($script:DemoActive) {
+                        if (-not (Test-HUDemoMode)) { throw 'Demo nicht aktiv' }
+                        if ($script:DataRoot -notlike "*Data$($sep)_Demo$($sep)*") { throw "Demo: Datenstamm $($script:DataRoot)" }
+                        if ("$($script:Controls['btnTestReset'].Visibility)" -ne 'Collapsed') { throw 'Demo: Zurücksetzen sichtbar' }
+                    } elseif (-not $script:DataRoot.EndsWith('Data' + $sep + '_Test')) { throw "Testmodus: Datenstamm $($script:DataRoot)" }
                     if ("$($script:Controls['bdrTestMode'].Visibility)" -ne 'Visible') { throw 'Testmodus: Leiste nicht sichtbar' }
                     if (-not (Test-HUOfficeTestMode)) { throw 'Testmodus: Office nicht gesperrt' }
                     if ((Show-HUMail -Subject 'x').Way -ne 'testmodus') { throw 'Testmodus: Mail nicht gesperrt' }
-                    $script:SmokeSteps += 'Testmodus'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
+                    $script:SmokeSteps += $(if ($script:DemoActive) { 'Demo' } else { 'Testmodus' }); $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 }
                 $tabs = @($script:Controls['tabMain'].Items).Count
                 if ($tabs -ne [Math]::Max(1, @($script:LoadedAddons).Count)) { throw "Reiter: $tabs, Module: $(@($script:LoadedAddons).Count)" }
@@ -391,7 +446,12 @@ $script:OnContentRendered = {
                 # Fenster wirklich aufbauen: ein zweiter Timer schliesst das jeweils offene Fenster nach kurzer Zeit
                 $closer = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
                 $closer.Interval = [TimeSpan]::FromMilliseconds(1200)
-                $closer.Add_Tick({ if ($script:LastDialog -and $script:LastDialog.IsVisible) { $script:LastDialog.Close() } })
+                $closer.Add_Tick({
+                        if ($script:LastDialog -and $script:LastDialog.IsVisible) {
+                            if ($env:HUAMT_SMOKE_SHOTS) { Save-HUWindowShot $script:LastDialog (Join-Path $env:HUAMT_SMOKE_SHOTS "Fenster-$($script:LastDialog.Title).png") }
+                            $script:LastDialog.Close()
+                        }
+                    })
                 $closer.Start()
                 try {
                     Show-HUSupport; $script:SmokeSteps += 'Fenster-Support'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
@@ -436,7 +496,7 @@ $script:OnContentRendered = {
     if ($script:Settings.ui.checkUpdatesOnStart -ne $false) { try { Invoke-UpdateCheck -Quiet; Start-HUAddonUpdate } catch { Write-HULogWarn "Update-Prüfung: $($_.Exception.Message)" } }
     # Starter HU-Amt.exe (eigenes Logo, ohne Konsolenfenster) bereitstellen, falls er fehlt
     try { [void](New-HULauncher) } catch { }
-    if ($script:FirstRun) {
+    if ($script:FirstRun -and -not $script:DemoActive) {   # die Demo ist bei jedem Start neu: dort nicht jedes Mal fragen
         # neuer Benutzer: einmal fragen, ob ein Symbol auf den Desktop soll, und zeigen, wie die App an die Taskleiste kommt
         $asked = $false; try { $asked = [bool](Get-HUStateValue 'shortcutAsked' $false) } catch { }
         if (-not $asked) {
@@ -446,7 +506,7 @@ $script:OnContentRendered = {
             }
             $pinned = $true; try { $pinned = Test-HUTaskbarPinned } catch { }
             if (-not $pinned -and (Confirm-HU "$($script:AppTitle) auch an die Taskleiste anheften?`n`nWindows lässt das Anheften nur durch dich selbst zu. Bei Ja zeige ich dir, wie es geht.")) {
-                Show-HUMessage "So heftest du $($script:AppTitle) an:`n`n1. Unten in der Taskleiste das Symbol von $($script:AppTitle) mit der rechten Maustaste anklicken.`n2. „An Taskleiste anheften“ wählen.`n`nDanach startest du die App mit einem Klick auf das Symbol." -Icon Info -Title 'Taskleiste'
+                Show-HUMessage "So heftest du $($script:AppTitle) an:`n`n1. Unten in der Taskleiste das Symbol von $($script:AppTitle) mit der rechten Maustaste anklicken.`n2. $([char]0x201E)An Taskleiste anheften$([char]0x201C) wählen.`n`nDanach startest du die App mit einem Klick auf das Symbol." -Icon Info -Title 'Taskleiste'
             }
         }
     }
@@ -455,13 +515,36 @@ $script:Window.Add_ContentRendered($script:OnContentRendered)
 
 $script:Window.Add_Closing({
     param($s, $e)
+    # Absicherung zuerst (Pruefung 091, KERN-B1): Endet der Prozess nicht innerhalb von 60 s (beobachtet 08.11.2026,
+    # Ursache unklar; auch ein haengender Schritt hier im Schliessen), beendet ihn ein eigener Thread hart und schreibt
+    # vorher den zuletzt erreichten Schritt ins Protokoll. Normales Beenden verzoegert er nicht.
+    $script:CloseState = [hashtable]::Synchronized(@{ Step = 'Start' })
+    if (-not $SmokeTest) {
+        try {
+            $__lf = ''; try { $__lf = "$(Get-CurrentLogFile)" } catch { }
+            $__xr = [runspacefactory]::CreateRunspace(); $__xr.ThreadOptions = 'UseNewThread'; $__xr.Open()
+            $__xp = [powershell]::Create(); $__xp.Runspace = $__xr
+            [void]$__xp.AddScript({
+                    param($St, $Log)
+                    Start-Sleep -Seconds 60   # Platz fuer laufende Abgleiche der Module (Buchung wartet bis 20 s auf Outlook)
+                    if ($Log) { try { [IO.File]::AppendAllText($Log, "[$((Get-Date).ToString('yyyy-MM-dd'))] [$((Get-Date).ToString('HH:mm:ss'))] [WARN] Beenden hart abgeschlossen nach 60 s, letzter Schritt: $($St.Step)`r`n", (New-Object System.Text.UTF8Encoding $true)) } catch { } }
+                    [Environment]::Exit(0)
+                }).AddArgument($script:CloseState).AddArgument($__lf).BeginInvoke()
+        } catch { }
+    }
     # nach dem Wiederherstellen einer Sicherung nichts aus dem Speicher zurueckschreiben
-    if (-not $script:AbRestored) { Save-HUWindowState }
-    try { Close-HUToasts } catch { }
+    $script:CloseState.Step = 'Fensterzustand'; if (-not $script:AbRestored) { Save-HUWindowState }
+    $script:CloseState.Step = 'Hinweise'; try { Close-HUToasts } catch { }
     try { if ($script:AbTimer) { $script:AbTimer.Stop() } } catch { }
-    try { Stop-HUAddons } catch { }
-    try { Close-AsyncPool } catch { }
+    $script:CloseState.Step = 'Module beenden'; try { Stop-HUAddons } catch { }
+    $script:CloseState.Step = 'Hintergrund-Aufträge'; try { Close-AsyncPool } catch { }
+    $script:CloseState.Step = 'Sperren freigeben'
     Write-HULog -Message "=== $($script:AppTitle) beendet ===" -Level 'INFO'
+    # Sperre und Einzelinstanz sofort freigeben (nicht erst nach ShowDialog): Bleibt der Prozess danach haengen,
+    # blockiert er weder den Neustart ("bereits geoeffnet") noch das Update ("jemand hat die App offen").
+    try { Close-HURunLock $script:RunLock; $script:RunLock = $null } catch { }
+    if ($script:InstanceMutex) { try { $script:InstanceMutex.ReleaseMutex() } catch { }; try { $script:InstanceMutex.Dispose() } catch { }; $script:InstanceMutex = $null }
+    $script:CloseState.Step = 'Fenster schließen (alles freigegeben)'
 })
 
 # ============================================================================
@@ -528,6 +611,11 @@ if ($SmokeTest) {
     $script:SmokeWatch.Start()
 }
 
+if ($SmokeTest -and $env:HUAMT_SMOKE_SHOTS) {
+    # Bilder ohne sichtbares Fenster: ausserhalb des Bildschirms, feste Groesse (Dialoge oeffnen mittig ueber dem Hauptfenster)
+    $script:Window.WindowState = 'Normal'; $script:Window.WindowStartupLocation = 'Manual'
+    $script:Window.Left = -32000; $script:Window.Top = -32000; $script:Window.Width = 1400; $script:Window.Height = 900
+}
 try { [void]$script:Window.ShowDialog() }
 finally {
     Close-HURunLock $script:RunLock

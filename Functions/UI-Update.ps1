@@ -124,7 +124,7 @@ function Set-HUUpdateButton([string]$RemoteVer = '', [bool]$Pre = $false) {
     if ($RemoteVer) {
         $b.Content = "Update v$RemoteVer$(if ($Pre) { ' (Test)' })"
         $b.Background = [System.Windows.Media.Brushes]::Gold
-        $b.Foreground = Get-HUBrush '#1E1E1E'
+        $b.Foreground = Get-HUBrush '#1E1E1E' 'Fg'   # dunkle Schrift auf Gold, auch im hellen Schema
         $b.FontWeight = 'Bold'
     } else {
         $b.Content = 'Update'

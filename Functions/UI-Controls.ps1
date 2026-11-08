@@ -226,7 +226,7 @@ function Update-HUCalendarView($State) {
     $S.Title.Text = "$(Get-HUMonthName $S.Month.Month) $($S.Month.Year)"
     foreach ($n in 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So') {
         $t = New-Object System.Windows.Controls.TextBlock
-        $t.Text = $n; $t.Foreground = Get-HUBrush '#858585'; $t.TextAlignment = 'Center'; $t.Margin = '0,0,0,4'
+        $t.Text = $n; $t.Foreground = Get-HUBrush '#858585' 'Fg'; $t.TextAlignment = 'Center'; $t.Margin = '0,0,0,4'
         [void]$S.Grid.Children.Add($t)
     }
     $sel = Get-HUCalendarDate $S $S.Box.Text
@@ -235,11 +235,13 @@ function Update-HUCalendarView($State) {
         Set-HUCtlStyle $b $S.Owner 'DarkButton'
         $b.Content = "$($c.Day)"; $b.Tag = $c.Date; $b.Width = 34; $b.Height = 28; $b.Padding = '0'; $b.Margin = '1'
         $b.ToolTip = $c.Date.ToString('dddd, dd.MM.yyyy', $script:HUCtlDe)
-        if (-not $c.InMonth) { $b.Foreground = Get-HUBrush '#6A6A6A' }
-        if ($c.IsToday) { $b.BorderBrush = Get-HUBrush '#FFB74D'; $b.BorderThickness = 1 }
-        if ($c.IsSelected) { $b.Background = Get-HUBrush '#007ACC' }
-        elseif ($c.IsWeekend) { $b.Background = Get-HUBrush '#2D2D30' }
-        else { $b.Background = Get-HUBrush '#3E3E42' }
+        # Tage wie Felder: im hellen Schema helle Flaeche mit dunkler Schrift, nur der gewaehlte Tag bleibt blau mit weisser Schrift
+        $b.Foreground = Get-HUBrush '#FFFFFF' 'Fg'
+        if (-not $c.InMonth) { $b.Foreground = Get-HUBrush '#6A6A6A' 'Fg' }
+        if ($c.IsToday) { $b.BorderBrush = Get-HUBrush '#FFB74D' 'Fg'; $b.BorderThickness = 1 }
+        if ($c.IsSelected) { $b.Background = Get-HUBrush '#007ACC'; $b.Foreground = [System.Windows.Media.Brushes]::White }
+        elseif ($c.IsWeekend) { $b.Background = Get-HUBrush '#2D2D30' 'Bg' }
+        else { $b.Background = Get-HUBrush '#3E3E42' 'Bg' }
         $b.Add_Click({
                 param($s, $e)
                 $x = $s.Parent.Tag
@@ -270,7 +272,7 @@ function Add-HUCalendar {
     $pop = New-Object System.Windows.Controls.Primitives.Popup
     $pop.PlacementTarget = $TextBox; $pop.Placement = 'Bottom'; $pop.StaysOpen = $false; $pop.AllowsTransparency = $true
     $border = New-Object System.Windows.Controls.Border
-    $border.Background = Get-HUBrush '#252526'; $border.BorderBrush = Get-HUBrush '#007ACC'; $border.BorderThickness = 1; $border.Padding = 6; $border.CornerRadius = 3
+    $border.Background = Get-HUBrush '#252526' 'Bg'; $border.BorderBrush = Get-HUBrush '#007ACC'; $border.BorderThickness = 1; $border.Padding = 6; $border.CornerRadius = 3
     $sp = New-Object System.Windows.Controls.StackPanel
     $head = New-Object System.Windows.Controls.DockPanel
     $bPrev = New-Object System.Windows.Controls.Button; $bNext = New-Object System.Windows.Controls.Button
@@ -280,7 +282,7 @@ function Add-HUCalendar {
     else { $bPrev.ToolTip = 'Voriger Monat (Umschalt: voriges Jahr)'; $bNext.ToolTip = 'Nächster Monat (Umschalt: nächstes Jahr)' }
     [System.Windows.Controls.DockPanel]::SetDock($bPrev, 'Left'); [System.Windows.Controls.DockPanel]::SetDock($bNext, 'Right')
     $title = New-Object System.Windows.Controls.TextBlock
-    $title.Foreground = Get-HUBrush '#FFFFFF'; $title.FontWeight = 'SemiBold'; $title.TextAlignment = 'Center'; $title.VerticalAlignment = 'Center'
+    $title.Foreground = Get-HUBrush '#FFFFFF' 'Fg'; $title.FontWeight = 'SemiBold'; $title.TextAlignment = 'Center'; $title.VerticalAlignment = 'Center'
     [void]$head.Children.Add($bPrev); [void]$head.Children.Add($bNext); [void]$head.Children.Add($title)
     $grid = New-Object System.Windows.Controls.Primitives.UniformGrid
     $grid.Columns = 7; $grid.Margin = '0,6,0,0'
@@ -480,7 +482,7 @@ function New-HUChoiceDialog {
         $b = New-Object System.Windows.Controls.Button
         Set-HUCtlStyle $b $w 'DarkButton'
         $b.Content = $Choices[$i]; $b.Tag = @{ I = $i; S = $st }; $b.Margin = '0,0,8,0'; $b.Padding = '14,4'
-        $b.Background = Get-HUBrush $(if ($i -eq 0) { '#1976D2' } else { '#3E3E42' })
+        $b.Background = Get-HUBrush $(if ($i -eq 0) { '#1976D2' } else { '#3E3E42' }) 'Btn'
         $b.ToolTip = $(if ($i -lt @($ToolTips).Count -and "$($ToolTips[$i])") { "$($ToolTips[$i])" } else { "$($Choices[$i])" })
         if ($i -eq $DefaultIndex) { $b.IsDefault = $true }   # Enter waehlt diesen Knopf; ohne -DefaultIndex keiner
         $b.Add_Click({ param($s, $e) $t = $s.Tag; $t.S.Index = [int]$t.I; try { $t.S.Window.DialogResult = $true } catch { } })
@@ -489,7 +491,7 @@ function New-HUChoiceDialog {
     if (-not $NoCancel) {
         $cb = New-Object System.Windows.Controls.Button
         Set-HUCtlStyle $cb $w 'DarkButton'
-        $cb.Content = $CancelText; $cb.IsCancel = $true; $cb.Padding = '14,4'; $cb.Background = Get-HUBrush '#555555'; $cb.ToolTip = $CancelToolTip
+        $cb.Content = $CancelText; $cb.IsCancel = $true; $cb.Padding = '14,4'; $cb.Background = Get-HUBrush '#555555' 'Btn'; $cb.ToolTip = $CancelToolTip
         $cb.Tag = $st
         $cb.Add_Click({ param($s, $e) $s.Tag.Index = -1; try { $s.Tag.Window.DialogResult = $false } catch { } })
         [void]$c.chButtons.Children.Add($cb)
