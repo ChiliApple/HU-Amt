@@ -16,7 +16,8 @@
 .NOTES
     Zielmaschine: der PC, auf dem HU-Amt laeuft (Windows 10/11, Windows PowerShell 5.1 oder PowerShell 7).
 #>
-param([switch]$ShowConsole, [string]$SmokeTest = '', [int]$WaitForPid = 0, [switch]$TestMode, [switch]$Demo)
+# -Hell: nur fuer das kleine Neustart-Fenster (die Einstellungen sind dort noch nicht geladen), setzt Restart-HUApp
+param([switch]$ShowConsole, [string]$SmokeTest = '', [int]$WaitForPid = 0, [switch]$TestMode, [switch]$Demo, [switch]$Hell)
 
 # Konsolenfenster ausblenden (nur die WPF-Oberflaeche ist sichtbar)
 if (-not $ShowConsole) {
@@ -67,7 +68,8 @@ if ($WaitForPid -gt 0 -and -not $SmokeTest) {
         $rw = $null
         try {
             $tx = [System.Security.SecurityElement]::Escape("$($script:AppTitle) wird neu gestartet ...")
-            $rw = [System.Windows.Markup.XamlReader]::Parse("<Window xmlns=`"http://schemas.microsoft.com/winfx/2006/xaml/presentation`" WindowStyle=`"None`" ResizeMode=`"NoResize`" AllowsTransparency=`"True`" Background=`"Transparent`" Width=`"360`" Height=`"90`" WindowStartupLocation=`"CenterScreen`" Topmost=`"True`" ShowInTaskbar=`"False`"><Border Background=`"#FF1E1E1E`" CornerRadius=`"10`" BorderBrush=`"#FFB9A88A`" BorderThickness=`"2`"><TextBlock Text=`"$tx`" Foreground=`"#FFEDEDED`" FontSize=`"15`" HorizontalAlignment=`"Center`" VerticalAlignment=`"Center`"/></Border></Window>")
+            $rbg = $(if ($Hell) { '#FFF2EFE9' } else { '#FF1E1E1E' }); $rfg = $(if ($Hell) { '#FF2E2A24' } else { '#FFEDEDED' })
+            $rw = [System.Windows.Markup.XamlReader]::Parse("<Window xmlns=`"http://schemas.microsoft.com/winfx/2006/xaml/presentation`" WindowStyle=`"None`" ResizeMode=`"NoResize`" AllowsTransparency=`"True`" Background=`"Transparent`" Width=`"360`" Height=`"90`" WindowStartupLocation=`"CenterScreen`" Topmost=`"True`" ShowInTaskbar=`"False`"><Border Background=`"$rbg`" CornerRadius=`"10`" BorderBrush=`"#FFB9A88A`" BorderThickness=`"2`"><TextBlock Text=`"$tx`" Foreground=`"$rfg`" FontSize=`"15`" HorizontalAlignment=`"Center`" VerticalAlignment=`"Center`"/></Border></Window>")
             $rw.Show()
         } catch { $rw = $null }
         $until = (Get-Date).AddSeconds(90)

@@ -79,6 +79,15 @@ Describe 'Farbschema' {
             try { { [void][System.Windows.Markup.XamlReader]::Load($r) } | Should -Not -Throw -Because $f.Name } finally { $r.Close() }
         }
     }
+    It 'Startbildschirm: Hell mit heller Flaeche, Dunkel unveraendert, beide laden' {
+        . (Join-Path $script:Root 'Functions\UI-Splash.ps1')
+        $d = Get-HUSplashXaml '1.0.0' 'HU-Amt' 'Test'
+        $l = Get-HUSplashXaml '1.0.0' 'HU-Amt' 'Test' -Light
+        $d | Should -Match 'Background="#FF1E1E1E"'
+        $l | Should -Match 'Background="#FFF2EFE9"'
+        $l | Should -Not -Match '#FF1E1E1E'
+        foreach ($x in $d, $l) { { [void][System.Windows.Markup.XamlReader]::Parse($x) } | Should -Not -Throw }
+    }
     It 'Theme-Teil wird zwischengespeichert und gleich umgesetzt wie ohne Zwischenspeicher' {
         Set-HUTheme 'Hell'
         $x = Get-TestXaml 'SettingsWindow'

@@ -430,6 +430,8 @@ function Restart-HUApp([switch]$EnterTestMode, [switch]$LeaveTestMode, [switch]$
         $demo = (Test-HUDemoMode)
         if ($EnterDemo -or ($demo -and -not $LeaveDemo)) { $extra += ' -Demo' }
         elseif ($EnterTestMode -or ((Test-HUTestMode) -and -not $demo -and -not $LeaveTestMode)) { $extra += ' -TestMode' }
+        # Neustart-Fenster im gespeicherten Farbschema (auch direkt nach dem Umstellen)
+        try { if ("$($script:Settings.ui.theme)" -eq 'Hell') { $extra += ' -Hell' } } catch { }
         $si = Get-HUAppStartInfo $extra
         Start-Process -FilePath $si.Exe -WorkingDirectory $script:AppRoot -WindowStyle Hidden -ArgumentList $si.Args | Out-Null
         Write-HULogOK "$($script:AppTitle) wird neu gestartet ..."
