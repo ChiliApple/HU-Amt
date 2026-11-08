@@ -20,7 +20,7 @@ $script:HUThemeBlock = $null
 $script:HUThemeMaps = @{
     # Flaechen: Fenster, Panels, Eingabefelder, Hinweisflaechen, Auswahl
     Bg     = @{
-        '1E1E1E' = 'F2EFE9'; '1A1A1A' = 'F2EFE9'; '202020' = 'F0EDE6'; '232323' = 'EDE9E2'; '252526' = 'E9E5DD'; '262626' = 'E9E5DD'
+        '1E1E1E' = 'F2EFE9'; '1A1A1A' = 'F2EFE9'; '1B1B1C' = 'F2EFE9'; '202020' = 'F0EDE6'; '232323' = 'EDE9E2'; '252526' = 'E9E5DD'; '262626' = 'E9E5DD'
         '2A2D2E' = 'E6E1D8'; '2B2B2B' = 'E6E1D8'; '2D2D30' = 'E3DED5'; '2D2D2D' = 'E3DED5'; '303030' = 'E1DCD2'; '333333' = 'DDD7CC'
         '333337' = 'DDD7CC'; '383838' = 'DAD4C8'; '3C3C3C' = 'FFFDF9'; '3E3E42' = 'FFFDF9'; '3F3F46' = 'FFFDF9'; '404040' = 'FFFDF9'
         '505058' = 'E8E2D6'; '555555' = 'E3DED5'; '5A5A5A' = 'BFB8AA'; '787878' = 'A39C8F'; '9A9A9A' = '8A8377'
