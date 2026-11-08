@@ -18,6 +18,7 @@ Läuft ohne Installation aus einem Ordner am PC oder auf einer Netzfreigabe, fü
   <a href="https://chiliapple.github.io/HU-Amt/Docs/Funktionen.html"><b>Funktionen</b></a> ·
   <a href="https://chiliapple.github.io/HU-Amt/Docs/Anleitung.html"><b>Anleitung</b></a> ·
   <a href="https://chiliapple.github.io/HU-Amt/Docs/Anleitung.html#installation">Installation</a> ·
+  <a href="https://chiliapple.github.io/HU-Amt/Docs/Daten.html">Wo liegen meine Daten?</a> ·
   <a href="MODULE-DEVELOPMENT.md">Module entwickeln</a> ·
   <a href="CHANGELOG.md">Änderungen</a> ·
   <a href="LICENSE">Lizenz</a>

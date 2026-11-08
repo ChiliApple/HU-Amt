@@ -1,0 +1,258 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HU-Amt – Wo liegen meine Daten?</title>
+<style>
+:root{
+  --bg:#eff1f5;--panel:#ffffff;--panel2:#e6e9ef;--text:#4c4f69;--sub:#6c6f85;--line:#ccd0da;
+  --blue:#1e66f5;--green:#40a02b;--peach:#fe640b;--red:#d20f39;--mauve:#8839ef;--teal:#179299;--yellow:#df8e1d;
+  --accent:#b9a88a;--shadow:0 2px 10px rgba(76,79,105,.08);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11111b;--panel:#1e1e2e;--panel2:#181825;--text:#cdd6f4;--sub:#a6adc8;--line:#313244;
+  --blue:#89b4fa;--green:#a6e3a1;--peach:#fab387;--red:#f38ba8;--mauve:#cba6f7;--teal:#94e2d5;--yellow:#f9e2af;--shadow:0 2px 12px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  --bg:#11111b;--panel:#1e1e2e;--panel2:#181825;--text:#cdd6f4;--sub:#a6adc8;--line:#313244;
+  --blue:#89b4fa;--green:#a6e3a1;--peach:#fab387;--red:#f38ba8;--mauve:#cba6f7;--teal:#94e2d5;--yellow:#f9e2af;--shadow:0 2px 12px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;padding:10px 20px;background:var(--panel);border-bottom:2px solid var(--accent);box-shadow:var(--shadow)}
+header img{width:44px;height:44px}
+header .t{font-size:22px;font-weight:700;line-height:1.1}
+header .s{font-size:12px;color:var(--sub)}
+header .sp{flex:1}
+header .pnav{position:static;height:auto;overflow:visible;padding:0;border:0;display:flex;gap:6px;flex-wrap:wrap}
+header .pnav a{padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:13px;font-weight:600}
+header .pnav a:hover{text-decoration:none;border-color:var(--blue);color:var(--blue)}
+header .pnav a.act{background:var(--text);color:var(--panel);border-color:var(--text)}
+@media (max-width:900px){header .pnav{display:none}}
+#q{width:260px;max-width:40vw;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit}
+.tbtn{padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer;font:inherit}
+.wrap{display:grid;grid-template-columns:270px 1fr;max-width:1400px;margin:0 auto}
+nav{position:sticky;top:66px;align-self:start;height:calc(100vh - 66px);overflow:auto;padding:18px 10px 40px 18px;border-right:1px solid var(--line)}
+nav a{display:block;padding:4px 10px;border-radius:6px;color:var(--text);font-size:14px}
+nav a:hover{background:var(--panel2);text-decoration:none}
+nav a.l2{padding-left:24px;font-size:13px;color:var(--sub)}
+nav a.act{background:var(--panel2);color:var(--blue);font-weight:600}
+main{padding:24px 36px 80px;min-width:0}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 28px;margin:0 0 22px;box-shadow:var(--shadow)}
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:0 0 12px}
+h2 .n{display:inline-grid;place-items:center;width:32px;height:32px;margin-right:10px;vertical-align:2px;border-radius:50%;background:var(--accent);color:#1e1e2e;font-size:15px}
+h3{font-size:17px;margin:22px 0 8px;color:var(--blue)}
+p{margin:8px 0}
+.lead{color:var(--sub);font-size:16px}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{background:var(--panel2);font-weight:600}
+pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;overflow-x:auto;font-size:13px;line-height:1.45;margin:10px 0}
+pre code{background:none;border:0;padding:0}
+tr:hover td{background:color-mix(in srgb,var(--panel2) 55%,transparent)}
+.ui{display:inline-block;padding:0 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);font-size:13px;font-weight:600;white-space:nowrap}
+.ui.g{border-color:var(--green);color:var(--green)}.ui.r{border-color:var(--red);color:var(--red)}.ui.b{border-color:var(--blue);color:var(--blue)}
+.ui.p{border-color:var(--peach);color:var(--peach)}.ui.m{border-color:var(--mauve);color:var(--mauve)}.ui.t{border-color:var(--teal);color:var(--teal)}
+kbd{padding:1px 7px;border-radius:5px;border:1px solid var(--line);border-bottom-width:2px;background:var(--panel2);font:12px Consolas,monospace}
+code{font:13px Consolas,monospace;background:var(--panel2);padding:1px 5px;border-radius:4px}
+.note{border-left:4px solid var(--blue);background:var(--panel2);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+.note.tip{border-color:var(--green)}.note.warn{border-color:var(--peach)}.note.stop{border-color:var(--red)}
+.note b.h{display:block;margin-bottom:2px}
+.steps{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+.steps>li{counter-increment:s;position:relative;padding:4px 0 10px 46px;min-height:36px}
+.steps>li::before{content:counter(s);position:absolute;left:0;top:2px;width:32px;height:32px;border-radius:50%;background:var(--blue);color:var(--panel);display:grid;place-items:center;font-weight:700}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card b{display:block;margin-bottom:4px}
+.card.g{border-top:4px solid var(--green)}.card.b{border-top:4px solid var(--blue)}.card.p{border-top:4px solid var(--peach)}.card.m{border-top:4px solid var(--mauve)}.card.t{border-top:4px solid var(--teal)}.card.r{border-top:4px solid var(--red)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0}
+.flow span{padding:8px 14px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);font-weight:600;font-size:14px}
+.flow i{color:var(--sub);font-style:normal}
+.hide{display:none!important}
+figure{margin:14px 0}figure img{max-width:100%;border-radius:10px;border:1px solid var(--line);box-shadow:var(--shadow);cursor:zoom-in}figure figcaption{color:var(--sub);font-size:13px;margin-top:4px}
+mark{background:var(--yellow);color:#1e1e2e;border-radius:3px}
+.dia svg{width:100%;height:auto;display:block}
+.dia .dh{font:700 17px "Segoe UI",system-ui,sans-serif}
+.dia .dt{font:14px "Segoe UI",system-ui,sans-serif;fill:var(--text)}
+.dia .ds{font:12.5px "Segoe UI",system-ui,sans-serif;fill:var(--sub)}
+.dia .dw{font:600 13px "Segoe UI",system-ui,sans-serif}
+.ds2{color:var(--sub);font-size:12px}
+footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}nav{display:none}main{padding:16px}section{padding:18px 16px}#q{width:150px}}
+@media print{header,nav,#q,.tbtn{display:none!important}.wrap{display:block}section{box-shadow:none;break-inside:avoid-page}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<header>
+  <img src="../Assets/logo64.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Assets/logo64.png'" alt="">
+  <div><div class="t">HU-Amt</div><div class="s">Werkzeuge für die Gemeindeverwaltung · Wo liegen meine Daten?</div></div>
+  <nav class="pnav" aria-label="Seiten"><a href="Einstieg.html">Einstieg</a><a href="Funktionen.html">Funktionen</a><a href="Anleitung.html">Anleitung</a><a href="Daten.html" class="act">Daten</a><a href="https://github.com/ChiliApple/HU-Amt/releases">Download</a></nav>
+  <div class="sp"></div>
+  <input id="q" type="search" placeholder="Suchen … (z. B. PDF, Sicherung, Reisen)">
+  <button class="tbtn" id="theme" title="Hell / Dunkel">◐</button>
+  <button class="tbtn" onclick="window.print()" title="Drucken / PDF">⎙</button>
+</header>
+<div class="wrap">
+<nav id="toc"></nav>
+<main>
+<section id="blick">
+  <h1>Wo liegen meine Daten?</h1>
+  <p class="lead">Was passiert mit deinen Dateien, wenn du sie in HU-Amt ziehst? Wo landen die Ergebnisse? Was wird gesichert? Hier steht es auf einer Seite, für jedes Modul.</p>
+  <figure class="dia">
+  <svg viewBox="0 0 960 430" role="img" aria-label="Übersicht: dein PC, der gemeinsame Datenordner, der Sicherungsordner und das Internet">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--sub)"/></marker>
+    </defs>
+    <!-- Dein PC -->
+    <rect x="10" y="40" width="290" height="300" rx="14" style="fill:var(--panel2);stroke:var(--blue);stroke-width:2"/>
+    <text x="155" y="70" text-anchor="middle" class="dh" style="fill:var(--blue)">Dein PC und deine Ordner</text>
+    <text x="30" y="102" class="dt">• deine Original-Dateien</text>
+    <text x="44" y="122" class="ds">bleiben, wo sie sind</text>
+    <text x="30" y="150" class="dt">• Ergebnisse von PDF-Werkzeugen</text>
+    <text x="44" y="170" class="ds">und Texterkennung: neben dem Original</text>
+    <text x="44" y="188" class="ds">oder im gewählten Ordner</text>
+    <text x="30" y="216" class="dt">• Excel-Export der Kostenzuordnung</text>
+    <text x="44" y="236" class="ds">Downloads\Kostenzuordnung</text>
+    <text x="30" y="264" class="dt">• Outlook: Termine, Aufgaben</text>
+    <text x="44" y="284" class="ds">im Postfach, nicht in HU-Amt</text>
+    <text x="155" y="322" text-anchor="middle" class="dw" style="fill:var(--peach)">nicht in der HU-Amt-Sicherung</text>
+
+    <!-- Datenordner -->
+    <rect x="345" y="40" width="290" height="300" rx="14" style="fill:var(--panel2);stroke:var(--green);stroke-width:2"/>
+    <text x="490" y="70" text-anchor="middle" class="dh" style="fill:var(--green)">Gemeinsamer Datenordner</text>
+    <text x="490" y="90" text-anchor="middle" class="ds">auf der Freigabe, ein Ordner je Modul</text>
+    <text x="365" y="120" class="dt">• Buchungen, Gutscheine, Fristen,</text>
+    <text x="379" y="140" class="dt">Reisen, Ideen, Rechnungsarchiv</text>
+    <text x="365" y="168" class="dt">• Kopien deiner Belege und Anhänge</text>
+    <text x="365" y="196" class="dt">• Quittungen, Abrechnungen,</text>
+    <text x="379" y="216" class="dt">Auswertungen (PDF, CSV)</text>
+    <text x="365" y="244" class="dt">• Einstellungen, auch deine</text>
+    <text x="379" y="264" class="dt">persönlichen</text>
+    <text x="490" y="322" text-anchor="middle" class="dw" style="fill:var(--green)">wird gesichert</text>
+
+    <!-- Sicherung -->
+    <rect x="680" y="40" width="270" height="140" rx="14" style="fill:var(--panel2);stroke:var(--mauve);stroke-width:2"/>
+    <text x="815" y="70" text-anchor="middle" class="dh" style="fill:var(--mauve)">Sicherungsordner</text>
+    <text x="700" y="100" class="dt">• verschlüsselt, mit Kennwort</text>
+    <text x="700" y="124" class="dt">• täglich oder wöchentlich</text>
+    <text x="700" y="148" class="dt">• richtet ein Verwalter ein</text>
+
+    <!-- Internet -->
+    <rect x="680" y="200" width="270" height="140" rx="14" style="fill:var(--panel2);stroke:var(--line);stroke-width:2;stroke-dasharray:6 5"/>
+    <text x="815" y="230" text-anchor="middle" class="dh" style="fill:var(--sub)">Internet</text>
+    <text x="700" y="260" class="dt">• Updates von HU-Amt</text>
+    <text x="700" y="284" class="dt">• Reisen: Adressen für die km</text>
+    <text x="700" y="308" class="dt">• Texterkennung: Werkzeuge laden</text>
+
+    <!-- Pfeile -->
+    <line x1="300" y1="125" x2="343" y2="125" style="stroke:var(--sub);stroke-width:2" marker-end="url(#ar)"/>
+    <line x1="635" y1="110" x2="678" y2="110" style="stroke:var(--sub);stroke-width:2" marker-end="url(#ar)"/>
+    <text x="160" y="372" text-anchor="middle" class="ds">Ziehst du einen Beleg oder Anhang hinein,</text>
+    <text x="160" y="390" text-anchor="middle" class="ds">kommt eine Kopie in den Datenordner.</text>
+    <text x="490" y="372" text-anchor="middle" class="ds">Alle mit Zugriff auf die Freigabe</text>
+    <text x="490" y="390" text-anchor="middle" class="ds">arbeiten mit denselben Daten.</text>
+    <text x="815" y="372" text-anchor="middle" class="ds">Fachdaten gehen nie ins Internet,</text>
+    <text x="815" y="390" text-anchor="middle" class="ds">nur die Adressen der Reisen.</text>
+  </svg>
+  <figcaption>Drei Orte: dein PC, der gemeinsame Datenordner und der Sicherungsordner. Nur was im Datenordner liegt, ist in der Sicherung von HU-Amt.</figcaption>
+  </figure>
+</section>
+
+<section id="regeln">
+  <h2>Die Grundregeln</h2>
+  <div class="cards">
+    <div class="card g"><b>Originale bleiben</b>HU-Amt liest deine Datei nur. Belege und Anhänge werden kopiert. Ausnahme: ein überwachter Eingangsordner der Texterkennung, siehe unten.</div>
+    <div class="card b"><b>Nichts wird überschrieben</b>Gibt es den Namen schon, hängt HU-Amt eine Nummer an (<code>_2</code>). Ausnahme: beim Excel-Export der Kostenzuordnung ist „überschreiben“ einstellbar.</div>
+    <div class="card t"><b>Gemeinsam ist gemeinsam</b>Was im Datenordner liegt, sehen alle mit Zugriff auf die Freigabe. Persönlich sind nur deine Einstellungen.</div>
+    <div class="card p"><b>Entfernen ist kein Löschen</b>Entfernte Belege und Anhänge wandern in einen Unterordner <code>_entfernt</code>. Gemeinsame Listen bekommen vor jedem Speichern eine Kopie in <code>_Kopien</code>.</div>
+    <div class="card m"><b>Keine Mail ohne dich</b>HU-Amt zeigt Mails in Outlook nur an. Senden musst du selbst.</div>
+  </div>
+</section>
+
+<section id="module">
+  <h2>Modul für Modul</h2>
+  <table>
+    <tr><th>Modul</th><th>Was du hineingibst</th><th>Wo das Ergebnis landet</th><th>In der Sicherung?</th></tr>
+    <tr><td><b>PDF-Werkzeuge</b></td><td>PDFs und Bilder hineinziehen. Das Original wird nur gelesen.</td><td>Neben dem Original oder im Ordner, den du in den Einstellungen des Reiters wählst. Name mit Zusatz, z. B. <code>_zusammengefuegt</code>, <code>_geschwaerzt</code>, <code>_klein</code>, beim Teilen ein Ordner <code>…_geteilt</code>.</td><td><span class="ui p">nein</span> liegt bei deinen Dateien</td></tr>
+    <tr><td><b>Texterkennung</b><br><span class="ds2">hineinziehen</span></td><td>PDF oder Scan hineinziehen. Das Original bleibt.</td><td><code>&lt;Name&gt;_OCR.pdf</code> neben dem Original oder im gewählten Ordner. „Weitergeben“ schickt eine Kopie an ein anderes Modul.</td><td><span class="ui p">nein</span></td></tr>
+    <tr><td><b>Texterkennung</b><br><span class="ds2">Eingangsordner</span></td><td>Scanner legt in einen überwachten Ordner. Das Original wird <b>verschoben</b>: erst nach <code>_inArbeit</code>, dann nach <code>processed</code>, bei Fehlern nach <code>quarantine</code>. Gelöscht wird nie.</td><td>Im Ausgang, den der Verwalter für diesen Ordner einstellt, sonst im Datenordner unter <code>OCR\Ausgang</code>.</td><td><span class="ui g">ja</span> wenn im Datenordner, sonst nein</td></tr>
+    <tr><td><b>Kostenzuordnung</b></td><td>Rechnungs-PDFs und Excel hineinziehen. Wird nur gelesen.</td><td>Excel-Export in <code>Downloads\Kostenzuordnung</code> (Ordner und Name einstellbar). Die Zuordnung jeder Rechnung kommt ins gemeinsame Rechnungsarchiv, <b>ohne das PDF</b>.</td><td><span class="ui g">ja</span> Archiv und Kostenstellen<br><span class="ui p">nein</span> Export und PDFs</td></tr>
+    <tr><td><b>Reisen</b></td><td>Reisen eintippen, Belege (PDF, Bild) hineinziehen. Belege werden kopiert.</td><td>Abrechnung und Jahresliste als PDF und CSV im Datenordner unter <code>Reiseabrechnung\abrechnungen\&lt;dein Name&gt;</code>. Sie öffnen sich gleich.</td><td><span class="ui g">ja</span></td></tr>
+    <tr><td><b>Buchungen</b></td><td>Buchungen und Mieter eintippen, Kontakte aus Outlook oder Visitenkarte (.vcf).</td><td>Termine im gemeinsamen Outlook-Kalender (eingestellt vom Verwalter). Bei Storno oder Änderung werden diese Termine in Outlook entfernt bzw. angepasst.</td><td><span class="ui g">ja</span> Buchungen<br><span class="ui p">nein</span> Outlook</td></tr>
+    <tr><td><b>Gutscheine</b></td><td>Nummern eintippen oder scannen, Liste aus Excel oder CSV einlesen (nur gelesen).</td><td>Quittungen und Auswertungen als PDF und CSV im Datenordner unter <code>Gutscheine</code>. Sie öffnen sich gleich.</td><td><span class="ui g">ja</span></td></tr>
+    <tr><td><b>Fristen</b></td><td>Fristen eintippen, PDF-Anhänge hineinziehen (werden kopiert).</td><td>Deine offenen Fristen als Aufgabe oder Termin in deinem eigenen Outlook. Abhaken in Outlook wirkt nicht zurück, bitte in HU-Amt erledigen.</td><td><span class="ui g">ja</span> Fristen und Anhänge<br><span class="ui p">nein</span> Outlook</td></tr>
+    <tr><td><b>Ideen &amp; Wünsche</b></td><td>Ideen, Stimmen, Rückmeldung mit Anhang (wird kopiert).</td><td>Bleibt im Datenordner. Eine Mail an den Verwalter wird nur angezeigt.</td><td><span class="ui g">ja</span></td></tr>
+  </table>
+  <div class="note warn"><b class="h">Kennwortgeschützte PDFs</b>Ergebnisse aus geschützten PDFs (z. B. zusammengefügt oder verkleinert) haben <b>keinen</b> Kennwortschutz mehr. Bei heiklen Unterlagen das Ergebnis selbst wieder schützen oder gut ablegen.</div>
+</section>
+
+<section id="sicherung">
+  <h2>Die Sicherung</h2>
+  <div class="cards">
+    <div class="card g"><b>Was drin ist</b>Alles im gemeinsamen Datenordner: Daten aller Module, Kopien der Belege und Anhänge, Quittungen, Abrechnungen, Auswertungen, Einstellungen.</div>
+    <div class="card p"><b>Was nicht drin ist</b>Dateien außerhalb des Datenordners (Originale, Ergebnisse neben dem Original, Excel-Export in Downloads), Outlook, Protokolle und Zugangsdaten. Das Programm selbst lädt ein Update neu.</div>
+    <div class="card m"><b>Wo und wie</b>In einem Ordner, den der Verwalter wählt (Freigabe oder USB, nie im Programmordner). Verschlüsselt, ohne Kennwort nicht zu öffnen. Täglich, wöchentlich oder von Hand, die letzten Stände je PC bleiben.</div>
+    <div class="card b"><b>Zurückholen</b>Nur ein Verwalter. Vorher legt HU-Amt eine Kopie des jetzigen Stands an. Alle anderen müssen HU-Amt dafür schließen.</div>
+  </div>
+  <div class="note stop"><b class="h">Wichtig</b>Die Sicherung ist nach der Installation <b>aus</b>. Ein Verwalter muss unter <span class="ui">⚙ Einstellungen</span> › <b>Sicherung</b> den Ordner wählen, ein Kennwort festlegen (für die Automatik merken) und „täglich“ einstellen. Das Kennwort gut aufbewahren: ohne Kennwort ist die Sicherung wertlos.</div>
+</section>
+
+<section id="internet">
+  <h2>Was ins Internet geht</h2>
+  <table>
+    <tr><th>Was</th><th>Wohin</th><th>Wann</th></tr>
+    <tr><td>Frage nach neuen Versionen, Laden von Updates und Modulen</td><td>GitHub</td><td>beim Start und beim Update-Knopf</td></tr>
+    <tr><td>Start- und Zieladresse einer Reise</td><td>Routenplaner (openrouteservice)</td><td>beim Berechnen der Kilometer</td></tr>
+    <tr><td>Start- und Zieladresse einer Reise</td><td>Google Maps im Browser</td><td>nur beim Klick auf „Route ansehen“</td></tr>
+    <tr><td>Werkzeuge der Texterkennung (einmalig, geprüft)</td><td>GitHub, python.org</td><td>beim ersten Einsatz und nach einem Update der Werkzeuge</td></tr>
+  </table>
+  <p>Buchungen, Gutscheine, Fristen, Rechnungen, Belege und andere Fachdaten schickt HU-Amt nie ins Internet.</p>
+</section>
+
+<section id="fragen">
+  <h2>Häufige Fragen</h2>
+  <h3 id="f-pdf">Ich habe ein PDF hineingezogen. Wo ist das Ergebnis?</h3>
+  <p>Bei PDF-Werkzeugen und Texterkennung: im selben Ordner wie das Original, mit einem Zusatz im Namen. Hast du in den Einstellungen des Reiters einen Ordner gewählt, dort. Das Original ist unverändert.</p>
+  <h3 id="f-abrechnung">Wo finde ich meine Reiseabrechnung oder eine Gutschein-Quittung wieder?</h3>
+  <p>Im gemeinsamen Datenordner, im Ordner des Moduls. Am einfachsten über den Reiter selbst, dort öffnest du sie wieder.</p>
+  <h3 id="f-loeschen">Kann ich aus Versehen etwas löschen?</h3>
+  <p>Kaum. Entfernte Belege und Anhänge landen in <code>_entfernt</code>, gemeinsame Listen haben Kopien in <code>_Kopien</code>, Buchungen und Gutscheine werden storniert statt gelöscht. Was dennoch fehlt, kann ein Verwalter aus der Sicherung zurückholen.</p>
+  <h3 id="f-netz">Was passiert, wenn das Netz weg ist?</h3>
+  <p>Ist der Datenordner beim Start nicht erreichbar, startet HU-Amt mit einer Meldung nicht, damit keine zweiten, leeren Daten entstehen. Ist die Freigabe während der Arbeit kurz weg, zeigen die Module den letzten Stand und melden „Ordner nicht erreichbar“.</p>
+  <h3 id="f-andere">Sehen die Kollegen meine Daten?</h3>
+  <p>Was im gemeinsamen Datenordner liegt, ja, soweit sie Zugriff auf die Freigabe haben. Welche Module wer sehen darf, regeln die Rechte auf der Freigabe, die die IT setzt.</p>
+</section>
+</main>
+</div>
+<script>
+(function(){
+  var toc=document.getElementById('toc'),secs=[].slice.call(document.querySelectorAll('main section'));
+  secs.forEach(function(s){
+    var h=s.querySelector('h2,h1');var a=document.createElement('a');a.href='#'+s.id;a.textContent=h.textContent.replace(/^\d+/,'').trim();a.dataset.s=s.id;toc.appendChild(a);
+    [].slice.call(s.querySelectorAll('h3[id]')).forEach(function(h3){var b=document.createElement('a');b.href='#'+h3.id;b.className='l2';b.textContent=h3.textContent;toc.appendChild(b);});
+  });
+  var links=[].slice.call(toc.querySelectorAll('a[data-s]'));
+  function spy(){var cur=secs[0].id;secs.forEach(function(s){if(s.getBoundingClientRect().top<120)cur=s.id;});links.forEach(function(l){l.classList.toggle('act',l.dataset.s===cur);});}
+  window.addEventListener('scroll',spy,{passive:true});spy();
+  var root=document.documentElement,tb=document.getElementById('theme');
+  try{var t=localStorage.getItem('huamt-theme');if(t)root.setAttribute('data-theme',t);}catch(e){}
+  tb.onclick=function(){var dark=root.getAttribute('data-theme')?root.getAttribute('data-theme')==='dark':matchMedia('(prefers-color-scheme: dark)').matches;var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('huamt-theme',n);}catch(e){}};
+  var q=document.getElementById('q'),orig=secs.map(function(s){return s.innerHTML;});
+  q.addEventListener('input',function(){
+    var v=q.value.trim().toLowerCase();
+    secs.forEach(function(s,i){
+      s.innerHTML=orig[i];
+      if(!v){s.classList.remove('hide');return;}
+      var hit=s.textContent.toLowerCase().indexOf(v)>=0;s.classList.toggle('hide',!hit);
+      if(hit){var w=document.createTreeWalker(s,NodeFilter.SHOW_TEXT,null,false),n,list=[];while(n=w.nextNode())if(n.nodeValue.toLowerCase().indexOf(v)>=0)list.push(n);
+        list.forEach(function(n){var i2=n.nodeValue.toLowerCase().indexOf(v);var m=document.createElement('mark');var r=n.splitText(i2);r.splitText(v.length);m.textContent=r.nodeValue;r.parentNode.replaceChild(m,r);});}
+    });
+  });
+})();
+</script>
+</body>
+</html>

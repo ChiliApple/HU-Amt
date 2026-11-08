@@ -11,6 +11,9 @@
   - Danach startet HU-Amt neu, auf den anderen PCs gilt der neue Ordner beim nächsten Start.
 - **Kein stilles Ausweichen:** Ist der eingestellte Ordner nicht erreichbar, startet HU-Amt mit einer klaren Meldung nicht, statt still einen zweiten, leeren Datenbestand anzulegen.
 
+### ❓ Hilfe
+- **Wo liegen meine Daten?** Neue Hilfeseite mit Grafik: für jedes Modul, was mit hineingezogenen Dateien passiert, wo Ergebnisse landen, was gesichert wird und was ins Internet geht. Erreichbar über die Hilfe (F1) und die Anleitung.
+
 ### 🔐 Rechte
 - **Nur Verwalter:** Den Datenordner ändern nur Verwalter, im Testmodus gar nicht.
 - **Anleitung für die IT:** `RECHTE-IT.md` im Programmordner beschreibt Ordner, Gruppen und Rechte, mit fertigen Befehlen für den Server.
