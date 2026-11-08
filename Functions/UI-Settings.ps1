@@ -168,12 +168,23 @@ function Show-HUSettingsDialog {
     }
     & $fillAdm
     # Rechte der Verwalter-Liste (NTFS): Warnzeile mit Details im Tooltip; nicht lesbar = still "nicht pruefbar"
-    $aclInfo = $null
-    try { $aclInfo = Test-HUVerwalterAcl -DataRoot $script:DataRoot } catch { $aclInfo = $null }
-    if ($aclInfo) {
-        $c.txtAdminAcl.Text = $aclInfo.Text; $c.txtAdminAcl.ToolTip = $aclInfo.ToolTip
-        if ($aclInfo.Status -eq 'Warnung') { $c.txtAdminAcl.Foreground = Get-HUBrush '#FFB74D' }
-    } else { $c.txtAdminAcl.Visibility = 'Collapsed' }
+    # Im Hintergrund mit Zeitlimit: Rechte einer (langsamen) Freigabe zu lesen darf den Fenster-Thread nie blockieren
+    $c.txtAdminAcl.Text = 'Rechte der Verwalter-Liste werden geprüft …'
+    try {
+        Start-HUBackgroundJob -Owner 'Einstellungen' -LogPrefix 'Rechte' -TimeoutSec 20 -Context $c.txtAdminAcl `
+            -Arguments @($script:AppRoot, $script:DataRoot) -Script {
+                param($AppRoot, $DataRoot)
+                Import-Module (Join-Path $AppRoot 'Core\HU.Paths.psm1') -DisableNameChecking -ErrorAction Stop
+                Test-HUVerwalterAcl -DataRoot $DataRoot
+            } -Done {
+                param($Res, $Err, $Ctx)
+                try {
+                    if ($Err -or -not $Res) { $Ctx.Text = 'Rechte der Verwalter-Liste: nicht prüfbar.'; $Ctx.ToolTip = "$(if ($Err) { $Err } else { 'Keine Antwort.' })"; return }
+                    $Ctx.Text = $Res.Text; $Ctx.ToolTip = $Res.ToolTip
+                    if ($Res.Status -eq 'Warnung') { $Ctx.Foreground = Get-HUBrush '#FFB74D' }
+                } catch { }   # Fenster schon zu
+            }
+    } catch { $c.txtAdminAcl.Visibility = 'Collapsed' }
     $addName = { param($n) $n = "$n".Trim(); if (-not $n) { return }; if (@($st.Names | Where-Object { $_ -ieq $n }).Count) { return }; [void]$st.Names.Add($n); $st.Changed = $true; & $fillAdm }
     $c.btnAdminAdd.Add_Click({ & $addName $c.txtAdminName.Text; $c.txtAdminName.Text = '' })
     $c.btnAdminMe.Add_Click({ & $addName $script:UserName })
