@@ -135,7 +135,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <div class="topbar">
     <div class="brand">
       <div class="logo"><img src="../Assets/logo64.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Assets/logo64.png'" alt=""></div>
-      HU-Amt · Funktionsübersicht <span class="ver">v0.1.12</span>
+      HU-Amt · Funktionsübersicht <span class="ver">v1.0.0</span>
     </div>
     <nav aria-label="Seiten">
       <a href="Einstieg.html">Einstieg</a>
@@ -200,6 +200,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     <a href="#fristen" style="--c: var(--red)">Fristen</a>
     <a href="#roadmap" style="--c: var(--mauve)">Ideen &amp; Wünsche</a>
     <a href="#fenster" style="--c: var(--blue)">Hauptfenster</a>
+    <a href="#demo" style="--c: var(--teal)">Demo und Testmodus</a>
     <a href="#update" style="--c: var(--peach)">Update</a>
     <a href="#sicherung" style="--c: var(--green)">Sicherung</a>
     <a href="#module" style="--c: var(--mauve)">Module</a>
@@ -210,7 +211,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
   <div class="cats">
     <div class="col">
     <article class="cat" id="eg" style="--c: var(--yellow)">
-      <div class="cat-head"><span class="chip">🧾 Kostenzuordnung</span><h3>Kostenzuordnung</h3><span class="count">Modul 0.1.5</span></div>
+      <div class="cat-head"><span class="chip">🧾 Kostenzuordnung</span><h3>Kostenzuordnung</h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <div class="group"><h4>Rechnungen</h4>
           <ul>
@@ -243,7 +244,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="reisen" style="--c: var(--green)">
-      <div class="cat-head"><span class="chip">🚗 Reisen</span><h3>Reiseabrechnung <span class="new">neu</span></h3><span class="count">Modul 0.1.2</span></div>
+      <div class="cat-head"><span class="chip">🚗 Reisen</span><h3>Reiseabrechnung <span class="new">neu</span></h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <div class="group"><h4>Erfassen</h4>
           <ul>
@@ -266,7 +267,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="buchung" style="--c: var(--blue)">
-      <div class="cat-head"><span class="chip">🗓️ Buchungen</span><h3>Buchungen <span class="new">neu</span></h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-head"><span class="chip">🗓️ Buchungen</span><h3>Buchungen <span class="new">neu</span></h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <div class="group"><h4>Belegung</h4>
           <ul>
@@ -291,7 +292,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="gutscheine" style="--c: var(--yellow)">
-      <div class="cat-head"><span class="chip">🎟️ Gutscheine</span><h3>Gutscheine <span class="new">neu</span></h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-head"><span class="chip">🎟️ Gutscheine</span><h3>Gutscheine <span class="new">neu</span></h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <ul>
           <li>Ausgeben einzeln oder als Bereich, Verkauf oder unentgeltlich (Förderung, Geschenk)</li>
@@ -306,7 +307,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="roadmap" style="--c: var(--mauve)">
-      <div class="cat-head"><span class="chip">💡 Ideen &amp; Wünsche</span><h3>Ideen &amp; Wünsche</h3><span class="count">Modul 0.1.3</span></div>
+      <div class="cat-head"><span class="chip">💡 Ideen &amp; Wünsche</span><h3>Ideen &amp; Wünsche</h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <ul>
           <li>Liste mit Status: In Arbeit, Im Test, Geplant, Idee, Fertig, Zurückgestellt</li>
@@ -346,11 +347,25 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
         </ul>
       </div>
     </article>
+
+    <article class="cat" id="demo" style="--c: var(--teal)">
+      <div class="cat-head"><span class="chip">🧪 Ausprobieren</span><h3>Demo und Testmodus <span class="new">neu</span></h3><span class="count">6 Punkte</span></div>
+      <div class="cat-body">
+        <ul>
+          <li>Demo für alle: ⚙ Einstellungen › Allgemein › „Demo starten …“</li>
+          <li>Beispieldaten in allen Modulen, eigener Bestand je Benutzer</li>
+          <li>Bei jedem Demo-Start wieder wie neu, blaue Leiste „DEMO“</li>
+          <li>Outlook, Word und Mails gesperrt, echte Daten bleiben unberührt</li>
+          <li>Testmodus für Verwalter: orange Leiste, Testbestand bleibt bis „Test zurücksetzen“</li>
+          <li>Geführte Tests der Module mit Protokoll, nur im Testmodus</li>
+        </ul>
+      </div>
+    </article>
     </div>
 
     <div class="col">
     <article class="cat" id="ocr" style="--c: var(--blue)">
-      <div class="cat-head"><span class="chip">🔍 Texterkennung</span><h3>Texterkennung</h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-head"><span class="chip">🔍 Texterkennung</span><h3>Texterkennung</h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <div class="group"><h4>Ordner überwachen</h4>
           <ul>
@@ -371,7 +386,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="pdf" style="--c: var(--teal)">
-      <div class="cat-head"><span class="chip">📑 PDF-Werkzeuge</span><h3>PDF-Werkzeuge</h3><span class="count">Modul 0.1.2 · 8 Werkzeuge</span></div>
+      <div class="cat-head"><span class="chip">📑 PDF-Werkzeuge</span><h3>PDF-Werkzeuge</h3><span class="count">Modul 1.0.0 · 8 Werkzeuge</span></div>
       <div class="cat-body">
         <ul>
           <li>🔗 Zusammenfügen, auf Wunsch mit Lesezeichen je Datei</li>
@@ -387,7 +402,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="fristen" style="--c: var(--red)">
-      <div class="cat-head"><span class="chip">⏰ Fristen</span><h3>Fristen <span class="new">neu</span></h3><span class="count">Modul 0.1.1</span></div>
+      <div class="cat-head"><span class="chip">⏰ Fristen</span><h3>Fristen <span class="new">neu</span></h3><span class="count">Modul 1.0.0</span></div>
       <div class="cat-body">
         <ul>
           <li>Ampel rot, gelb, grün mit Vorlauf je Kategorie oder Frist</li>
@@ -443,10 +458,11 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="betrieb" style="--c: var(--teal)">
-      <div class="cat-head"><span class="chip">🏢 Betrieb</span><h3>Freigabe und Verwalter</h3><span class="count">6 Punkte</span></div>
+      <div class="cat-head"><span class="chip">🏢 Betrieb</span><h3>Freigabe und Verwalter</h3><span class="count">7 Punkte</span></div>
       <div class="cat-body">
         <ul>
           <li>Ein Ordner auf der Freigabe für alle Bediensteten</li>
+          <li>Datenordner frei wählbar, auch auf einer anderen Freigabe</li>
           <li>Gemeinsame Listen: immer nur eine Person bearbeitet, die anderen lesen</li>
           <li>Vor jedem Speichern eine Kopie mit Zeitstempel</li>
           <li>Verwalter-Liste: Protokoll, Sicherung und Module nur für Verwalter</li>
@@ -460,7 +476,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
 </section>
 
 <footer>
-  <span>Stand 07.11.2026 · Version 0.1.12</span>
+  <span>Stand 08.11.2026 · Version 1.0.0</span>
   <a href="Einstieg.html">Einstieg</a>
   <a href="Anleitung.html">Anleitung</a>
   <a href="https://github.com/ChiliApple/HU-Amt">Projekt auf GitHub</a>

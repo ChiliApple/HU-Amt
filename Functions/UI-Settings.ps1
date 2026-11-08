@@ -310,7 +310,8 @@ function Show-HUSettingsDialog {
     $c.btnAdminAdd.Add_Click({ & $addName $c.txtAdminName.Text; $c.txtAdminName.Text = '' })
     $c.btnAdminMe.Add_Click({ & $addName $script:UserName })
     # Testmodus (nur Verwalter sehen den Reiter): starten oder beenden, beides mit Neustart
-    if (Test-HUTestMode) { $c.btnTestMode.Content = 'Testmodus beenden ...'; $c.btnTestMode.ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten' }
+    if (Test-HUDemoMode) { $c.btnTestMode.IsEnabled = $false; $c.btnTestMode.ToolTip = 'In der Demo nicht möglich. Zuerst die Demo beenden (Leiste oben).' }
+    elseif (Test-HUTestMode) { $c.btnTestMode.Content = 'Testmodus beenden ...'; $c.btnTestMode.ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten' }
     $c.btnTestMode.Add_Click({ $w.Close(); Switch-HUTestMode })
     $c.btnAdminDel.Add_Click({
             $sel = "$($c.lstAdmins.SelectedItem)"

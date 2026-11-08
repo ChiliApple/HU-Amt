@@ -174,7 +174,7 @@ Show-HUTestAssistant -ModuleId 'Buchung' -ModuleVersion $ver -Scenarios @(
 
 - `Check` ist optional und gibt `$true`/`$false` oder `@{ Ok; Text }` zurück. Ein Fehler darin zählt als „Fehler“.
 - Automatische Ergebnisse und die Bestätigung des Menschen bleiben getrennt, auch im Protokoll (CSV und HTML unter `Data\_Test\Testprotokolle\`).
-- Den Knopf „Test starten“ zeigt das Modul nur, wenn `Test-HUTestMode` wahr ist. Testdaten und Preise im Test als Beispielwerte kennzeichnen.
+- Den Knopf „Test starten“ zeigt das Modul nur, wenn `Test-HUTestMode` wahr ist und `Test-HUDemoMode` nicht (siehe [Demo-Modus](#demo-modus)). Testdaten und Preise im Test als Beispielwerte kennzeichnen.
 
 ## Gemeinsame Bausteine des Kerns (ab 0.1.11)
 
@@ -247,13 +247,23 @@ Nur für Eingaben im Fenster. Für Dateien und Hintergrund-Aufträge weiter `Con
 
 ## Beispieldaten für den Testmodus
 
-Ein Modul kann einen Ordner `Testdaten\` mitbringen. Er ist aufgebaut wie der Datenordner des Moduls (`Data\<Id>\`). Startet ein Verwalter den Testmodus, kopiert der Kern den Inhalt in den Testbestand `Data\_Test\<Id>\`, bevor das Modul lädt (ab 0.1.14). Das geschieht nur, wenn dort für das Modul noch nichts liegt, also beim ersten Start im Testmodus und nach „Test zurücksetzen“. Echte Daten werden nie berührt.
+Ein Modul kann einen Ordner `Testdaten\` mitbringen. Er ist aufgebaut wie der Datenordner des Moduls (`Data\<Id>\`). Startet ein Verwalter den Testmodus, kopiert der Kern den Inhalt in den Testbestand `Data\_Test\<Id>\`, bevor das Modul lädt (ab 0.1.14). Das geschieht nur, wenn dort für das Modul noch nichts liegt, also beim ersten Start im Testmodus und nach „Test zurücksetzen“. Echte Daten werden nie berührt. In der Demo kommen dieselben Beispieldaten bei jedem Start neu (siehe [Demo-Modus](#demo-modus)).
 
 Regeln:
 - Nur künstliche Daten: ausgedachte Namen, Adressen, Nummern und Beträge, nichts aus einer echten Gemeinde.
 - Dasselbe Format, das das Modul selbst schreibt, mit Feld `schema`. Ein Test im Modul liest jede Datei aus `Testdaten\` mit den eigenen Lesefunktionen.
 - Klein halten: einige typische Fälle, dazu je ein Grenzfall (z. B. storniert, überfällig, ohne Kostenstelle).
 - Persönliche Einstellungen (`Benutzer\`) gehören nicht hinein.
+
+## Demo-Modus
+
+Ab Kern 1.0.0. Die Demo startet jeder Benutzer unter Einstellungen › Allgemein › „Demo starten …“; HU-Amt startet dafür neu, mit blauer Leiste statt der orangen.
+
+- **Eine Form des Testmodus:** In der Demo ist `Test-HUDemoMode` wahr und `Test-HUTestMode` ebenfalls. Was im Testmodus gesperrt ist (Outlook, Word, Mail), ist es auch in der Demo, ohne dass das Modul etwas tun muss.
+- **Daten:** Der Datenstamm ist `Data\_Demo\<Benutzer>\`, je Benutzer ein eigener Bestand. Bei jedem Demo-Start leert der Kern ihn und legt die Beispieldaten aus `Testdaten\` neu hinein, bevor das Modul lädt. `Get-HUAddonDataDir` bzw. `$script:DataRoot` zeigen automatisch dorthin.
+- **Beispieldaten auf heute beziehen:** Weil die Demo immer frisch ist, darf ein Modul seine Beispieldaten nach dem Laden an das heutige Datum anpassen, z. B. Termine und Fristen relativ zu heute verschieben. Nur im Demo-Bestand, nie in echten Daten.
+- **Werkzeuge nur für Tests ausblenden:** Was nur zum Prüfen da ist (z. B. „Test starten“ für den geführten Test), zeigt das Modul in der Demo nicht: `if ((Test-HUTestMode) -and -not (Test-HUDemoMode)) { ... }`. Den geführten Test selbst lehnt der Kern in der Demo ab.
+- Demo-Bestände kommen nie in die Sicherung und ziehen beim Wechsel des Datenordners nicht mit.
 
 ## Datenordner
 

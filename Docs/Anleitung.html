@@ -110,7 +110,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <div class="card r"><b>🔄 Update</b>Signierte Versionen per Knopf, für Programm und Module.</div>
   </div>
   <div class="flow"><span>Pull.ps1 starten</span><i>→</i><span>Du bist Verwalter</span><i>→</i><span>Zugangsdatei hineinziehen</span><i>→</i><span>Sicherung einschalten</span></div>
-  <p>Neu hier? <a href="Einstieg.html">Einstieg</a> zeigt typische Situationen aus dem Alltag, <a href="Funktionen.html">Funktionen</a> alles auf einer Seite.</p>
+  <p>Neu hier? <a href="Einstieg.html">Einstieg</a> zeigt typische Situationen aus dem Alltag, <a href="Funktionen.html">Funktionen</a> alles auf einer Seite. Gefahrlos ausprobieren: <a href="#demo">Demo</a>.</p>
 </section>
 
 <section id="einrichten">
@@ -174,8 +174,24 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><td>Reihenfolge</td><td>Reiter mit der Maus verschieben; die Reihenfolge bleibt beim nächsten Start. Rechtsklick auf einen Reiter: Reihenfolge zurücksetzen.</td></tr>
     <tr><td>Protokoll</td><td>Nur für Verwalter, neueste Einträge oben. Höhe am Griff ziehen.</td></tr>
   </table>
-  <p><span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b>: <i>Reiter beim Start</i> (z. B. zuletzt verwendeter), <i>Oberflächengröße</i>, <i>Startanimation</i>. Nur Verwalter: <i>PowerShell beim Start</i> (Automatisch, PowerShell 7 oder Windows PowerShell 5.1) und <i>Protokoll-Stufe</i> mit Log-Ordner.</p>
+  <p><span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b>: <i>Reiter beim Start</i> (z. B. zuletzt verwendeter), <i>Oberflächengröße</i>, <i>Startanimation</i> und <span class="ui b">Demo starten …</span> (<a href="#demo">Demo</a>). Nur Verwalter: <i>PowerShell beim Start</i> (Automatisch, PowerShell 7 oder Windows PowerShell 5.1) und <i>Protokoll-Stufe</i> mit Log-Ordner.</p>
   <div class="note tip"><b class="h">Bleibt gespeichert</b>Fensterposition und -größe, Höhe des Protokolls, Reihenfolge der Reiter, letzter Reiter und die Einstellungen der Module – je Windows-Benutzer in <code>Data\Benutzer\&lt;Name&gt;</code>. <kbd>Strg</kbd> + Mausrad skaliert die Oberfläche, <kbd>Strg</kbd>+<kbd>0</kbd> = 100 %.</div>
+  <h3 id="demo">Ausprobieren: Demo und Testmodus</h3>
+  <p><b>Demo (für alle):</b> <span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b> › <span class="ui b">Demo starten …</span>. HU-Amt startet neu, mit Beispieldaten in allen Modulen. Probier alles aus, nichts davon ist echt.</p>
+  <ul>
+    <li>Jeder Benutzer hat seinen eigenen Demo-Bestand. Bei jedem Demo-Start ist alles wieder wie neu.</li>
+    <li>Outlook, Word und Mails sind gesperrt, die automatische Sicherung ruht. Deine echten Daten bleiben unberührt.</li>
+    <li>Eine <b>blaue Leiste</b> zeigt die Demo, im Fenstertitel steht „DEMO“.</li>
+    <li><span class="ui">Demo beenden</span> in der Leiste oder in den Einstellungen startet neu mit den echten Daten. Auch ein normaler Start von HU-Amt führt zurück.</li>
+    <li>Geführte Tests gibt es in der Demo nicht.</li>
+  </ul>
+  <p><b>Testmodus (nur Verwalter):</b> <span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b> › <span class="ui">Testmodus starten</span>. Damit prüfen Verwalter neue Module und Versionen, bevor alle damit arbeiten.</p>
+  <ul>
+    <li>Ein gemeinsamer Testbestand (<code>Data\_Test</code>). Er bleibt, bis jemand <span class="ui">Test zurücksetzen</span> wählt. Danach liegen wieder die Beispieldaten der Module drin.</li>
+    <li>Eine <b>orange Leiste</b>, im Fenstertitel steht „TEST“. Outlook, Word und Mails sind gesperrt, die automatische Sicherung ruht.</li>
+    <li>Module können einen geführten Test anbieten: Schritt für Schritt mit Soll, Ist und Protokoll.</li>
+    <li><span class="ui">Testmodus beenden</span> oder ein normaler Start führt zurück zu den echten Daten. Im Testmodus lässt sich keine Demo starten.</li>
+  </ul>
 </section>
 
 <section id="dateien-ziehen">
@@ -353,7 +369,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <p>Mieter werden inaktiv gesetzt statt gelöscht. Ein Verwalter kann im Mieterfenster <span class="ui r">Anonymisieren …</span> wählen: Name, Adresse, Telefon, Mail und Notiz werden gelöscht, in allen Buchungen des Mieters und im Verlauf steht danach „Anonymisiert (Datum)“. Die Buchungen selbst bleiben. Vorher lässt sich eine Liste seiner Buchungen als PDF speichern.</p>
   <div class="note stop"><b class="h">Nicht zurücknehmbar</b>Anonymisieren lässt sich nicht rückgängig machen. Die Sicherungen enthalten die alten Mieterdaten, bis sie nach der eingestellten Aufbewahrung herausfallen.</div>
   <h3 id="buchung-test">Ausprobieren</h3>
-  <p>Im Testmodus (Verwalter, <span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b>) arbeitet der Reiter mit erfundenen Beispieldaten, Outlook-Termine werden nur simuliert. <span class="ui">🧪 Buchungstest starten</span> in der orangen Leiste führt Schritt für Schritt durch einen Test, „Test zurücksetzen“ stellt die Beispiele wieder her. Wo Buchungen, Mieter und Kalenderdateien liegen: <a href="Daten.html#m-buchung">Wo liegen meine Daten? › Buchungen</a>.</p>
+  <p>In der <a href="#demo">Demo</a> (für alle) und im Testmodus (Verwalter, <span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b>) arbeitet der Reiter mit erfundenen Beispieldaten, Outlook-Termine werden nur simuliert. Im Testmodus führt <span class="ui">🧪 Buchungstest starten</span> in der orangen Leiste Schritt für Schritt durch einen Test, „Test zurücksetzen“ stellt die Beispiele wieder her. Wo Buchungen, Mieter und Kalenderdateien liegen: <a href="Daten.html#m-buchung">Wo liegen meine Daten? › Buchungen</a>.</p>
 </section>
 
 <section id="gutscheine">
@@ -395,7 +411,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li>War etwas falsch: „Frühere Übernahme stornieren“ und noch einmal übernehmen.</li>
   </ul>
   <h3 id="gs-test">Ausprobieren</h3>
-  <p>Im Testmodus startet der Reiter mit erfundenen Gutscheinen und Betrieben, dazu eine Beispiel-Liste zum Übernehmen. Echte Daten bleiben unberührt. Wo Vorgänge, Quittungen und Auswertungen liegen: <a href="Daten.html#m-gs">Wo liegen meine Daten? › Gutscheine</a>.</p>
+  <p>In der <a href="#demo">Demo</a> und im Testmodus startet der Reiter mit erfundenen Gutscheinen und Betrieben, dazu eine Beispiel-Liste zum Übernehmen. Echte Daten bleiben unberührt. Wo Vorgänge, Quittungen und Auswertungen liegen: <a href="Daten.html#m-gs">Wo liegen meine Daten? › Gutscheine</a>.</p>
 </section>
 
 <section id="fristen">
@@ -428,7 +444,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   </ul>
   <h3 id="fristen-einst">Einstellungen (Verwalter)</h3>
   <p><b>Allgemein</b>: Standard-Vorlauf der Ampel, Größe eines Anhangs. <b>Kategorien</b>: Name, Zeichen, Vorlauf; ausblenden statt löschen. <b>Outlook</b>: Aufgabe oder Termin, Erinnerung, Betreff-Anfang. <b>Verantwortliche</b>: Windows-Benutzer und Name, <span class="ui">Aus HU-Amt übernehmen</span> fügt alle an, die HU-Amt schon benutzt haben.</p>
-  <p>Im Testmodus zeigt der Reiter Beispielfristen erfundener Bediensteter, Outlook ist dann gesperrt. Wo Fristen und Anhänge liegen: <a href="Daten.html#m-fristen">Wo liegen meine Daten? › Fristen</a>.</p>
+  <p>In der <a href="#demo">Demo</a> und im Testmodus zeigt der Reiter Beispielfristen erfundener Bediensteter, Outlook ist dann gesperrt. Wo Fristen und Anhänge liegen: <a href="Daten.html#m-fristen">Wo liegen meine Daten? › Fristen</a>.</p>
 </section>
 
 <section id="roadmap">
@@ -491,6 +507,8 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><td><code>Data\Verwalter.txt</code></td><td>Liste der Verwalter</td><td>alle (nur Verwalter ändern)</td></tr>
     <tr><td><code>Data\Laufend\</code></td><td>wer HU-Amt gerade auf welchem PC offen hat</td><td>alle</td></tr>
     <tr><td><code>Data\Wiederherstellung\</code></td><td>Stand vor einer Wiederherstellung (die letzten fünf)</td><td>Verwalter</td></tr>
+    <tr><td><code>Data\_Demo\&lt;Name&gt;\</code></td><td>eigener Demo-Bestand, bei jedem Demo-Start geleert und neu gefüllt; nicht in der Sicherung</td><td>nur du</td></tr>
+    <tr><td><code>Data\_Test\</code></td><td>Testbestand des Testmodus, bleibt bis „Test zurücksetzen“; nicht in der Sicherung</td><td>Verwalter</td></tr>
     <tr><td><code>Addons\</code> · <code>AddonsDev\</code></td><td>signierte Module · Module in Entwicklung</td><td>Programm</td></tr>
     <tr><td>Sicherungsordner</td><td><code>HU-Sicherung_&lt;PC&gt;_&lt;Datum&gt;.husicherung</code>, verschlüsselt</td><td>Verwalter</td></tr>
   </table>

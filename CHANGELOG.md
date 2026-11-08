@@ -1,5 +1,81 @@
 # Changelog
 
+## v1.0.0
+
+Stable-Release der Testversionen 0.0.1 bis 0.1.14 – „Ein Fenster für die Gemeindeverwaltung“.
+
+### 🪟 Oberfläche
+- **Ein Fenster für alle Werkzeuge:** Jedes Modul ist ein Reiter: Kostenzuordnung, Texterkennung, PDF-Werkzeuge, Reisen, Buchungen, Gutscheine, Fristen sowie Ideen & Wünsche.
+  - Dateien ins Fenster ziehen, der passende Reiter übernimmt sie.
+  - Dunkles Farbschema und Tooltips. Fenster, Reihenfolge der Reiter und verschobene Bereiche bleiben je Benutzer erhalten.
+  - Bedienstete sehen eine aufgeräumte Oberfläche. Protokoll und Verwaltung sehen nur Verwalter.
+- **Beenden ohne Hängen:** Beim Schließen meldet sich HU-Amt sofort ab. Bleibt danach doch ein Rest hängen, blockiert er weder den Neustart noch ein Update und endet nach 15 Sekunden von selbst.
+- **Hinweis zur Taskleiste repariert:** Die Anleitung zum Anheften beim ersten Start brach mitten im Text ab. Jetzt steht sie vollständig da.
+
+### 🧪 Demo und Testmodus
+- **Demo für alle:** Unter ⚙ Einstellungen › Allgemein › „Demo starten …“ probiert jeder alle Module mit Beispieldaten aus, ganz ohne Risiko.
+  - Jeder Benutzer hat seinen eigenen Demo-Bestand. Bei jedem Demo-Start ist alles wieder wie neu.
+  - Outlook, Word und Mails sind gesperrt, die automatische Sicherung ruht. Echte Daten bleiben unberührt.
+  - Eine blaue Leiste zeigt die Demo, im Fenstertitel steht „DEMO“.
+  - „Demo beenden“ in der Leiste oder ein normaler Start führt zurück zu den echten Daten.
+- **Testmodus für Verwalter:** Bleibt wie bisher unter Einstellungen › Verwalter, mit oranger Leiste.
+  - Der Testbestand bleibt bis „Test zurücksetzen“ erhalten, Module bringen dafür Beispieldaten mit.
+  - Geführte Tests mit Protokoll gibt es nur hier, nicht in der Demo.
+  - Während des Testmodus lässt sich keine Demo starten.
+
+### 💾 Daten auf der Freigabe
+- **Ein Datenordner für alle:** Alle Daten liegen gemeinsam in `Data` neben dem Programm oder in einem Ordner, den ein Verwalter wählt, auch auf einer anderen Freigabe.
+  - Gemeinsame Listen bearbeitet immer nur eine Person, vor jedem Speichern entsteht eine Kopie.
+  - Ist die Freigabe kurz weg, zeigen die Module den letzten Stand statt einer leeren Liste.
+  - Ist der eingestellte Ordner beim Start nicht erreichbar, startet HU-Amt mit einer klaren Meldung nicht.
+- **Zweiter Wechsel klappt:** Den Datenordner ein zweites Mal zu ändern brach bisher mit einem Fehler ab.
+- **Noch einmal prüfen vor dem Umstellen:** Öffnet während des Kopierens jemand anderer HU-Amt, stellt HU-Amt nicht um und nennt, wer es offen hat.
+  - Die Kopie im neuen Ordner bleibt liegen. Vor dem nächsten Versuch den Ordner leeren.
+- **Abgebrochene Kopie erkennbar:** Bricht das Kopieren in den neuen Ordner ab, merkt sich HU-Amt das im Ordner selbst.
+  - Wer diesen Ordner später wieder wählt, bekommt den Hinweis, ihn zuerst zu leeren.
+- **Warnung ohne Anmeldung:** Kann sich HU-Amt beim Start nicht als laufend eintragen, steht eine Warnung im Protokoll.
+  - Update und Datenordner-Wechsel sehen diesen PC dann nicht.
+
+### 💾 Sicherung
+- **Verschlüsselte Sicherung:** Daten aller Module und die Einstellungen jedes Benutzers, mit Kennwort, täglich, wöchentlich oder von Hand.
+  - Jede Sicherung wird zurückgelesen und geprüft. Wiederherstellen geht nach Bereichen, der alte Stand bleibt erhalten.
+  - Fehlt die Sicherung oder ist sie überfällig, wird die Diskette oben orange.
+- **Sicherung nicht im Datenordner:** Einen Sicherungsordner im Datenordner lehnt HU-Amt jetzt ab. Sonst steckte in jeder Sicherung die vorige mit drin.
+- **Demo bleibt draußen:** Demo-Bestände kommen nie in die Sicherung und ziehen beim Wechsel des Datenordners nicht mit.
+
+### 📦 Module
+- **Signiert und aktuell:** Module kommen signiert aus ihrem eigenen Repository. Eine Zugangsdatei trägt alle auf einmal ein, aktualisiert wird per Knopf wie das Programm.
+  - Module geben Dateien über ein Postfach aneinander weiter, auch zwischen PCs.
+  - Ein Wächter prüft jede Woche die externen Werkzeuge der Module auf neue Versionen und bekannte Lücken.
+- **Rückmeldung beim Laden:** Werden Module auf Knopfdruck oder nach einer Zugangsdatei geladen, zeigt HU-Amt gleich einen Hinweis.
+  - Das Laden mehrerer Module kann einige Minuten dauern. Am Ende kommt eine Meldung, ob alle Module aktuell sind.
+
+### 📨 Outlook und Word
+- **Für alle Module gleich:** Termine und Aufgaben in Outlook, Mails nur anzeigen, Word-Vorlagen als PDF oder Word-Datei.
+  - Gesendet wird immer von Hand. Makros in Vorlagen bleiben aus.
+  - Ohne klassisches Outlook gibt es eine Kalenderdatei (.ics) bzw. eine Mail über das Standard-Mailprogramm.
+
+### 🔐 Rechte
+- **Verwalter:** Wer installiert, ist Verwalter. Weitere trägt ein Verwalter unter Einstellungen › Verwalter ein.
+- **Rechte auf der Freigabe:** HU-Amt warnt, wenn zu viele die Verwalter-Liste oder die Einstellung des Datenordners ändern dürfen.
+  - `RECHTE-IT.md` im Programmordner beschreibt Ordner, Gruppen und Rechte, mit fertigen Befehlen für die IT.
+
+### 🔄 Update
+- **Signierte Updates per Knopf:** Ist eine neue Version da, wird „Update“ gold. Jede Datei wird vor dem Ersetzen geprüft, nie wird halb aktualisiert.
+  - Auf der Freigabe startet das Update erst, wenn alle anderen HU-Amt geschlossen haben.
+
+### ❓ Hilfe
+- **Hilfe zu allen Modulen:** Anleitung, Einstieg und Funktionen beschreiben jetzt auch Buchungen, Gutscheine und Fristen.
+- **Demo in der Hilfe:** Anleitung, Einstieg, Funktionen, die kurze Hilfe und „Wo liegen meine Daten?“ erklären Demo und Testmodus.
+
+### 🚧 Grenzen
+- **Taskleiste:** Windows erlaubt Programmen nicht, sich selbst anzuheften. Das macht jeder mit Rechtsklick auf das Symbol.
+- **Klassisches Outlook und Word:** Das neue Outlook hat keine Schnittstelle für Termine und Mails aus HU-Amt.
+- **Freigaberechte:** HU-Amt prüft nur die NTFS-Rechte. Die Rechte der Freigabe selbst sieht es nicht.
+
+### ✅ Qualität
+- 490 Tests, alle im strengen Modus wie die App.
+
 ## v0.1.14
 
 ### 💾 Daten auf der Freigabe
