@@ -29,10 +29,11 @@ function Test-HUTestMode { return ($env:HUAMT_TESTMODE -eq '1') }
 #>
 function Test-HUDemoMode { return ($env:HUAMT_DEMO -eq '1') }
 
-# Unter dem eingestellten Datenordner (Get-HUDataLocation, Standard <App>\Data); im Demo-Modus _Demo\<Benutzer>
+# Unter dem eingestellten Datenordner (Get-HUDataLocation, Standard <App>\Data); im Demo-Modus _Demo\<Benutzer>_<PC>
 function Get-HUTestDataRoot([string]$AppRoot = $script:AppRoot) {
     $base = (Get-HUDataLocation -AppRoot $AppRoot).Path
-    if (Test-HUDemoMode) { return (Join-Path (Join-Path $base '_Demo') (Get-HUSafeName $env:USERNAME)) }
+    # je Benutzer und PC: ein zweiter Demo-Start desselben Benutzers an einem anderen PC leert nicht den ersten (Pruefung 091, KERN-U1)
+    if (Test-HUDemoMode) { return (Join-Path (Join-Path $base '_Demo') (Get-HUSafeName "$($env:USERNAME)_$($env:COMPUTERNAME)")) }
     return (Join-Path $base '_Test')
 }
 
@@ -68,7 +69,7 @@ function Switch-HUDemoMode {
         return
     }
     $txt = "Demo starten?`n`n$($script:AppTitle) startet neu mit Beispieldaten in allen Modulen. Probier alles aus, es ist nichts davon echt.`n`n" +
-    "Outlook, Word und Mails sind in der Demo gesperrt. Beim nächsten Demo-Start ist alles wieder wie neu. Deine echten Daten bleiben unberührt."
+    "Outlook, Word und Mails sind in der Demo gesperrt. Beim nächsten Demo-Start ist alles wieder wie neu. Deine echten Daten bleiben unberührt.`n`nZum Ausprobieren am besten die Beispieldateien der Demo nehmen: Ziehst du eine eigene Datei hinein, entsteht das Ergebnis neben deiner Datei."
     if (Confirm-HU $txt 'Demo') { Restart-HUApp -EnterDemo }
 }
 

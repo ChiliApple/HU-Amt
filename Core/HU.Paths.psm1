@@ -174,12 +174,12 @@ function Initialize-HUDataPaths {
         [string]$UserName = $env:USERNAME,
         [string]$PcName = $env:COMPUTERNAME,
         [switch]$TestMode,  # Datenstamm Data\_Test\ (Testbestand); laufende Apps bleiben in Data\Laufend
-        [switch]$Demo       # Datenstamm Data\_Demo\<Benutzer>\ (Demo, je Benutzer, bei jedem Start frisch)
+        [switch]$Demo       # Datenstamm Data\_Demo\<Benutzer>_<PC>\ (Demo, je Benutzer und PC, bei jedem Start frisch)
     )
     $loc = Get-HUDataLocation -AppRoot $AppRoot
     $base = $loc.Path
     if ($loc.Configured -and -not (Test-Path -LiteralPath $base -PathType Container)) { throw "Der eingestellte Datenordner ist nicht erreichbar: $base" }
-    $data = $(if ($Demo) { Join-Path (Join-Path $base '_Demo') (Get-HUSafeName $UserName) } elseif ($TestMode) { Join-Path $base '_Test' } else { $base })
+    $data = $(if ($Demo) { Join-Path (Join-Path $base '_Demo') (Get-HUSafeName "$($UserName)_$($PcName)") } elseif ($TestMode) { Join-Path $base '_Test' } else { $base })
     $user = Join-Path (Join-Path $data 'Benutzer') (Get-HUSafeName $UserName)
     $run = Join-Path (Join-Path $AppRoot 'Data') 'Laufend'
     foreach ($d in $data, $user, $run) {

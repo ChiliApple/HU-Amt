@@ -119,7 +119,7 @@ Describe 'Demo-Modus (alle Benutzer, je Benutzer, immer frisch)' {
         [IO.File]::WriteAllText((Join-Path $script:App 'Data\Verwalter.txt'), "anna`r`n")
         [IO.File]::WriteAllText((Join-Path $script:App 'Data\echt.json'), '{}')
         $env:HUAMT_DEMO = '1'; $env:HUAMT_TESTMODE = '1'
-        $script:D = Join-Path $script:App ('Data\_Demo\' + (Get-HUSafeName $env:USERNAME))
+        $script:D = Join-Path $script:App ('Data\_Demo\' + (Get-HUSafeName "$($env:USERNAME)_$($env:COMPUTERNAME)"))
     }
     AfterEach {
         Remove-Item -LiteralPath Env:\HUAMT_DEMO, Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue
@@ -128,7 +128,7 @@ Describe 'Demo-Modus (alle Benutzer, je Benutzer, immer frisch)' {
     It 'Demo-Bestand liegt je Benutzer unter _Demo' {
         Test-HUDemoMode | Should -BeTrue
         Get-HUTestDataRoot -AppRoot $script:App | Should -Be $script:D
-        (Initialize-HUDataPaths -AppRoot $script:App -UserName $env:USERNAME -PcName 'pc' -Demo).DataRoot | Should -Be $script:D
+        (Initialize-HUDataPaths -AppRoot $script:App -UserName $env:USERNAME -PcName $env:COMPUTERNAME -Demo).DataRoot | Should -Be $script:D
     }
     It 'jeder Demo-Start ist frisch: alte Demo-Daten weg, Beispieldaten neu, echte Daten unberuehrt' {
         Initialize-HUDemoData -AppRoot $script:App

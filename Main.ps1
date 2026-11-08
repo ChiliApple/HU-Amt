@@ -490,25 +490,36 @@ $script:Window.Add_ContentRendered($script:OnContentRendered)
 
 $script:Window.Add_Closing({
     param($s, $e)
+    # Absicherung zuerst (Pruefung 091, KERN-B1): Endet der Prozess nicht innerhalb von 30 s (beobachtet 08.11.2026,
+    # Ursache unklar; auch ein haengender Schritt hier im Schliessen), beendet ihn ein eigener Thread hart und schreibt
+    # vorher den zuletzt erreichten Schritt ins Protokoll. Normales Beenden verzoegert er nicht.
+    $script:CloseState = [hashtable]::Synchronized(@{ Step = 'Start' })
+    if (-not $SmokeTest) {
+        try {
+            $__lf = ''; try { $__lf = "$(Get-CurrentLogFile)" } catch { }
+            $__xr = [runspacefactory]::CreateRunspace(); $__xr.ThreadOptions = 'UseNewThread'; $__xr.Open()
+            $__xp = [powershell]::Create(); $__xp.Runspace = $__xr
+            [void]$__xp.AddScript({
+                    param($St, $Log)
+                    Start-Sleep -Seconds 30
+                    if ($Log) { try { [IO.File]::AppendAllText($Log, "[$((Get-Date).ToString('yyyy-MM-dd'))] [$((Get-Date).ToString('HH:mm:ss'))] [WARN] Beenden hart abgeschlossen nach 30 s, letzter Schritt: $($St.Step)`r`n", (New-Object System.Text.UTF8Encoding $true)) } catch { } }
+                    [Environment]::Exit(0)
+                }).AddArgument($script:CloseState).AddArgument($__lf).BeginInvoke()
+        } catch { }
+    }
     # nach dem Wiederherstellen einer Sicherung nichts aus dem Speicher zurueckschreiben
-    if (-not $script:AbRestored) { Save-HUWindowState }
-    try { Close-HUToasts } catch { }
+    $script:CloseState.Step = 'Fensterzustand'; if (-not $script:AbRestored) { Save-HUWindowState }
+    $script:CloseState.Step = 'Hinweise'; try { Close-HUToasts } catch { }
     try { if ($script:AbTimer) { $script:AbTimer.Stop() } } catch { }
-    try { Stop-HUAddons } catch { }
-    try { Close-AsyncPool } catch { }
+    $script:CloseState.Step = 'Module beenden'; try { Stop-HUAddons } catch { }
+    $script:CloseState.Step = 'Hintergrund-Aufträge'; try { Close-AsyncPool } catch { }
+    $script:CloseState.Step = 'Sperren freigeben'
     Write-HULog -Message "=== $($script:AppTitle) beendet ===" -Level 'INFO'
     # Sperre und Einzelinstanz sofort freigeben (nicht erst nach ShowDialog): Bleibt der Prozess danach haengen,
     # blockiert er weder den Neustart ("bereits geoeffnet") noch das Update ("jemand hat die App offen").
     try { Close-HURunLock $script:RunLock; $script:RunLock = $null } catch { }
     if ($script:InstanceMutex) { try { $script:InstanceMutex.ReleaseMutex() } catch { }; try { $script:InstanceMutex.Dispose() } catch { }; $script:InstanceMutex = $null }
-    # Absicherung: Endet der Prozess nicht von selbst (beobachtet 08.11.2026, Ursache unklar), nach 15 s hart beenden
-    if (-not $SmokeTest) {
-        try {
-            $__xr = [runspacefactory]::CreateRunspace(); $__xr.ThreadOptions = 'UseNewThread'; $__xr.Open()
-            $__xp = [powershell]::Create(); $__xp.Runspace = $__xr
-            [void]$__xp.AddScript({ Start-Sleep -Seconds 15; [Environment]::Exit(0) }).BeginInvoke()
-        } catch { }
-    }
+    $script:CloseState.Step = 'Fenster schließen (alles freigegeben)'
 })
 
 # ============================================================================

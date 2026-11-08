@@ -168,6 +168,8 @@ function Complete-HUDataLocationChange($Res, $Err, $Ctx, [switch]$NoCopy) {
     # unmittelbar vor dem Umstellen noch einmal: hat inzwischen jemand anderer HU-Amt geoeffnet? (Pruefung 090, KERN-B3)
     $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock)
     if ($others.Count) {
+        # die Kopie ist nun veraltet: als unvollstaendig kennzeichnen, damit sie nicht spaeter ungefragt verwendet wird (Pruefung 091, KERN-B2)
+        if (-not $NoCopy) { try { [IO.File]::WriteAllText((Join-Path $Ctx.New '.hu-kopie-unvollstaendig'), "Umzug abgebrochen $((Get-Date).ToString('s')): jemand hatte $($script:AppTitle) offen. Diese Kopie ist veraltet.") } catch { } }
         Show-HUMessage ("Inzwischen hat jemand anderer $($script:AppTitle) geöffnet. Es wurde nichts umgestellt$(if (-not $NoCopy) { ', die Kopie im neuen Ordner bleibt liegen' }).`n`n" +
             (($others | ForEach-Object { "  $($_.UserName) am $($_.ComputerName)" }) -join "`n") + "`n`nBitte alle anderen Fenster schließen lassen und es noch einmal versuchen$(if (-not $NoCopy) { ' (den neuen Ordner vorher leeren)' }).") $t -Icon Warning -Owner $Ctx.Owner
         return

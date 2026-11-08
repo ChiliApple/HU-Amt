@@ -260,7 +260,7 @@ Regeln:
 Ab Kern 1.0.0. Die Demo startet jeder Benutzer unter Einstellungen › Allgemein › „Demo starten …“; HU-Amt startet dafür neu, mit blauer Leiste statt der orangen.
 
 - **Eine Form des Testmodus:** In der Demo ist `Test-HUDemoMode` wahr und `Test-HUTestMode` ebenfalls. Was im Testmodus gesperrt ist (Outlook, Word, Mail), ist es auch in der Demo, ohne dass das Modul etwas tun muss.
-- **Daten:** Der Datenstamm ist `Data\_Demo\<Benutzer>\`, je Benutzer ein eigener Bestand. Bei jedem Demo-Start leert der Kern ihn und legt die Beispieldaten aus `Testdaten\` neu hinein, bevor das Modul lädt. `Get-HUAddonDataDir` bzw. `$script:DataRoot` zeigen automatisch dorthin.
+- **Daten:** Der Datenstamm ist `Data\_Demo\<Benutzer>_<PC>\`, je Benutzer und PC ein eigener Bestand. Bei jedem Demo-Start leert der Kern ihn und legt die Beispieldaten aus `Testdaten\` neu hinein, bevor das Modul lädt. `Get-HUAddonDataDir` bzw. `$script:DataRoot` zeigen automatisch dorthin.
 - **Beispieldaten auf heute beziehen:** Weil die Demo immer frisch ist, darf ein Modul seine Beispieldaten nach dem Laden an das heutige Datum anpassen, z. B. Termine und Fristen relativ zu heute verschieben. Nur im Demo-Bestand, nie in echten Daten.
 - **Werkzeuge nur für Tests ausblenden:** Was nur zum Prüfen da ist (z. B. „Test starten“ für den geführten Test), zeigt das Modul in der Demo nicht: `if ((Test-HUTestMode) -and -not (Test-HUDemoMode)) { ... }`. Den geführten Test selbst lehnt der Kern in der Demo ab.
 - Demo-Bestände kommen nie in die Sicherung und ziehen beim Wechsel des Datenordners nicht mit.
