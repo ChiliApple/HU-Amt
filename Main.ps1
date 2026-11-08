@@ -16,7 +16,7 @@
 .NOTES
     Zielmaschine: der PC, auf dem HU-Amt laeuft (Windows 10/11, Windows PowerShell 5.1 oder PowerShell 7).
 #>
-param([switch]$ShowConsole, [string]$SmokeTest = '', [int]$WaitForPid = 0, [switch]$TestMode)
+param([switch]$ShowConsole, [string]$SmokeTest = '', [int]$WaitForPid = 0, [switch]$TestMode, [switch]$Demo)
 
 # Konsolenfenster ausblenden (nur die WPF-Oberflaeche ist sichtbar)
 if (-not $ShowConsole) {
@@ -126,7 +126,8 @@ $script:DataRoot = $script:Paths.DataRoot
 $script:UserRoot = $script:Paths.UserRoot
 $script:UserName = $script:Paths.UserName
 # angemeldet als laufend (Regel 2) - nicht im Starttest, damit die CI keine Sperren hinterlaesst
-if (-not $SmokeTest) { try { $script:RunLock = Open-HURunLock -RunDir $script:Paths.RunDir } catch { $script:RunLock = $null } }
+$script:RunLockError = ''
+if (-not $SmokeTest) { try { $script:RunLock = Open-HURunLock -RunDir $script:Paths.RunDir } catch { $script:RunLock = $null; $script:RunLockError = "$($_.Exception.Message)" } }
 
 # ============================================================================
 # STARTBILDSCHIRM - im eigenen Thread, erscheint sofort, waehrend Module und Oberflaeche laden
@@ -165,10 +166,26 @@ foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'U
 # 1b. TESTMODUS (nur Verwalter, nur diese Sitzung): Datenstamm Data\_Test\, Outlook/Word/Mail gesperrt
 # ============================================================================
 Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue   # nie vom Vorgaenger-Prozess erben
+Remove-Item -LiteralPath Env:\HUAMT_DEMO -ErrorAction SilentlyContinue
 # Achtung: $script:TestMode waere der Parameter selbst (Skript-Parameter sind Skriptvariablen), darum TestModeActive
-$script:TestModeRequested = [bool]$TestMode; $script:TestModeActive = $false; $script:TestResetDone = $false
+$script:TestModeRequested = [bool]($TestMode -or $Demo); $script:TestModeActive = $false; $script:TestResetDone = $false
+$script:DemoActive = $false
+# Demo (alle Benutzer): eigener Bestand je Benutzer unter _Demo, bei jedem Start geleert und mit Beispieldaten neu gefuellt
+if ($Demo) {
+    try {
+        $env:HUAMT_DEMO = '1'
+        Initialize-HUDemoData
+        $script:Paths = Initialize-HUDataPaths -AppRoot $script:AppRoot -Demo
+        Assert-HUWritable $script:Paths.UserRoot
+        $script:DataRoot = $script:Paths.DataRoot
+        $script:UserRoot = $script:Paths.UserRoot
+        $script:StateFilePath = Join-Path $script:UserRoot 'ui-state.json'
+        $env:HUAMT_TESTMODE = '1'
+        $script:TestModeActive = $true; $script:DemoActive = $true
+    } catch { Remove-Item -LiteralPath Env:\HUAMT_DEMO -ErrorAction SilentlyContinue; Show-HUFatal "Die Demo konnte nicht starten:`n$($_.Exception.Message)" }
+}
 # im Starttest (CI) ohne Verwalter-Pruefung, damit auch der Testmodus automatisch geprueft wird
-if ($TestMode) {
+if ($TestMode -and -not $script:DemoActive) {
     if ($SmokeTest -or (Test-HUVerwalter)) {
         try {
             $script:TestResetDone = Initialize-HUTestData
@@ -239,7 +256,20 @@ $minLevel = "$($script:Settings.logging.logLevel)".ToUpper()
 if ($minLevel -notin 'DEBUG', 'INFO', 'OK', 'WARN', 'ERROR') { $minLevel = 'INFO' }
 Initialize-Logging -LogFilePath $logFile -RichTextBox $c['rtbLog'] -MinLevel $minLevel -MaxGuiLines ([int]$script:Settings.ui.maxLogLines)
 Write-HULogInfo "$($script:AppTitle) v$($script:Version) startet (PowerShell $($PSVersionTable.PSVersion), Benutzer $($script:UserName)) ..."
-if ($script:TestModeActive) {
+# ohne Anmeldung in Data\Laufend sehen Update und Datenordner-Wechsel diesen PC nicht (Pruefung 090, KERN-U1)
+if ($script:RunLockError) { Write-HULogWarn "Anmeldung als laufende App fehlgeschlagen, Update und Datenordner-Wechsel sehen diesen PC nicht: $($script:RunLockError)" }
+if ($script:DemoActive) {
+    Write-HULogWarn "DEMO: Beispieldaten in $($script:DataRoot). Outlook, Word und Mails sind gesperrt, die automatische Sicherung ruht."
+    $c['bdrTestMode'].Visibility = 'Visible'
+    $c['bdrTestMode'].Background = Get-HUBrush '#1565C0'
+    $c['bdrTestMode'].ToolTip = 'Demo: eigene Beispieldaten nur für dich, echte Daten bleiben unberührt'
+    $c['txtTestMode'].Text = "$([char]::ConvertFromUtf32(0x1F3AC)) DEMO – Beispieldaten zum Ausprobieren, nichts davon ist echt. Kein Outlook, kein Word, keine Mails."
+    $c['txtTestMode'].ToolTip = 'Beim nächsten Demo-Start ist alles wieder wie neu. Die automatische Sicherung ruht.'
+    $c['btnTestReset'].Visibility = 'Collapsed'
+    $c['btnTestEnd'].Content = 'Demo beenden'
+    $c['btnTestEnd'].ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten'
+    $c['btnTestEnd'].Add_Click({ Switch-HUDemoMode })
+} elseif ($script:TestModeActive) {
     Write-HULogWarn "TESTMODUS: Daten in $($script:DataRoot). Outlook, Word und Mails sind gesperrt, die automatische Sicherung ruht."
     if ($script:TestResetDone) { Write-HULogOK 'Testbestand wurde zurückgesetzt.' }
     $c['bdrTestMode'].Visibility = 'Visible'
@@ -266,7 +296,7 @@ function Update-VersionDisplay {
     $t.Text = "v$($script:Version)  |  $txt"
     $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($col)
     $t.ToolTip = $(if ($cfg -and $cfg.UseBranch) { "Updates kommen direkt aus dem Repo (Branch $($cfg.Branch)), ohne freigegebene Version" } elseif ($txt -eq 'Kanal Test') { 'Updates: auch Testversionen.' } else { 'Updates: nur freigegebene Versionen.' })
-    $script:Window.Title = "$(if ($script:TestModeActive) { 'TEST - ' })$($script:AppTitle) v$($script:Version)"
+    $script:Window.Title = "$(if ($script:DemoActive) { 'DEMO - ' } elseif ($script:TestModeActive) { 'TEST - ' })$($script:AppTitle) v$($script:Version)"
 }
 
 # ============================================================================
@@ -297,7 +327,7 @@ foreach ($__a in @(Get-HUAddonStartList)) {
     try {
         # Testmodus: Beispieldaten des Moduls (Testdaten\) in den leeren Testbestand legen, bevor das Modul liest
         if ($script:TestModeActive) {
-            try { $__n = Initialize-HUAddonTestData $__a; if ($__n) { Write-HULogInfo "Testmodus: $__n Beispieldateien für $($__a.Title) angelegt" } }
+            try { $__n = Initialize-HUAddonTestData $__a; if ($__n) { Write-HULogInfo "$(if ($script:DemoActive) { 'Demo' } else { 'Testmodus' }): $__n Beispieldateien für $($__a.Title) angelegt" } }
             catch { Write-HULogWarn "Testmodus: Beispieldaten für $($__a.Id) nicht angelegt: $($_.Exception.Message)" }
         }
         . (Join-Path $__a.Dir $__a.Script)
@@ -353,11 +383,16 @@ $script:OnContentRendered = {
                 $script:SmokeSteps += 'Taskleiste'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 if ($script:TestModeRequested) {
                     if (-not $script:TestModeActive -or -not (Test-HUTestMode)) { throw 'Testmodus nicht aktiv' }
-                    if (-not $script:DataRoot.EndsWith('Data' + [IO.Path]::DirectorySeparatorChar + '_Test')) { throw "Testmodus: Datenstamm $($script:DataRoot)" }
+                    $sep = [IO.Path]::DirectorySeparatorChar
+                    if ($script:DemoActive) {
+                        if (-not (Test-HUDemoMode)) { throw 'Demo nicht aktiv' }
+                        if ($script:DataRoot -notlike "*Data$($sep)_Demo$($sep)*") { throw "Demo: Datenstamm $($script:DataRoot)" }
+                        if ("$($script:Controls['btnTestReset'].Visibility)" -ne 'Collapsed') { throw 'Demo: Zurücksetzen sichtbar' }
+                    } elseif (-not $script:DataRoot.EndsWith('Data' + $sep + '_Test')) { throw "Testmodus: Datenstamm $($script:DataRoot)" }
                     if ("$($script:Controls['bdrTestMode'].Visibility)" -ne 'Visible') { throw 'Testmodus: Leiste nicht sichtbar' }
                     if (-not (Test-HUOfficeTestMode)) { throw 'Testmodus: Office nicht gesperrt' }
                     if ((Show-HUMail -Subject 'x').Way -ne 'testmodus') { throw 'Testmodus: Mail nicht gesperrt' }
-                    $script:SmokeSteps += 'Testmodus'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
+                    $script:SmokeSteps += $(if ($script:DemoActive) { 'Demo' } else { 'Testmodus' }); $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 }
                 $tabs = @($script:Controls['tabMain'].Items).Count
                 if ($tabs -ne [Math]::Max(1, @($script:LoadedAddons).Count)) { throw "Reiter: $tabs, Module: $(@($script:LoadedAddons).Count)" }

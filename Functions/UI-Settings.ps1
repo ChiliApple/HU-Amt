@@ -117,6 +117,7 @@ function Invoke-HUDataLocationChange($Owner, $Info, $Button) {
         try { [void](New-Item -ItemType Directory -Path $new -Force -ErrorAction Stop); $state = 'Leer' } catch { Show-HUMessage "Ordner nicht angelegt:`n$($_.Exception.Message)" $t -Icon Error -Owner $Owner; return }
     }
     try { Assert-HUWritable $new } catch { Show-HUMessage "In diesem Ordner darf $($script:AppTitle) nicht schreiben:`n$new`n`n$($_.Exception.Message)" $t -Icon Warning -Owner $Owner; return }
+    if ($state -eq 'Unvollstaendig') { Show-HUMessage "In diesem Ordner liegt eine unvollständige Kopie von einem abgebrochenen Umzug:`n$new`n`nBitte den Ordner leeren und es noch einmal versuchen." $t -Icon Warning -Owner $Owner; return }
     if ($state -eq 'Fremd') { Show-HUMessage "Im Ordner liegen schon andere Dateien. Bitte einen leeren Ordner wählen oder einen, in dem schon Daten von $($script:AppTitle) liegen:`n`n$new" $t -Icon Warning -Owner $Owner; return }
     $ctx = @{ Owner = $Owner; Info = $Info; Button = $Button; Cur = $cur; New = $new; Def = $def }
     if ($state -eq 'HU') {
@@ -164,6 +165,13 @@ function Complete-HUDataLocationChange($Res, $Err, $Ctx, [switch]$NoCopy) {
             return
         }
     }
+    # unmittelbar vor dem Umstellen noch einmal: hat inzwischen jemand anderer HU-Amt geoeffnet? (Pruefung 090, KERN-B3)
+    $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock)
+    if ($others.Count) {
+        Show-HUMessage ("Inzwischen hat jemand anderer $($script:AppTitle) geöffnet. Es wurde nichts umgestellt$(if (-not $NoCopy) { ', die Kopie im neuen Ordner bleibt liegen' }).`n`n" +
+            (($others | ForEach-Object { "  $($_.UserName) am $($_.ComputerName)" }) -join "`n") + "`n`nBitte alle anderen Fenster schließen lassen und es noch einmal versuchen$(if (-not $NoCopy) { ' (den neuen Ordner vorher leeren)' }).") $t -Icon Warning -Owner $Ctx.Owner
+        return
+    }
     try { Set-HUDataLocation -AppRoot $script:AppRoot -Path $(if ($Ctx.New -ieq $Ctx.Def) { '' } else { $Ctx.New }) }
     catch { Show-HUMessage "Einstellung nicht gespeichert, es wurde nichts umgestellt:`n$($_.Exception.Message)" $t -Icon Error -Owner $Ctx.Owner; return }
     if (-not $NoCopy) {
@@ -207,6 +215,10 @@ function Show-HUSettingsDialog {
     $it = New-Object System.Windows.Controls.ComboBoxItem; $it.Content = 'Zuletzt verwendeter Reiter'; $it.Tag = 'Last'; [void]$c.cmbStartTab.Items.Add($it)
     & $selTag $c.cmbStartTab (Get-HUProp $S.ui 'startTab' 'Last')
     $c.chkSplashAnim.IsChecked = [bool](Get-HUProp $S.ui 'splashAnimation' $true)
+    # Demo (fuer alle): starten oder beenden, beides mit Neustart
+    if (Test-HUDemoMode) { $c.btnDemo.Content = 'Demo beenden ...'; $c.btnDemo.ToolTip = 'Neu starten und wieder mit den echten Daten arbeiten' }
+    elseif (Test-HUTestMode) { $c.btnDemo.IsEnabled = $false; $c.btnDemo.ToolTip = 'Im Testmodus nicht möglich. Zuerst den Testmodus beenden.' }
+    $c.btnDemo.Add_Click({ $w.Close(); Switch-HUDemoMode })
     foreach ($p in @(80, 90, 100, 110, 120, 130, 140, 150)) {
         $it = New-Object System.Windows.Controls.ComboBoxItem; $it.Content = "$p %"; $it.Tag = "$($p / 100)"; [void]$c.cmbScale.Items.Add($it)
     }

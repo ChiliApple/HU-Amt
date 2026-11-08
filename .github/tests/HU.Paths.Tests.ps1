@@ -92,6 +92,24 @@ Describe 'Datenordner einstellbar (Config\datenort.json)' {
         Set-HUDataLocation -AppRoot $script:App -Path (Join-Path $script:App 'Data')
         Test-Path -LiteralPath (Join-Path $script:App 'Config\datenort.json') | Should -BeFalse
     }
+    It 'eingestellten Ordner noch einmal wechseln (Pruefung 090, KERN-B1)' {
+        $zweiter = Join-Path $script:Ext 'Zweiter'; [void](New-Item -ItemType Directory -Path $zweiter)
+        Set-HUDataLocation -AppRoot $script:App -Path $script:Ext
+        Set-HUDataLocation -AppRoot $script:App -Path $zweiter
+        (Get-HUDataLocation -AppRoot $script:App).Path | Should -Be $zweiter
+        @(Get-ChildItem -LiteralPath (Join-Path $script:App 'Config') -Filter '*.tmp-*').Count | Should -Be 0
+    }
+    It 'abgebrochene Kopie ist erkennbar, fertige Kopie hat kein Kennzeichen (KERN-B4)' {
+        $src = Join-Path $script:App 'Data'; [void](New-Item -ItemType Directory -Path $src)
+        [IO.File]::WriteAllText((Join-Path $src 'Verwalter.txt'), 'anna')
+        $dst = Join-Path $script:Ext 'Fertig'
+        [void](Copy-HUDataTree -Source $src -Target $dst)
+        Get-HUDataFolderState $dst | Should -Be 'HU'
+        $halb = Join-Path $script:Ext 'Halb'; [void](New-Item -ItemType Directory -Path $halb)
+        [IO.File]::WriteAllText((Join-Path $halb '.hu-kopie-unvollstaendig'), 'x')
+        [IO.File]::WriteAllText((Join-Path $halb 'Verwalter.txt'), 'anna')
+        Get-HUDataFolderState $halb | Should -Be 'Unvollstaendig'
+    }
     It 'nur vollstaendige Pfade, keine Laufwerkswurzel' {
         { Resolve-HUDataLocationPath 'Daten' } | Should -Throw
         { Resolve-HUDataLocationPath '..\Daten' } | Should -Throw

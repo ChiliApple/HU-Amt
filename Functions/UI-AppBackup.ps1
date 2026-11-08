@@ -72,6 +72,12 @@ function Test-HUAbFolder([string]$Folder) {
         $f = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($Folder)).TrimEnd('\') + '\'
         $a = [IO.Path]::GetFullPath($script:AppRoot).TrimEnd('\') + '\'
         if ($f.StartsWith($a, [StringComparison]::OrdinalIgnoreCase)) { return 'Der Sicherungsordner liegt im Programmordner. Bitte einen Ordner außerhalb wählen, am besten auf einem anderen Laufwerk.' }
+        # auch nicht im Datenordner: sonst saehe die naechste Sicherung die vorige (Pruefung 090, KERN-B2)
+        $dbase = $(if ($script:Paths -and $script:Paths.PSObject.Properties['DataBase']) { $script:Paths.DataBase } else { $script:DataRoot })
+        if ($dbase) {
+            $d = [IO.Path]::GetFullPath($dbase).TrimEnd('\') + '\'
+            if ($f.StartsWith($d, [StringComparison]::OrdinalIgnoreCase)) { return 'Der Sicherungsordner liegt im Datenordner. Bitte einen Ordner außerhalb wählen, am besten auf einem anderen Laufwerk.' }
+        }
     } catch { return "Sicherungsordner ungültig: $($_.Exception.Message)" }
     return ''
 }

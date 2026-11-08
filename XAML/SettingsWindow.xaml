@@ -91,6 +91,14 @@
                             <CheckBox Grid.Row="3" Grid.Column="1" x:Name="chkSplashAnim" Content="Saugroboter r&#xE4;umt den Startbildschirm weg (Klick darauf &#xFC;berspringt)" Style="{StaticResource DarkCheckBox}" VerticalAlignment="Center" Margin="0,5"
                                       ToolTip="Aus: der Startbildschirm schlie&#xDF;t ohne Animation"/>
                         </Grid>
+                        <TextBlock Text="Demo" Style="{StaticResource SectionTitle}" Margin="0,16,0,4"/>
+                        <DockPanel>
+                            <Button x:Name="btnDemo" DockPanel.Dock="Right" Content="Demo starten ..." Background="#1565C0" Style="{StaticResource DarkButton}" Margin="8,0,0,0"
+                                    ToolTip="Neu starten mit Beispieldaten in allen Modulen, nur f&#xFC;r dich. Echte Daten, Outlook, Word und Mails bleiben unber&#xFC;hrt."/>
+                            <TextBlock x:Name="txtDemoInfo" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"
+                                       Text="Alles ausprobieren mit Beispieldaten. Nichts davon ist echt, bei jedem Demo-Start ist alles wieder wie neu."
+                                       ToolTip="Die Demo hat einen eigenen Bestand je Benutzer. Outlook, Word und Mails sind gesperrt."/>
+                        </DockPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

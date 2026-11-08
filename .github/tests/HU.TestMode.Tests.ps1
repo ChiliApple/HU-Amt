@@ -109,6 +109,44 @@ Describe 'Beispieldaten der Module (Testdaten)' {
     }
 }
 
+Describe 'Demo-Modus (alle Benutzer, je Benutzer, immer frisch)' {
+    BeforeEach {
+        $script:App = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtDemo-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        $script:Mod = Join-Path $script:App 'AddonsDev\Muster'
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:Mod 'Testdaten') -Force)
+        [IO.File]::WriteAllText((Join-Path $script:Mod 'Testdaten\einstellungen.json'), '{"schema":1}')
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Data') -Force)
+        [IO.File]::WriteAllText((Join-Path $script:App 'Data\Verwalter.txt'), "anna`r`n")
+        [IO.File]::WriteAllText((Join-Path $script:App 'Data\echt.json'), '{}')
+        $env:HUAMT_DEMO = '1'; $env:HUAMT_TESTMODE = '1'
+        $script:D = Join-Path $script:App ('Data\_Demo\' + (Get-HUSafeName $env:USERNAME))
+    }
+    AfterEach {
+        Remove-Item -LiteralPath Env:\HUAMT_DEMO, Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $script:App -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    It 'Demo-Bestand liegt je Benutzer unter _Demo' {
+        Test-HUDemoMode | Should -BeTrue
+        Get-HUTestDataRoot -AppRoot $script:App | Should -Be $script:D
+        (Initialize-HUDataPaths -AppRoot $script:App -UserName $env:USERNAME -PcName 'pc' -Demo).DataRoot | Should -Be $script:D
+    }
+    It 'jeder Demo-Start ist frisch: alte Demo-Daten weg, Beispieldaten neu, echte Daten unberuehrt' {
+        Initialize-HUDemoData -AppRoot $script:App
+        Initialize-HUAddonTestData ([pscustomobject]@{ Id = 'Muster'; Dir = $script:Mod }) -AppRoot $script:App | Should -Be 1
+        [IO.File]::WriteAllText((Join-Path $script:D 'Muster\ausprobiert.json'), '{}')
+        Initialize-HUDemoData -AppRoot $script:App
+        Test-Path (Join-Path $script:D 'Muster') | Should -BeFalse
+        Initialize-HUAddonTestData ([pscustomobject]@{ Id = 'Muster'; Dir = $script:Mod }) -AppRoot $script:App | Should -Be 1
+        Test-Path (Join-Path $script:D 'Muster\ausprobiert.json') | Should -BeFalse
+        [IO.File]::ReadAllText((Join-Path $script:D 'Verwalter.txt')) | Should -Match 'anna'
+        Test-Path (Join-Path $script:App 'Data\echt.json') | Should -BeTrue
+    }
+    It 'ohne Demo-Modus verweigert Initialize-HUDemoData' {
+        Remove-Item -LiteralPath Env:\HUAMT_DEMO
+        { Initialize-HUDemoData -AppRoot $script:App } | Should -Throw
+    }
+}
+
 Describe 'Testmodus erkennen' {
     AfterEach { Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue }
     It 'aus der Umgebungsvariable' {

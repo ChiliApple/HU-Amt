@@ -22,8 +22,55 @@ $script:HUTestResetMarker = '.zuruecksetzen'
 #>
 function Test-HUTestMode { return ($env:HUAMT_TESTMODE -eq '1') }
 
-# Unter dem eingestellten Datenordner (Get-HUDataLocation, Standard <App>\Data)
-function Get-HUTestDataRoot([string]$AppRoot = $script:AppRoot) { return (Join-Path (Get-HUDataLocation -AppRoot $AppRoot).Path '_Test') }
+<#
+.SYNOPSIS
+    $true im Demo-Modus (fuer alle Benutzer, Beispieldaten, bei jedem Start frisch). Demo ist eine Form des Testmodus:
+    Test-HUTestMode ist dann ebenfalls $true (Outlook, Word, Mail gesperrt). Pruefungen wie der gefuehrte Test gibt es nicht.
+#>
+function Test-HUDemoMode { return ($env:HUAMT_DEMO -eq '1') }
+
+# Unter dem eingestellten Datenordner (Get-HUDataLocation, Standard <App>\Data); im Demo-Modus _Demo\<Benutzer>
+function Get-HUTestDataRoot([string]$AppRoot = $script:AppRoot) {
+    $base = (Get-HUDataLocation -AppRoot $AppRoot).Path
+    if (Test-HUDemoMode) { return (Join-Path (Join-Path $base '_Demo') (Get-HUSafeName $env:USERNAME)) }
+    return (Join-Path $base '_Test')
+}
+
+<#
+.SYNOPSIS
+    Beim Start im Demo-Modus: eigenen Demo-Bestand des Benutzers leeren (nur unter _Demo\<Benutzer> mit Kennung),
+    Verwalter-Liste uebernehmen. Die Beispieldaten legt danach Initialize-HUAddonTestData je Modul hinein.
+#>
+function Initialize-HUDemoData([string]$AppRoot = $script:AppRoot) {
+    if (-not (Test-HUDemoMode)) { throw 'Demo-Modus ist nicht aktiv.' }
+    $root = Get-HUTestDataRoot $AppRoot
+    if (-not (Test-Path -LiteralPath $root)) { [void](New-Item -ItemType Directory -Path $root -Force) }
+    $mk = Join-Path $root $script:HUTestMarker
+    if (-not (Test-Path -LiteralPath $mk)) {
+        [IO.File]::WriteAllText($mk, "Demo-Bestand von HU-Amt. Wird bei jedem Demo-Start geleert. Angelegt $(Get-Date -Format 'yyyy-MM-dd HH:mm').`r`n")
+    }
+    foreach ($i in @(Get-ChildItem -LiteralPath $root -Force)) {
+        if ($i.Name -ceq $script:HUTestMarker) { continue }
+        if (-not (Test-HUTestDataPath $i.FullName $AppRoot)) { throw "Pfad liegt nicht im Demo-Bestand: $($i.FullName)" }
+        Remove-Item -LiteralPath $i.FullName -Recurse -Force
+    }
+    $real = Join-Path (Get-HUDataLocation -AppRoot $AppRoot).Path 'Verwalter.txt'
+    if (Test-Path -LiteralPath $real) { Copy-Item -LiteralPath $real -Destination (Join-Path $root 'Verwalter.txt') -Force }
+}
+
+<#
+.SYNOPSIS
+    Demo starten (alle Benutzer) oder beenden. Beides startet die App neu.
+#>
+function Switch-HUDemoMode {
+    if (Test-HUDemoMode) {
+        if (Confirm-HU "Demo beenden?`n`n$($script:AppTitle) startet neu und arbeitet wieder mit den echten Daten." 'Demo') { Restart-HUApp -LeaveDemo }
+        return
+    }
+    $txt = "Demo starten?`n`n$($script:AppTitle) startet neu mit Beispieldaten in allen Modulen. Probier alles aus, es ist nichts davon echt.`n`n" +
+    "Outlook, Word und Mails sind in der Demo gesperrt. Beim nächsten Demo-Start ist alles wieder wie neu. Deine echten Daten bleiben unberührt."
+    if (Confirm-HU $txt 'Demo') { Restart-HUApp -EnterDemo }
+}
 
 <#
 .SYNOPSIS

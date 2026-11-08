@@ -36,6 +36,8 @@ function Get-HUSafeName([string]$Name) {
 
 # Einstellung fuer den Datenordner (Config bleibt bei Updates erhalten, siehe Pull.ps1)
 $script:HUDataLocationFile = 'datenort.json'
+# Kennzeichen einer laufenden bzw. abgebrochenen Kopie im Zielordner
+$script:HUDataCopyMarker = '.hu-kopie-unvollstaendig'
 
 <#
 .SYNOPSIS
@@ -97,12 +99,14 @@ function Set-HUDataLocation {
     $json = [pscustomobject][ordered]@{ datenOrdner = $full; geaendert = (Get-Date).ToString('s') } | ConvertTo-Json
     $tmp = $f + '.tmp-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
     [IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding $true))
-    if (Test-Path -LiteralPath $f) { [IO.File]::Replace($tmp, $f, $null) } else { [IO.File]::Move($tmp, $f) }
+    # [NullString]::Value statt $null: PowerShell gaebe sonst '' weiter und Replace wuerfe (Pruefung 090, KERN-B1)
+    if (Test-Path -LiteralPath $f) { [IO.File]::Replace($tmp, $f, [NullString]::Value) } else { [IO.File]::Move($tmp, $f) }
 }
 
 <#
 .SYNOPSIS
-    Zustand eines moeglichen Datenordners: 'Fehlt' | 'Leer' | 'HU' (Daten der App: Verwalter.txt oder Benutzer) | 'Fremd'.
+    Zustand eines moeglichen Datenordners: 'Fehlt' | 'Leer' | 'Unvollstaendig' (abgebrochene Kopie) | 'HU' (Daten der App:
+    Verwalter.txt oder Benutzer) | 'Fremd'.
 #>
 function Get-HUDataFolderState {
     [CmdletBinding()]
@@ -110,6 +114,7 @@ function Get-HUDataFolderState {
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return 'Fehlt' }
     $items = @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop | Where-Object { $_.Name -notin 'desktop.ini', 'Thumbs.db' })
     if (-not $items.Count) { return 'Leer' }
+    if (@($items | Where-Object { $_.Name -eq $script:HUDataCopyMarker }).Count) { return 'Unvollstaendig' }
     if (@($items | Where-Object { $_.Name -in 'Verwalter.txt', 'Benutzer' }).Count) { return 'HU' }
     return 'Fremd'
 }
@@ -133,11 +138,14 @@ function Copy-HUDataTree {
     $state = Get-HUDataFolderState $dst
     if ($state -notin 'Leer', 'Fehlt') { throw "Der Zielordner ist nicht leer: $dst" }
     if ($state -eq 'Fehlt') { [void][IO.Directory]::CreateDirectory($dst) }
+    # Kennzeichen, solange kopiert wird: bleibt es liegen, ist die Kopie unvollstaendig (Pruefung 090, KERN-B4)
+    $mark = [IO.Path]::Combine($dst, $script:HUDataCopyMarker)
+    [IO.File]::WriteAllText($mark, "Kopie von $src begonnen $((Get-Date).ToString('s')). Liegt diese Datei noch hier, ist die Kopie unvollständig.")
     $files = 0; $bytes = [long]0
     $err = New-Object System.Collections.Generic.List[string]
     foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force -ErrorAction Stop)) {
         $rel = $i.FullName.Substring($src.Length + 1)
-        if ($rel -ieq 'Laufend' -or $rel.StartsWith('Laufend\', $oic)) { continue }
+        if ($rel -ieq 'Laufend' -or $rel.StartsWith('Laufend\', $oic) -or $rel -ieq '_Demo' -or $rel.StartsWith('_Demo\', $oic)) { continue }
         $to = [IO.Path]::Combine($dst, $rel)
         if ($i.PSIsContainer) { [void][IO.Directory]::CreateDirectory($to); continue }
         if ($i.Name -like '*.lock') { continue }
@@ -148,6 +156,7 @@ function Copy-HUDataTree {
             $files++; $bytes += $i.Length
         } catch { $err.Add("$($rel): $($_.Exception.Message)") }
     }
+    if (-not $err.Count) { Remove-Item -LiteralPath $mark -Force -ErrorAction SilentlyContinue }
     return [pscustomobject]@{ Files = $files; Bytes = $bytes; Errors = @($err.ToArray()) }
 }
 
@@ -164,12 +173,13 @@ function Initialize-HUDataPaths {
         [Parameter(Mandatory)][string]$AppRoot,
         [string]$UserName = $env:USERNAME,
         [string]$PcName = $env:COMPUTERNAME,
-        [switch]$TestMode   # Datenstamm Data\_Test\ (Testbestand); laufende Apps bleiben in Data\Laufend
+        [switch]$TestMode,  # Datenstamm Data\_Test\ (Testbestand); laufende Apps bleiben in Data\Laufend
+        [switch]$Demo       # Datenstamm Data\_Demo\<Benutzer>\ (Demo, je Benutzer, bei jedem Start frisch)
     )
     $loc = Get-HUDataLocation -AppRoot $AppRoot
     $base = $loc.Path
     if ($loc.Configured -and -not (Test-Path -LiteralPath $base -PathType Container)) { throw "Der eingestellte Datenordner ist nicht erreichbar: $base" }
-    $data = $(if ($TestMode) { Join-Path $base '_Test' } else { $base })
+    $data = $(if ($Demo) { Join-Path (Join-Path $base '_Demo') (Get-HUSafeName $UserName) } elseif ($TestMode) { Join-Path $base '_Test' } else { $base })
     $user = Join-Path (Join-Path $data 'Benutzer') (Get-HUSafeName $UserName)
     $run = Join-Path (Join-Path $AppRoot 'Data') 'Laufend'
     foreach ($d in $data, $user, $run) {
