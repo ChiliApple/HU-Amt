@@ -29,7 +29,7 @@
 - Die Einstellung liegt in `Config\datenort.json` und gilt für alle, die diese Installation starten. `Config` braucht deshalb dieselben Rechte wie das Programm: für die Benutzer nur Lesen.
 
 ### ✅ Qualität
-- 483 Tests, alle im strengen Modus wie die App.
+- 484 Tests, alle im strengen Modus wie die App.
 
 ## v0.1.13
 

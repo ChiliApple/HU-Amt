@@ -95,6 +95,10 @@ Describe 'Beispieldaten der Module (Testdaten)' {
         Initialize-HUAddonTestData $script:A -AppRoot $script:App | Should -Be 0
         Test-Path (Join-Path $script:App 'Data\_Test\Muster\einstellungen.json') | Should -BeFalse
     }
+    It 'leere Ordner aus einem frueheren Start zaehlen nicht als Daten' {
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Data\_Test\Muster\Ausgang') -Force)
+        Initialize-HUAddonTestData $script:A -AppRoot $script:App | Should -Be 2
+    }
     It 'ausserhalb des Testmodus passiert nichts' {
         Remove-Item -LiteralPath Env:\HUAMT_TESTMODE
         Initialize-HUAddonTestData $script:A -AppRoot $script:App | Should -Be 0

@@ -82,7 +82,8 @@ function Initialize-HUAddonTestData($Addon, [string]$AppRoot = $script:AppRoot) 
     if (-not (Test-Path -LiteralPath $src -PathType Container)) { return 0 }
     $dst = Join-Path (Get-HUTestDataRoot $AppRoot) $Addon.Id
     if (-not (Test-HUTestDataPath $dst $AppRoot)) { throw 'Der Testbestand ist nicht gekennzeichnet.' }
-    if ((Test-Path -LiteralPath $dst) -and @(Get-ChildItem -LiteralPath $dst -Force).Count) { return 0 }
+    # leer = keine Dateien (leere Ordner, die das Modul bei einem frueheren Start angelegt hat, zaehlen nicht)
+    if ((Test-Path -LiteralPath $dst) -and @(Get-ChildItem -LiteralPath $dst -Recurse -Force -File).Count) { return 0 }
     $n = 0
     foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force)) {
         if ($i.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
