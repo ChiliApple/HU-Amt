@@ -7,7 +7,7 @@ Diese Datei bekommt jede KI, die an einem Modul von HU-Amt mitarbeitet, als fest
 - Sprache Deutsch, Du-Form, kurz und ohne Füllsätze, kein Gendern. Englische Fachbegriffe sind ok.
 - Lesen und Analysieren selbstständig und vollständig. Änderungen schrittweise: ein Schritt, testen, dann der nächste.
 - Erst die Ursache beweisen (Code lesen, nachstellen), dann Code ändern. Jeden Fix testen, bevor er vorgestellt wird.
-- Nur die verlangte Änderung. Nichts Funktionierendes ungefragt umbauen. Vor allem, was Funktionen einschränkt: fragen.
+- Nur die verlangte Änderung. Nichts Funktionierendes nebenbei umbauen.
 - Unsicheres ausdrücklich als "unsicher" kennzeichnen. Behauptungen belegen (Datei:Zeile). Fehler direkt zugeben.
 - Bei jedem Befehl die Zielmaschine nennen. Immer komplette, lauffähige Änderungen liefern.
 
