@@ -22,7 +22,8 @@ $script:HUTestResetMarker = '.zuruecksetzen'
 #>
 function Test-HUTestMode { return ($env:HUAMT_TESTMODE -eq '1') }
 
-function Get-HUTestDataRoot([string]$AppRoot = $script:AppRoot) { return (Join-Path (Join-Path $AppRoot 'Data') '_Test') }
+# Unter dem eingestellten Datenordner (Get-HUDataLocation, Standard <App>\Data)
+function Get-HUTestDataRoot([string]$AppRoot = $script:AppRoot) { return (Join-Path (Get-HUDataLocation -AppRoot $AppRoot).Path '_Test') }
 
 <#
 .SYNOPSIS
@@ -61,10 +62,37 @@ function Initialize-HUTestData([string]$AppRoot = $script:AppRoot) {
     }
     # Verwalter bleiben im Test Verwalter (sonst fehlte der Reiter Verwalter und der Weg zurueck).
     # Bei jedem Start neu kopieren (KERN-B17): Aenderungen der echten Liste gelten auch im Testmodus.
-    $real = Join-Path (Join-Path $AppRoot 'Data') 'Verwalter.txt'
+    $real = Join-Path (Get-HUDataLocation -AppRoot $AppRoot).Path 'Verwalter.txt'
     $test = Join-Path $root 'Verwalter.txt'
     if (Test-Path -LiteralPath $real) { Copy-Item -LiteralPath $real -Destination $test -Force }
     return $reset
+}
+
+<#
+.SYNOPSIS
+    Beispieldaten eines Moduls in den Testbestand legen: <Modul>\Testdaten\ -> Data\_Test\<Id>\.
+.DESCRIPTION
+    Nur im Testmodus, nur unter dem gekennzeichneten Testbestand und nur, wenn dort fuer das Modul noch nichts liegt
+    (beim ersten Start im Testmodus und nach "Test zuruecksetzen"). Echte Daten werden nie beruehrt.
+    Verknuepfungen werden uebersprungen. Rueckgabe: Anzahl kopierter Dateien.
+#>
+function Initialize-HUAddonTestData($Addon, [string]$AppRoot = $script:AppRoot) {
+    if (-not (Test-HUTestMode) -or -not $Addon -or -not "$($Addon.Dir)" -or -not "$($Addon.Id)") { return 0 }
+    $src = [IO.Path]::GetFullPath((Join-Path $Addon.Dir 'Testdaten')).TrimEnd('\')
+    if (-not (Test-Path -LiteralPath $src -PathType Container)) { return 0 }
+    $dst = Join-Path (Get-HUTestDataRoot $AppRoot) $Addon.Id
+    if (-not (Test-HUTestDataPath $dst $AppRoot)) { throw 'Der Testbestand ist nicht gekennzeichnet.' }
+    # leer = keine Dateien (leere Ordner, die das Modul bei einem frueheren Start angelegt hat, zaehlen nicht)
+    if ((Test-Path -LiteralPath $dst) -and @(Get-ChildItem -LiteralPath $dst -Recurse -Force -File).Count) { return 0 }
+    $n = 0
+    foreach ($i in @(Get-ChildItem -LiteralPath $src -Recurse -Force)) {
+        if ($i.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+        $to = [IO.Path]::Combine($dst, $i.FullName.Substring($src.Length + 1))
+        if ($i.PSIsContainer) { [void][IO.Directory]::CreateDirectory($to); continue }
+        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($to))
+        [IO.File]::Copy($i.FullName, $to, $false); $n++
+    }
+    return $n
 }
 
 <#

@@ -18,6 +18,8 @@
     Test-App, aus der kopiert wird.
 .PARAMETER Erwartet
     Zusätzliche Muster (Regex), die im Ergebnis des Starttests stehen müssen, z. B. ein Schritt des Moduls.
+.PARAMETER TestMode
+    Starttest im Testmodus (Main.ps1 -TestMode): Beispieldaten aus Testdaten\ landen im Testbestand der Kopie.
 .PARAMETER MinAppAnpassen
     Nur Entwicklung: Ist die Test-App älter als minApp des Moduls, bekommt die Kopie die Version der Test-App als minApp.
 #>
@@ -29,6 +31,7 @@ param(
     [ValidateSet('beide', '5', '7')][string]$PowerShell = 'beide',
     [string[]]$Erwartet = @(),
     [switch]$MinAppAnpassen,
+    [switch]$TestMode,
     [ValidateRange(10, 3600)][int]$TimeoutSec = 180
 )
 $ErrorActionPreference = 'Stop'
@@ -92,7 +95,7 @@ try {
     foreach ($r in $runs) {
         $out = Join-Path $work ("smoke-{0}.txt" -f ($r.Name -replace '\W', ''))
         $sw = [Diagnostics.Stopwatch]::StartNew()
-        $p = Start-Process -FilePath $r.Exe -ArgumentList @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $work 'Main.ps1')`"", '-SmokeTest', "`"$out`"") -PassThru -WindowStyle Hidden
+        $p = Start-Process -FilePath $r.Exe -ArgumentList (@('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $work 'Main.ps1')`"", '-SmokeTest', "`"$out`"") + @(if ($TestMode) { '-TestMode' })) -PassThru -WindowStyle Hidden
         if (-not $p.WaitForExit($TimeoutSec * 1000)) { try { $p.Kill() } catch { }; Write-Host "$($r.Name): FEHLER Zeitüberschreitung"; $fail++; continue }
         $res = if (Test-Path -LiteralPath $out) { (Get-Content -LiteralPath $out -Raw -Encoding UTF8).Trim() } else { 'FEHLER keine Ergebnisdatei' }
         $ok = $res -like 'OK *' -and $res -match 'Module=1'

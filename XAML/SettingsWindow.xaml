@@ -206,6 +206,14 @@
                                        Text="Testmodus: zum Ausprobieren neuer Module ohne echte Daten. Gilt bis zum n&#xE4;chsten normalen Neustart."/>
                         </DockPanel>
                     </Border>
+                    <Border DockPanel.Dock="Bottom" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,8,0,0">
+                        <DockPanel>
+                            <Button x:Name="btnDataLocation" DockPanel.Dock="Right" Content="Datenordner &#xE4;ndern ..." Style="{StaticResource ToolButton}" Margin="8,0,0,0"
+                                    ToolTip="Daten aller Module auf eine andere Freigabe legen. Bestehende Daten werden kopiert und gepr&#xFC;ft, danach Neustart."/>
+                            <TextBlock x:Name="txtDataLocation" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"
+                                       ToolTip="Hier liegen die Daten aller Module, die Verwalter-Liste und die pers&#xF6;nlichen Einstellungen. Gilt f&#xFC;r alle, die diese Installation starten."/>
+                        </DockPanel>
+                    </Border>
                     <TextBlock x:Name="txtAdminInfo" DockPanel.Dock="Bottom" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
                     <TextBlock x:Name="txtAdminAcl" DockPanel.Dock="Bottom" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="#9E9E9E"
                                ToolTip="Wer Data\Verwalter.txt &#xE4;ndern darf (NTFS-Rechte). Freigaberechte sind hier nicht sichtbar."/>

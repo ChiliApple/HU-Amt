@@ -592,6 +592,21 @@ function Get-HUAppBackupPassword {
 }
 function Remove-HUAppBackupPassword([string]$DataRoot) { Remove-Item -LiteralPath (Get-HUAbPwFile $DataRoot) -Force -ErrorAction SilentlyContinue }
 
+function Get-HUAppBackupWarning {
+    <#
+        Warnung fuer Verwalter, wenn die Sicherung fehlt oder ueberfaellig ist. '' = alles in Ordnung.
+        Ueberfaellig: taeglich seit 2 Kalendertagen, woechentlich seit 9 Kalendertagen keine erfolgreiche Sicherung.
+    #>
+    param([string]$Mode, [string]$Path, [object]$Last, [datetime]$Now = (Get-Date))
+    if (-not "$Path".Trim()) { return 'Die Sicherung ist nicht eingerichtet: kein Sicherungsordner.' }
+    if ($Mode -notin 'taeglich', 'woechentlich') { return 'Die automatische Sicherung ist aus.' }
+    $l = $null; try { if ("$Last") { $l = [datetime]::Parse("$Last", [Globalization.CultureInfo]::InvariantCulture) } } catch { }
+    if (-not $l) { return 'Es gibt noch keine erfolgreiche Sicherung.' }
+    $days = ($Now.Date - $l.Date).Days
+    if ($days -ge $(if ($Mode -eq 'taeglich') { 2 } else { 9 })) { return "Die letzte erfolgreiche Sicherung ist $days Tage alt." }
+    return ''
+}
+
 function Test-HUAppBackupDue {
     <#
         Automatik faellig? $Mode 'aus'|'taeglich'|'woechentlich', $Last = Zeitpunkt der letzten erfolgreichen Sicherung.
@@ -610,4 +625,4 @@ function Test-HUAppBackupDue {
 Export-ModuleMember -Function Test-HUAbPassword, Protect-HUAppBackupStream, Read-HUAppBackupHeaderStream, Unprotect-HUAppBackupStream,
     Protect-HUAppBackupBytes, Read-HUAppBackupHeader, Unprotect-HUAppBackupBytes,
     Get-HUAppBackupArea, Test-HUAppBackupCodeName, Resolve-HUAppBackupTarget, Get-HUAppBackupSources, Get-HUAbModuleList, Get-HUAppBackupFileName, New-HUAppBackup, Get-HUAppBackupList,
-    Remove-HUAppBackupOld, Open-HUAppBackup, Restore-HUAppBackup, Save-HUAppBackupPassword, Get-HUAppBackupPassword, Remove-HUAppBackupPassword, Test-HUAppBackupDue
+    Remove-HUAppBackupOld, Open-HUAppBackup, Restore-HUAppBackup, Save-HUAppBackupPassword, Get-HUAppBackupPassword, Remove-HUAppBackupPassword, Test-HUAppBackupDue, Get-HUAppBackupWarning

@@ -45,12 +45,15 @@ Nur `Deploy-Dev.ps1`:
 | `-FormatAusschluss` | `^\.github\\dev\\Werkzeuge\\` | Regex auf den relativen Pfad: nicht umformatieren |
 | `-OhneFormat` | aus | Keine Textdatei umformatieren |
 
+Der Ordner `Testdaten\` (Beispieldaten für den Testmodus) ist von beiden Prüfungen ausgenommen und darf Datendateien, PDFs und Bilder enthalten. Damit Git Beispiel-PDFs nicht umwandelt, gehört `*.pdf binary` (und Bilder) in `.gitattributes` des Modul-Repos.
+
 Nur `Test-Start.ps1`:
 
 | Parameter | Standard | Bedeutung |
 |---|---|---|
 | `-PowerShell` | `beide` | `5`, `7` oder `beide` |
 | `-Erwartet` | leer | Zusätzliche Muster (Regex), die im Ergebnis stehen müssen, z. B. ein Schritt des Moduls |
+| `-TestMode` | aus | Starttest im Testmodus: Beispieldaten aus `Testdaten\` landen im Testbestand der Kopie |
 | `-TimeoutSec` | `180` | Zeitlimit je Lauf |
 
 ## Einstellungen je Modul: `modul-dev.json`

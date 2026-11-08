@@ -181,6 +181,10 @@ function Update-HUAbMainStatus {
         $t.Text = "$ic$pc"; $t.Foreground = [System.Windows.Media.Brushes]::LightSkyBlue; $t.ToolTip = "App-Sicherung $run"
     } elseif ($res -like 'FEHLER*' -or $res -like 'Automatik:*') {
         $t.Text = "$ic !"; $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF9800'); $t.ToolTip = "App-Sicherung: $res$(if ($lt) { "`nLetzte erfolgreiche: $lt$by" })`nKlick: Einstellungen > Sicherung"
+    } elseif (-not (Test-HUTestMode) -and ($warn = Get-HUAppBackupWarning -Mode "$($cfg.Mode)" -Path "$($cfg.Path)" -Last $last)) {
+        # fehlt oder ueberfaellig: orange, damit es auffaellt (niemand sonst sieht es)
+        $t.Text = "$ic !"; $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF9800')
+        $t.ToolTip = "App-Sicherung: $warn$(if ($lt) { "`nLetzte erfolgreiche: $lt$by" })`nKlick: Einstellungen > Sicherung"
     } else {
         $t.Text = "$ic"; $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#858585')
         $t.ToolTip = $(if ($lt) { "App-Sicherung: zuletzt $lt$by$(if ($res) { " ($res)" })`nAutomatisch: $mode`nKlick: Einstellungen > Sicherung" } else { "Noch keine App-Sicherung`nKlick: Einstellungen > Sicherung" })
@@ -356,6 +360,16 @@ function Start-HUAppBackupScheduler {
         try {
             Update-HUAbMainStatus
             $cfg = Get-HUAbConfig
+            # Verwalter einmal am Tag erinnern, wenn die Sicherung fehlt oder ueberfaellig ist
+            if (-not (Test-HUTestMode) -and (Test-HUVerwalter)) {
+                $warn = Get-HUAppBackupWarning -Mode "$($cfg.Mode)" -Path "$($cfg.Path)" -Last "$($cfg.Last)"
+                $today = (Get-Date).ToString('yyyy-MM-dd')
+                if ($warn -and "$(Get-HUStateValue 'appBackupWarn' '')" -ne $today) {
+                    Set-HUStateValue 'appBackupWarn' $today
+                    Write-HULogWarn "App-Sicherung: $warn"
+                    Show-HUToast -Title 'App-Sicherung prüfen' -Text "$warn`nKlick: Einstellungen > Sicherung" -Icon Warning -OnClick { Open-HUSettings -Tab 'Sicherung' }
+                }
+            }
             if (-not $cfg.Path -or -not (Test-HUAppBackupDue -Mode $cfg.Mode -Last "$($cfg.Last)")) { return }
             # nach einem Fehlschlag (z. B. Netzlaufwerk weg) hoechstens einmal pro Stunde neu versuchen
             $try = $null; try { $try = [datetime]::Parse("$(Get-HUStateValue 'appBackupTry' '')", [Globalization.CultureInfo]::InvariantCulture) } catch { }

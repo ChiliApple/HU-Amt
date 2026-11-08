@@ -116,6 +116,10 @@ try {
     $script:Paths = Initialize-HUDataPaths -AppRoot $script:AppRoot
     Assert-HUWritable $script:Paths.UserRoot
 } catch {
+    $__loc = $null; try { $__loc = Get-HUDataLocation -AppRoot $script:AppRoot } catch { }
+    if ($__loc -and $__loc.Configured) {
+        Show-HUFatal "Der Datenordner ist nicht erreichbar oder nicht beschreibbar:`n$($__loc.Path)`n`nNetzwerk bzw. VPN prüfen. Eingestellt ist er in Config\datenort.json (Einstellungen › Verwalter).`n`n$($_.Exception.Message)"
+    }
     Show-HUFatal "Der Datenordner ist nicht beschreibbar:`n$(Join-Path $script:AppRoot 'Data')`n`nBitte Schreibrechte auf den Ordner Data geben lassen.`n`n$($_.Exception.Message)"
 }
 $script:DataRoot = $script:Paths.DataRoot
@@ -291,6 +295,11 @@ try { Set-HUOutputTools $script:Window } catch { }
 Set-HUSplashStatus 'Module werden eingebaut ...'
 foreach ($__a in @(Get-HUAddonStartList)) {
     try {
+        # Testmodus: Beispieldaten des Moduls (Testdaten\) in den leeren Testbestand legen, bevor das Modul liest
+        if ($script:TestModeActive) {
+            try { $__n = Initialize-HUAddonTestData $__a; if ($__n) { Write-HULogInfo "Testmodus: $__n Beispieldateien für $($__a.Title) angelegt" } }
+            catch { Write-HULogWarn "Testmodus: Beispieldaten für $($__a.Id) nicht angelegt: $($_.Exception.Message)" }
+        }
         . (Join-Path $__a.Dir $__a.Script)
         Add-HUAddonTab $__a
         & $__a.Init
@@ -417,7 +426,7 @@ $script:OnContentRendered = {
             Start-HUBackgroundJob -Owner 'Start' -LogPrefix 'Rechte' -TimeoutSec 30 -Arguments @($script:AppRoot, $script:DataRoot) -Script {
                 param($AppRoot, $DataRoot)
                 Import-Module (Join-Path $AppRoot 'Core\HU.Paths.psm1') -DisableNameChecking -ErrorAction Stop
-                Test-HUVerwalterAcl -DataRoot $DataRoot
+                Test-HUVerwalterAcl -DataRoot $DataRoot -AppRoot $AppRoot
             } -Done { param($Res, $Err, $Ctx) if ($Res -and $Res.Status -eq 'Warnung') { Write-HULogWarn "Rechte: $($Res.Text) $(@($Res.Funde) -join '; ')" } }
         } catch { }
     }

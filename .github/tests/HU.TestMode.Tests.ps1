@@ -4,6 +4,7 @@
 BeforeAll {
     Set-StrictMode -Version 1.0   # wie Main.ps1: nicht gesetzte Variablen sind Fehler
     $script:Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+    Import-Module (Join-Path $script:Root 'Core\HU.Paths.psm1') -Force -DisableNameChecking   # Get-HUDataLocation
     . (Join-Path $script:Root 'Functions\Core-TestMode.ps1')
 }
 
@@ -34,6 +35,18 @@ Describe 'Testbestand' {
         Test-Path (Join-Path $script:T 'Verwalter.txt') | Should -BeTrue
         Test-Path (Join-Path $script:App 'Data\echt.json') | Should -BeTrue
     }
+    It 'eingestellter Datenordner: Testbestand und Verwalter-Liste kommen von dort' {
+        $ext = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtTmExt-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        try {
+            [void](New-Item -ItemType Directory -Path $ext)
+            [IO.File]::WriteAllText((Join-Path $ext 'Verwalter.txt'), "berta`r`n")
+            Set-HUDataLocation -AppRoot $script:App -Path $ext
+            Get-HUTestDataRoot -AppRoot $script:App | Should -Be (Join-Path $ext '_Test')
+            [void](Initialize-HUTestData -AppRoot $script:App)
+            [IO.File]::ReadAllText((Join-Path $ext '_Test\Verwalter.txt')) | Should -Match 'berta'
+            Test-Path (Join-Path $script:T '.hu-testbestand') | Should -BeFalse
+        } finally { Remove-Item -LiteralPath $ext -Recurse -Force -ErrorAction SilentlyContinue }
+    }
     It 'Pfad-Pruefung: nur unter Data\_Test und nur mit Kennungsdatei' {
         Test-HUTestDataPath (Join-Path $script:T 'x') -AppRoot $script:App | Should -BeFalse
         [void](Initialize-HUTestData -AppRoot $script:App)
@@ -51,6 +64,48 @@ Describe 'Testbestand' {
         Mock Test-HUTestDataPath { $false }
         { Initialize-HUTestData -AppRoot $script:App } | Should -Throw '*nicht gekennzeichnet*'
         Test-Path (Join-Path $script:T 'wichtig.txt') | Should -BeTrue
+    }
+}
+
+Describe 'Beispieldaten der Module (Testdaten)' {
+    BeforeEach {
+        $script:App = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtTd-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        $script:Mod = Join-Path $script:App 'AddonsDev\Muster'
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:Mod 'Testdaten\vorgaenge') -Force)
+        [IO.File]::WriteAllText((Join-Path $script:Mod 'Testdaten\einstellungen.json'), '{"schema":1}')
+        [IO.File]::WriteAllText((Join-Path $script:Mod 'Testdaten\vorgaenge\v1.json'), '{"id":"v1"}')
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Data') -Force)
+        [IO.File]::WriteAllText((Join-Path $script:App 'Data\Verwalter.txt'), "anna`r`n")
+        $script:A = [pscustomobject]@{ Id = 'Muster'; Dir = $script:Mod }
+        $env:HUAMT_TESTMODE = '1'
+        [void](Initialize-HUTestData -AppRoot $script:App)
+    }
+    AfterEach {
+        Remove-Item -LiteralPath Env:\HUAMT_TESTMODE -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $script:App -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    It 'legt die Beispieldaten in den leeren Testbestand des Moduls' {
+        Initialize-HUAddonTestData $script:A -AppRoot $script:App | Should -Be 2
+        Test-Path (Join-Path $script:App 'Data\_Test\Muster\vorgaenge\v1.json') | Should -BeTrue
+        Test-Path (Join-Path $script:App 'Data\Muster') | Should -BeFalse
+    }
+    It 'ueberschreibt nichts, wenn im Testbestand schon Daten liegen' {
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Data\_Test\Muster') -Force)
+        [IO.File]::WriteAllText((Join-Path $script:App 'Data\_Test\Muster\eigen.json'), '{}')
+        Initialize-HUAddonTestData $script:A -AppRoot $script:App | Should -Be 0
+        Test-Path (Join-Path $script:App 'Data\_Test\Muster\einstellungen.json') | Should -BeFalse
+    }
+    It 'leere Ordner aus einem frueheren Start zaehlen nicht als Daten' {
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Data\_Test\Muster\Ausgang') -Force)
+        Initialize-HUAddonTestData $script:A -AppRoot $script:App | Should -Be 2
+    }
+    It 'ausserhalb des Testmodus passiert nichts' {
+        Remove-Item -LiteralPath Env:\HUAMT_TESTMODE
+        Initialize-HUAddonTestData $script:A -AppRoot $script:App | Should -Be 0
+        Test-Path (Join-Path $script:App 'Data\_Test\Muster') | Should -BeFalse
+    }
+    It 'Modul ohne Testdaten: nichts' {
+        Initialize-HUAddonTestData ([pscustomobject]@{ Id = 'Leer'; Dir = (Join-Path $script:App 'gibt-es-nicht') }) -AppRoot $script:App | Should -Be 0
     }
 }
 

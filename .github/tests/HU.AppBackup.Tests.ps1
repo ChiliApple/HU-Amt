@@ -116,6 +116,16 @@ Describe 'Automatik' {
         Test-HUAppBackupDue -Mode 'aus' -Last '' -Now $now | Should -BeFalse
         Test-HUAppBackupDue -Mode 'taeglich' -Last '' -Now $now | Should -BeTrue
     }
+    It 'Warnung: nicht eingerichtet, aus, nie gelaufen, ueberfaellig' {
+        $now = [datetime]'2026-11-10T08:00:00'
+        Get-HUAppBackupWarning -Mode 'taeglich' -Path '' -Last '' -Now $now | Should -Match 'nicht eingerichtet'
+        Get-HUAppBackupWarning -Mode 'aus' -Path 'X:\S' -Last '' -Now $now | Should -Match 'aus'
+        Get-HUAppBackupWarning -Mode 'taeglich' -Path 'X:\S' -Last '' -Now $now | Should -Match 'noch keine'
+        Get-HUAppBackupWarning -Mode 'taeglich' -Path 'X:\S' -Last '2026-11-09T23:00:00' -Now $now | Should -Be ''
+        Get-HUAppBackupWarning -Mode 'taeglich' -Path 'X:\S' -Last '2026-11-08T08:00:00' -Now $now | Should -Match '2 Tage'
+        Get-HUAppBackupWarning -Mode 'woechentlich' -Path 'X:\S' -Last '2026-11-02T08:00:00' -Now $now | Should -Be ''
+        Get-HUAppBackupWarning -Mode 'woechentlich' -Path 'X:\S' -Last '2026-11-01T08:00:00' -Now $now | Should -Match '9 Tage'
+    }
 }
 
 Describe 'Support' {
