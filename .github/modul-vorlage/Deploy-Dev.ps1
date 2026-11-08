@@ -124,6 +124,8 @@ foreach ($it in $items) {
     if ($it.PSIsContainer) { $all += @(Get-ChildItem -LiteralPath $it.FullName -Recurse -Force) }
     foreach ($x in $all) {
         $rel = $x.FullName.Substring($Quelle.Length + 1)
+        # Testdaten\ (Beispieldaten fuer den Testmodus) darf Datendateien und PDFs enthalten
+        if ($rel -ieq 'Testdaten' -or $rel.StartsWith('Testdaten\', [StringComparison]::OrdinalIgnoreCase)) { continue }
         if ($VerboteneNamen -contains $x.Name) { $bad.Add($rel); continue }
         if (-not $x.PSIsContainer -and $verbEnd -contains $x.Extension.ToLowerInvariant() -and $ErlaubteNamen -notcontains $x.Name) { $bad.Add($rel) }
     }

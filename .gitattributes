@@ -1,0 +1,8 @@
+# Binaerdateien nie umwandeln (core.autocrlf wuerde sie sonst zerstoeren)
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.xlsx binary
+*.zip binary
