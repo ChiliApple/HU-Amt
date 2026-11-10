@@ -2,6 +2,8 @@
 
 ## v1.0.4
 
+Stable-Release der Testversionen 1.0.3 bis 1.0.4 – „Postfächer und Außenstellen“.
+
 ### 📧 Outlook
 - **Mail-Anhänge aus anderen Postfächern:** Module können Anhänge jetzt auch aus einem anderen Postfach lesen, z. B. einem gemeinsamen Postfach des Amts.
   - Geht mit einem zweiten Konto in Outlook oder mit einem freigegebenen Postfach, auf das man Leserecht hat.
