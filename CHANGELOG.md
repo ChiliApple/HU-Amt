@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## v1.0.4
+
+### 📧 Outlook
+- **Mail-Anhänge aus anderen Postfächern:** Module können Anhänge jetzt auch aus einem anderen Postfach lesen, z. B. einem gemeinsamen Postfach des Amts.
+  - Geht mit einem zweiten Konto in Outlook oder mit einem freigegebenen Postfach, auf das man Leserecht hat.
+  - Fehlt das Postfach oder das Recht, sagt HU-Amt das klar.
+
+### ✅ Qualität
+- 546 Tests.
+
 ## v1.0.3
 
 ### 🏢 Außenstelle

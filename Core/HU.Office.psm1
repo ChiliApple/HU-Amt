@@ -596,6 +596,36 @@ function New-HUMailtoUri {
 
 <#
 .SYNOPSIS
+    Posteingang eines anderen Postfachs nach Mailadresse oeffnen (COM-Objekt, der Aufrufer gibt es frei).
+    1. Konto im Outlook-Profil mit dieser Adresse: Posteingang seines Postfachs (Account.DeliveryStore).
+    2. sonst freigegebenes Postfach (Exchange, Leserecht noetig): Namespace.GetSharedDefaultFolder.
+    Wirft mit verstaendlicher Meldung, wenn die Adresse unbekannt ist oder das Recht fehlt.
+#>
+function Get-HUOutlookMailboxInbox {
+    param([Parameter(Mandatory)]$Session, [Parameter(Mandatory)][string]$Mailbox)
+    $addr = $Mailbox.Trim()
+    if ($addr -notmatch '^[^@\s;,]+@[^@\s;,]+$') { throw "'$addr' ist keine gültige Mailadresse." }
+    $acc = $null; $store = $null
+    try {
+        $acc = Find-HUOutlookAccount $Session $addr
+        if ($acc) {
+            try { $store = $acc.DeliveryStore } catch { $store = $null }
+            if ($store) { return $store.GetDefaultFolder(6) }   # olFolderInbox
+        }
+    } catch { throw "Posteingang von $addr nicht lesbar: $($_.Exception.Message)" }
+    finally { Remove-HUComObject @($store, $acc) }
+    $rcp = $null
+    try {
+        $rcp = $Session.Namespace.CreateRecipient($addr)
+        [void]$rcp.Resolve()
+        if (-not $rcp.Resolved) { throw "Das Postfach $addr ist in Outlook nicht bekannt." }
+        try { return $Session.Namespace.GetSharedDefaultFolder($rcp, 6) }
+        catch { throw "Auf den Posteingang von $addr gibt es kein Leserecht oder er ist nicht erreichbar. ($($_.Exception.Message))" }
+    } finally { Remove-HUComObject $rcp }
+}
+
+<#
+.SYNOPSIS
     Anhaenge aus Mails holen (nur lesen): Posteingang, neueste zuerst, hoechstens -Days alt. Die Mails bleiben unberuehrt
     (nicht verschoben, nicht als gelesen markiert). Passende Anhaenge werden nach -TargetDir gespeichert (eindeutige Namen).
     Rueckgabe: je Anhang EntryId, StoreId, Subject, Sender, SenderAddress, Received (DateTime), FileName, Path.
@@ -606,12 +636,15 @@ function New-HUMailtoUri {
     "Hoechstzahl an Mails erreicht" geschrieben werden (fuer die Anzeige im Modul).
 .PARAMETER Folder
     Wie bei Get-HUOutlookFolder eine gespeicherte Ordnerangabe mit EntryId; leer = Posteingang des Standardprofils.
+.PARAMETER Mailbox
+    Ab 1.0.4: Mailadresse eines anderen Postfachs (zweites Konto im Profil oder freigegebenes Postfach), gelesen wird
+    dessen Posteingang (Get-HUOutlookMailboxInbox). -Folder hat Vorrang. StoreId der Ergebnisse ist die des Postfachs.
 .NOTES
     Outlook fragt beim Zugriff auf Anhaenge nur ohne aktuellen Virenschutz nach (Object Model Guard).
 #>
 function Get-HUOutlookAttachments {
     param($Session = $null, $Folder = $null, [int]$Days = 30, [string[]]$Extensions = @('.pdf'), [Parameter(Mandatory)][string]$TargetDir, [int]$MaxMails = 500,
-        $Problems = $null)
+        $Problems = $null, [string]$Mailbox = '')
     if (-not (Test-Path -LiteralPath $TargetDir)) { [void](New-Item -ItemType Directory -Path $TargetDir -Force) }
     $rootDir = [IO.Path]::GetFullPath($TargetDir).TrimEnd('\') + '\'
     $bad = @([IO.Path]::GetInvalidFileNameChars())
@@ -626,7 +659,8 @@ function Get-HUOutlookAttachments {
                 if ($eid) {
                     $sid = $(if ($Folder.PSObject.Properties['StoreId']) { "$($Folder.StoreId)" } else { '' })
                     $fld = $(if ($sid) { $s.Namespace.GetFolderFromID($eid, $sid) } else { $s.Namespace.GetFolderFromID($eid) })
-                } else { $fld = $s.Namespace.GetDefaultFolder(6) }   # olFolderInbox
+                } elseif ("$Mailbox".Trim()) { $fld = Get-HUOutlookMailboxInbox -Session $s -Mailbox $Mailbox }
+                else { $fld = $s.Namespace.GetDefaultFolder(6) }   # olFolderInbox
                 $items = $fld.Items
                 $items.Sort('[ReceivedTime]', $true)
                 $n = 0
@@ -1023,5 +1057,5 @@ function Stop-HUOwnProcess([int]$ProcessId, [int]$GraceSeconds = 15) {
 Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode, Get-HUOutlookAccounts, Get-HUOutlookContacts,
     Open-HUOutlook, Close-HUOutlook, Invoke-HUOutlook, ConvertTo-HUOutlookFolderSpec, Get-HUOutlookFolder, Select-HUOutlookFolder,
     Find-HUOutlookItem, Get-HUOutlookItemKey, Set-HUOutlookAppointment, Set-HUOutlookTask, Complete-HUOutlookItem, Remove-HUOutlookItem,
-    New-HUMailtoUri, Show-HUMail, Get-HUOutlookAttachments, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
+    New-HUMailtoUri, Show-HUMail, Get-HUOutlookAttachments, Get-HUOutlookMailboxInbox, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
     ConvertTo-HUWordText, Invoke-HUWordTemplate

@@ -356,3 +356,48 @@ Describe 'Word-Vorlage ohne Makros (Pruefung 086, KERN-B3)' {
         $body.IndexOf('Assert-HUWordTemplateExtension') | Should -BeLessThan $body.IndexOf('Assert-HUOfficeLive')
     }
 }
+
+Describe 'Anderes Postfach (Get-HUOutlookMailboxInbox, ab 1.0.4)' {
+    BeforeEach {
+        # Profil mit einem zweiten Konto; freigegebenes Postfach nur ueber CreateRecipient
+        $store = [pscustomobject]@{}; $store | Add-Member ScriptMethod GetDefaultFolder { param($n) "konto-inbox-$n" }
+        $acc = [pscustomobject]@{ SmtpAddress = 'zweit@example.org'; DeliveryStore = $store }
+        $script:Shared = @{}
+        $ns = [pscustomobject]@{ Accounts = @($acc); Known = @('amt@example.org', 'ohnerecht@example.org') }
+        $ns | Add-Member ScriptMethod CreateRecipient {
+            param($a) $r = [pscustomobject]@{ Address = $a; Resolved = $false; Known = $this.Known }
+            $r | Add-Member ScriptMethod Resolve { $this.Resolved = ($this.Known -contains $this.Address); $this.Resolved }
+            $r
+        }
+        $ns | Add-Member ScriptMethod GetSharedDefaultFolder { param($r, $n) if ($r.Address -eq 'ohnerecht@example.org') { throw 'Zugriff verweigert' }; "geteilt-$($r.Address)-$n" }
+        $script:Sess = [pscustomobject]@{ Namespace = $ns }
+    }
+    It 'Konto im Profil: Posteingang seines Postfachs' {
+        Get-HUOutlookMailboxInbox -Session $script:Sess -Mailbox ' Zweit@Example.org ' | Should -Be 'konto-inbox-6'
+    }
+    It 'freigegebenes Postfach: GetSharedDefaultFolder mit Posteingang' {
+        Get-HUOutlookMailboxInbox -Session $script:Sess -Mailbox 'amt@example.org' | Should -Be 'geteilt-amt@example.org-6'
+    }
+    It 'unbekannte Adresse, fehlendes Recht und ungueltige Eingabe: verstaendliche Meldung' {
+        { Get-HUOutlookMailboxInbox -Session $script:Sess -Mailbox 'wer@example.org' } | Should -Throw '*nicht bekannt*'
+        { Get-HUOutlookMailboxInbox -Session $script:Sess -Mailbox 'ohnerecht@example.org' } | Should -Throw '*kein Leserecht*'
+        { Get-HUOutlookMailboxInbox -Session $script:Sess -Mailbox 'kein mail' } | Should -Throw '*keine gültige Mailadresse*'
+    }
+    It 'Get-HUOutlookAttachments liest mit -Mailbox den Posteingang dieses Postfachs' {
+        $mail = [pscustomobject]@{ Class = 43; ReceivedTime = (Get-Date); Attachments = [pscustomobject]@{ Count = 0 }; Subject = 'Beleg' }
+        $items = [pscustomobject]@{ List = @($mail); I = 0 }
+        $items | Add-Member ScriptMethod Sort { param($p, $d) }
+        $items | Add-Member ScriptMethod GetFirst { $this.I = 0; $this.List[0] }
+        $items | Add-Member ScriptMethod GetNext { $this.I++; if ($this.I -lt $this.List.Count) { $this.List[$this.I] } else { $null } }
+        $fld = [pscustomobject]@{ Items = $items; StoreID = 'S-AMT' }
+        $script:Sess.Namespace | Add-Member ScriptMethod GetDefaultFolder { param($n) throw 'eigener Posteingang darf nicht gelesen werden' } -Force
+        $script:Sess.Namespace | Add-Member ScriptMethod GetSharedDefaultFolder { param($r, $n) $script:SharedHit = "$($r.Address)"; $fld } -Force
+        $script:SharedHit = ''
+        $tmp = Join-Path ([IO.Path]::GetTempPath()) ("hu-mb-" + [guid]::NewGuid().ToString('N'))
+        try {
+            $r = @(Get-HUOutlookAttachments -Session $script:Sess -Mailbox 'amt@example.org' -TargetDir $tmp -Days 5)
+            $r.Count | Should -Be 0
+            $script:SharedHit | Should -Be 'amt@example.org'
+        } finally { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}

@@ -112,6 +112,7 @@ Module bauen keine eigenen COM-Aufrufe, sondern nutzen den Kern (`Core\HU.Office
 - `Show-HUMail -From -FromMode`: die Grundfunktion darunter. Rückgabe `Way` (`outlook`, `mailto`, `fehler`, `testmodus`), `Message` und `From`. Mit festem Absender weicht sie nie auf `mailto:` aus.
 - `Get-HUOutlookAccounts`: Mailkonten im Outlook-Profil (`Address`, `Name`, `Exchange`). Gemeinsame Postfächer ohne eigenes Konto stehen dort nicht.
 - `Get-HUOutlookAttachments -Days 30 -Extensions '.pdf' -TargetDir <Ordner> [-Folder <Angabe>]` (ab 1.0.2): Anhänge aus dem Posteingang speichern, neueste zuerst. Die Mails bleiben unverändert (nicht verschoben, nicht als gelesen markiert). Rückgabe je Anhang `EntryId`, `StoreId`, `Subject`, `Sender`, `SenderAddress`, `Received`, `FileName`, `Path`. Im Testmodus gesperrt.
+  - `-Mailbox <Adresse>` (ab 1.0.4): Posteingang eines anderen Postfachs statt des eigenen. Zuerst ein Konto im Outlook-Profil mit dieser Adresse, sonst ein freigegebenes Postfach (Exchange, Leserecht nötig). Unbekannte Adresse oder fehlendes Recht: Fehler mit verständlicher Meldung. Mehrere Postfächer: je Adresse einmal aufrufen.
 
 **Ohne Outlook**
 
