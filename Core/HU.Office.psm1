@@ -596,6 +596,69 @@ function New-HUMailtoUri {
 
 <#
 .SYNOPSIS
+    Anhaenge aus Mails holen (nur lesen): Posteingang, neueste zuerst, hoechstens -Days alt. Die Mails bleiben unberuehrt
+    (nicht verschoben, nicht als gelesen markiert). Passende Anhaenge werden nach -TargetDir gespeichert (eindeutige Namen).
+    Rueckgabe: je Anhang EntryId, StoreId, Subject, Sender, SenderAddress, Received (DateTime), FileName, Path.
+.PARAMETER Folder
+    Wie bei Get-HUOutlookFolder eine gespeicherte Ordnerangabe mit EntryId; leer = Posteingang des Standardprofils.
+.NOTES
+    Outlook fragt beim Zugriff auf Anhaenge nur ohne aktuellen Virenschutz nach (Object Model Guard).
+#>
+function Get-HUOutlookAttachments {
+    param($Session = $null, $Folder = $null, [int]$Days = 30, [string[]]$Extensions = @('.pdf'), [Parameter(Mandatory)][string]$TargetDir, [int]$MaxMails = 500)
+    if (-not (Test-Path -LiteralPath $TargetDir)) { [void](New-Item -ItemType Directory -Path $TargetDir -Force) }
+    $ext = @($Extensions | ForEach-Object { "$_".ToLowerInvariant() })
+    $limit = (Get-Date).AddDays(-[Math]::Max(1, $Days))
+    return (Use-HUOutlookSession $Session {
+            param($s)
+            $out = New-Object 'System.Collections.Generic.List[object]'
+            $fld = $null; $items = $null
+            try {
+                $eid = $(if ($Folder -and $Folder.PSObject.Properties['EntryId']) { "$($Folder.EntryId)" } else { '' })
+                if ($eid) {
+                    $sid = $(if ($Folder.PSObject.Properties['StoreId']) { "$($Folder.StoreId)" } else { '' })
+                    $fld = $(if ($sid) { $s.Namespace.GetFolderFromID($eid, $sid) } else { $s.Namespace.GetFolderFromID($eid) })
+                } else { $fld = $s.Namespace.GetDefaultFolder(6) }   # olFolderInbox
+                $items = $fld.Items
+                $items.Sort('[ReceivedTime]', $true)
+                $n = 0
+                $it = $items.GetFirst()
+                while ($null -ne $it -and $n -lt $MaxMails) {
+                    $n++
+                    $atts = $null
+                    try {
+                        if ([int]$it.Class -ne 43) { continue }   # olMail
+                        $rcv = [datetime]$it.ReceivedTime
+                        if ($rcv -lt $limit) { break }
+                        $atts = $it.Attachments
+                        for ($k = 1; $k -le [int]$atts.Count; $k++) {
+                            $a = $atts.Item($k)
+                            try {
+                                $fn = "$($a.FileName)"
+                                if (-not $fn -or $ext -notcontains [IO.Path]::GetExtension($fn).ToLowerInvariant()) { continue }
+                                $safe = ($fn -replace '[\/:*?"<>|]', '_')
+                                $base = [IO.Path]::GetFileNameWithoutExtension($safe); $e = [IO.Path]::GetExtension($safe)
+                                $dst = Join-Path $TargetDir $safe; $i = 2
+                                while (Test-Path -LiteralPath $dst) { $dst = Join-Path $TargetDir "$($base)_$i$e"; $i++ }
+                                $a.SaveAsFile($dst)
+                                $addr = ''; try { $addr = "$($it.SenderEmailAddress)" } catch { }
+                                $out.Add([pscustomobject]@{ EntryId = "$($it.EntryID)"; StoreId = "$($fld.StoreID)"; Subject = "$($it.Subject)"; Sender = "$($it.SenderName)"
+                                        SenderAddress = $addr; Received = $rcv; FileName = $fn; Path = $dst })
+                            } finally { Remove-HUComObject $a }
+                        }
+                    } finally {
+                        Remove-HUComObject $atts
+                        $prev = $it; $it = $items.GetNext(); Remove-HUComObject $prev
+                    }
+                }
+                if ($null -ne $it) { Remove-HUComObject $it }
+            } finally { Remove-HUComObject @($items, $fld) }
+            return $out.ToArray()
+        })
+}
+
+<#
+.SYNOPSIS
     Mail im Outlook anzeigen, nie senden. Ohne Outlook (oder -Mailweg mailto): mailto: ohne Anhang.
     Rueckgabe: Way (outlook | mailto | fehler | testmodus), Message (Grund fuer den Rueckfall oder Fehler), From (verwendeter Absender).
     -From: Absender. -FromMode auto (Konto, sonst im Auftrag) | konto (nur ein Konto im Profil) | imAuftrag (gemeinsames Postfach).
@@ -943,5 +1006,5 @@ function Stop-HUOwnProcess([int]$ProcessId, [int]$GraceSeconds = 15) {
 Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode, Get-HUOutlookAccounts, Get-HUOutlookContacts,
     Open-HUOutlook, Close-HUOutlook, Invoke-HUOutlook, ConvertTo-HUOutlookFolderSpec, Get-HUOutlookFolder, Select-HUOutlookFolder,
     Find-HUOutlookItem, Get-HUOutlookItemKey, Set-HUOutlookAppointment, Set-HUOutlookTask, Complete-HUOutlookItem, Remove-HUOutlookItem,
-    New-HUMailtoUri, Show-HUMail, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
+    New-HUMailtoUri, Show-HUMail, Get-HUOutlookAttachments, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
     ConvertTo-HUWordText, Invoke-HUWordTemplate

@@ -195,7 +195,7 @@ function New-HUShortcut {
         'StartMenuTrue'  { [Environment]::GetFolderPath('CommonPrograms') }
     }
     if (-not $folder) { throw 'Zielordner nicht gefunden' }
-    $lnk = Join-Path $folder "$($script:App.title).lnk"
+    $lnk = Join-Path $folder "$(Get-HUShortcutName).lnk"
     $sh = New-Object -ComObject WScript.Shell
     try {
         $s = $sh.CreateShortcut($lnk)
@@ -214,12 +214,31 @@ function New-HUShortcut {
     return $lnk
 }
 
-# Gibt es schon eine Verknuepfung (eigener Desktop / Startmenue)?
+# Name der Verknuepfung: "HU-Amt", in einer Aussenstelle "HU-Amt <Name>" (damit sie die der Zentrale nie ueberschreibt)
+function Get-HUShortcutName {
+    $n = "$($script:App.title)"
+    try { if ($script:Installation -and "$($script:Installation.Mode)" -eq 'Aussenstelle' -and "$($script:Installation.Name)") { $n = "$n $($script:Installation.Name)" } } catch { }
+    return (($n -replace '[\\/:*?"<>|]', ' ') -replace '\s+', ' ').Trim()
+}
+
+# Gibt es schon eine Verknuepfung auf DIESE Installation (eigener Desktop / Startmenue / alle Benutzer)?
+# Eine gleichnamige Verknuepfung auf eine andere Installation zaehlt nicht.
 function Test-HUShortcut {
-    foreach ($f in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('CommonDesktopDirectory'))) {
-        if ($f -and (Test-Path -LiteralPath (Join-Path $f "$($script:App.title).lnk"))) { return $true }
-    }
-    return $false
+    $root = [IO.Path]::GetFullPath($script:AppRoot).TrimEnd('\') + '\'
+    $sh = $null
+    try {
+        foreach ($f in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('CommonDesktopDirectory'))) {
+            if (-not $f) { continue }
+            $lnk = Join-Path $f "$(Get-HUShortcutName).lnk"
+            if (-not (Test-Path -LiteralPath $lnk)) { continue }
+            try {
+                if (-not $sh) { $sh = New-Object -ComObject WScript.Shell }
+                $t = "$($sh.CreateShortcut($lnk).TargetPath)"
+                if ($t -and ([IO.Path]::GetFullPath($t)).StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+            } catch { return $true }   # nicht lesbar: lieber nicht noch einmal anlegen
+        }
+        return $false
+    } finally { if ($sh) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($sh) } }
 }
 
 # Ist die App an die Taskleiste angeheftet? (Verknuepfung im Ordner der angehefteten Symbole zeigt auf den Starter)
