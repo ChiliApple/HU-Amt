@@ -2,9 +2,17 @@
 
 ## v1.0.3
 
+### 🏢 Außenstelle
+- **Neues Paket über ein altes:** Module, die im neuen Paket nicht mehr dabei sind, werden beim Einrichten entfernt.
+  - Ihre Daten bleiben erhalten.
+  - Der Zugang zu diesen Modulen wird beim ersten Start gelöscht, damit sie nicht über das Modul-Update wiederkommen.
+
 ### 📖 Hilfe
 - **Außenstellen in der Hilfe:** Einstieg, Funktionen und Kurze Hilfe erklären Paket, Einrichten und das Einlesen der Reisen aus der Außenstelle.
 - **Anleitung für die IT:** RECHTE-IT.md hat einen eigenen Abschnitt zu Außenstellen: Installation im Benutzerprofil, ohne Administratorrechte.
+
+### ✅ Qualität
+- 542 Tests.
 
 ## v1.0.2
 

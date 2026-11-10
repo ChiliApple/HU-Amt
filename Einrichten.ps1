@@ -49,7 +49,7 @@ try {
 
     # 3. kopieren (schon eingerichtet: Data\ bleibt)
     $update = Test-Path -LiteralPath (Join-Path $target 'Main.ps1')
-    if ($update -and (Show-EinMsg "HU-Amt $name ist auf diesem PC schon eingerichtet.`n`nProgramm und Module erneuern? Die eingetragenen Daten bleiben erhalten." 'Question' 'YesNo') -ne 'Yes') { return }
+    if ($update -and (Show-EinMsg "HU-Amt $name ist auf diesem PC schon eingerichtet.`n`nProgramm und Module erneuern? Module, die nicht im neuen Paket sind, werden entfernt. Die eingetragenen Daten bleiben erhalten." 'Question' 'YesNo') -ne 'Yes') { return }
     if (-not (Test-Path -LiteralPath $target)) { [void](New-Item -ItemType Directory -Path $target -Force) }
     $srcFull = [IO.Path]::GetFullPath($src).TrimEnd('\')
     foreach ($f in @(Get-ChildItem -LiteralPath $src -Recurse -File -Force)) {
@@ -61,6 +61,15 @@ try {
         Copy-Item -LiteralPath $f.FullName -Destination $dst -Force
     }
     if ($update) {
+        # Module, die das neue Paket nicht mehr enthaelt, entfernen (ihre Daten in Data\ bleiben).
+        # Den Zugang zu ihnen loescht HU-Amt beim ersten Start, sonst laedt das Modul-Update sie wieder.
+        $srcAdd = Join-Path $src 'Addons'; $tgtAdd = Join-Path $target 'Addons'
+        $keep = @(); if (Test-Path -LiteralPath $srcAdd) { $keep = @(Get-ChildItem -LiteralPath $srcAdd -Directory -Force | ForEach-Object { $_.Name }) }
+        if (Test-Path -LiteralPath $tgtAdd) {
+            foreach ($d in @(Get-ChildItem -LiteralPath $tgtAdd -Directory -Force | Where-Object { $keep -notcontains $_.Name })) {
+                Remove-Item -LiteralPath $d.FullName -Recurse -Force
+            }
+        }
         # Paket neu: noch einmal pruefen lassen und den neuen Zugang einlesen
         $pj = Join-Path $target 'Config\paket.json'
         try { $p = [IO.File]::ReadAllText($pj, [Text.Encoding]::UTF8) | ConvertFrom-Json; $p.geprueft = $false; [IO.File]::WriteAllText($pj, (ConvertTo-Json -InputObject $p -Depth 6), (New-Object Text.UTF8Encoding $true)) } catch { }

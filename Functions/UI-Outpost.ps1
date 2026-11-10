@@ -196,7 +196,16 @@ function Invoke-HUPackageFirstStart {
             "Technischer Grund: $($chk.Text)") 'Paket' -Icon Warning -Owner $script:Window
         return
     }
-    if ($chk.Status -eq 'OK') { Write-HULogOK $chk.Text }
+    if ($chk.Status -eq 'OK') {
+        Write-HULogOK $chk.Text
+        # neues Paket: Zugaenge zu Modulen, die nicht mehr dabei sind, entfernen
+        try {
+            foreach ($s in @(Get-HUPackageStaleSources -AppRoot $script:AppRoot -Sources @(Get-HUAddonSources))) {
+                Remove-HUAddonToken $s.Owner $s.Repo
+                Write-HULogInfo "Paket: Zugang $($s.Owner)/$($s.Repo) entfernt, das Modul ist nicht mehr im Paket"
+            }
+        } catch { Write-HULogWarn "Paket: Zugänge nicht bereinigt: $($_.Exception.Message)" }
+    }
     $kf = Get-HUPackageKeyFile $script:AppRoot
     if ($kf) { Import-HUAddonKeyFile $kf -Owner $script:Window -FromPackage }
 }
