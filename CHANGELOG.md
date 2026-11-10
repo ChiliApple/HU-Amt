@@ -1,5 +1,11 @@
 ﻿# Changelog
 
+## v1.0.3
+
+### 📖 Hilfe
+- **Außenstellen in der Hilfe:** Einstieg, Funktionen und Kurze Hilfe erklären Paket, Einrichten und das Einlesen der Reisen aus der Außenstelle.
+- **Anleitung für die IT:** RECHTE-IT.md hat einen eigenen Abschnitt zu Außenstellen: Installation im Benutzerprofil, ohne Administratorrechte.
+
 ## v1.0.2
 
 Stable-Release der Testversionen 1.0.1 bis 1.0.2 – „Außenstellen“.
