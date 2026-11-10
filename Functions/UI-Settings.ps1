@@ -302,6 +302,9 @@ function Show-HUSettingsDialog {
             [void]$modTable.Rows.Add($r)
         }
         $c.gridModules.ItemsSource = $modTable.DefaultView
+        # Kopf-Haekchen "Aktiv": alle ein- bzw. ausschalten
+        $c.chkModAll.IsChecked = (-not @($modTable.Rows | Where-Object { -not [bool]$_['Aktiv'] }).Count)
+        $c.chkModAll.Add_Click({ foreach ($r in @($modTable.Rows)) { $r['Aktiv'] = [bool]$c.chkModAll.IsChecked } })
     }
     $c.btnAddonRepos.Add_Click({ Show-HUAddonDialog })
     $c.btnAddonUpdate.Add_Click({ Start-HUAddonUpdate -Loud })
@@ -313,6 +316,12 @@ function Show-HUSettingsDialog {
     $updInst = { $c.txtInstName.IsEnabled = ("$($c.cmbInstMode.SelectedItem.Tag)" -eq 'Aussenstelle') }
     & $updInst
     $c.cmbInstMode.Add_SelectionChanged({ & $updInst })
+    # Testmodus und Demo: Art der Installation und Module nicht aendern (gilt sonst nach dem Ende fuer alle)
+    if (Test-HUTestMode) {
+        foreach ($n in 'cmbInstMode', 'txtInstName', 'chkModAll') { if ($c[$n]) { $c[$n].IsEnabled = $false } }
+        $c.gridModules.IsReadOnly = $true
+        $c.cmbInstMode.ToolTip = 'Im Testmodus und in der Demo nicht änderbar.'
+    }
     if (Test-HUTestMode) { $c.btnOutpostPackage.IsEnabled = $false; $c.btnOutpostPackage.ToolTip = 'Im Testmodus und in der Demo nicht möglich.' }
     elseif ("$($inst.Mode)" -eq 'Aussenstelle') { $c.btnOutpostPackage.IsEnabled = $false; $c.btnOutpostPackage.ToolTip = 'Pakete für Außenstellen erstellt nur die Zentrale.' }
     $c.btnOutpostPackage.Add_Click({ Show-HUOutpostDialog -Owner $w })
@@ -366,6 +375,8 @@ function Show-HUSettingsDialog {
             $instNew = $null
             if ($adm) {
                 # Art der Installation und aktive Module pruefen, bevor irgendetwas gespeichert wird
+                try { [void]$c.gridModules.CommitEdit([System.Windows.Controls.DataGridEditingUnit]::Row, $true) } catch { }
+                foreach ($rv in @($modTable.DefaultView)) { try { $rv.EndEdit() } catch { } }
                 # abgeschaltet: Haken in der Liste weg; Eintraege fuer Module, die gerade nicht in der Liste stehen, bleiben erhalten
                 $tblIds = @($modTable.Rows | ForEach-Object { "$($_['Id'])" })
                 $offNew = @(@($inst.ModulesOff | Where-Object { $tblIds -notcontains "$_" }) + @($modTable.Rows | Where-Object { -not [bool]$_['Aktiv'] } | ForEach-Object { "$($_['Id'])" }))
@@ -402,9 +413,9 @@ function Show-HUSettingsDialog {
                 # Kanal in der Kopfzeile sofort nachziehen
                 try { [void](Update-UpdateConfig); Update-VersionDisplay } catch { }
                 # Zentrale / Aussenstelle und aktive Module (Config\installation.json, wirkt nach dem Neustart)
-                $instChanged = ("$($instNew.Mode)" -ne "$($inst.Mode)") -or ("$($instNew.Name)" -ne "$($inst.Name)") -or ((@($instNew.ModulesOff) -join ',') -ne (@($inst.ModulesOff) -join ','))
+                $instChanged = (-not (Test-HUTestMode)) -and ("$($instNew.Mode)" -ne "$($inst.Mode)") -or ((-not (Test-HUTestMode)) -and (("$($instNew.Name)" -ne "$($inst.Name)") -or ((@($instNew.ModulesOff) -join ',') -ne (@($inst.ModulesOff) -join ','))))
                 if ($instChanged) {
-                    try { Save-HUInstallationConfig -ConfigDir $script:ConfigDir -Config $instNew; $st.Restart = $true; Write-HULogOK "Installation: $(if ($instNew.Mode -eq 'Aussenstelle') { "Außenstelle $($instNew.Name)" } else { 'Zentrale' }), abgeschaltet: $(if (@($instNew.ModulesOff).Count) { @($instNew.ModulesOff) -join ', ' } else { 'keine' })" }
+                    try { Save-HUInstallationConfig -ConfigDir $script:ConfigDir -Config $instNew; $script:Installation = Get-HUInstallationConfig $script:ConfigDir; $st.Restart = $true; Write-HULogOK "Installation: $(if ($instNew.Mode -eq 'Aussenstelle') { "Außenstelle $($instNew.Name)" } else { 'Zentrale' }), abgeschaltet: $(if (@($instNew.ModulesOff).Count) { @($instNew.ModulesOff) -join ', ' } else { 'keine' })" }
                     catch { Show-HUMessage "Art der Installation bzw. Module nicht gespeichert:`n$($_.Exception.Message)" -Icon Warning -Owner $w; return }
                 }
                 if ($st.Changed) {

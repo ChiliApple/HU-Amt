@@ -596,6 +596,86 @@ function New-HUMailtoUri {
 
 <#
 .SYNOPSIS
+    Anhaenge aus Mails holen (nur lesen): Posteingang, neueste zuerst, hoechstens -Days alt. Die Mails bleiben unberuehrt
+    (nicht verschoben, nicht als gelesen markiert). Passende Anhaenge werden nach -TargetDir gespeichert (eindeutige Namen).
+    Rueckgabe: je Anhang EntryId, StoreId, Subject, Sender, SenderAddress, Received (DateTime), FileName, Path.
+    Anhangsnamen kommen von aussen: nur der Dateiname zaehlt, unzulaessige Zeichen werden ersetzt, gespeichert wird nur
+    innerhalb von -TargetDir. Ein Fehler bei einem Anhang bricht die anderen nicht ab.
+.PARAMETER Problems
+    Optional eine Liste ([System.Collections.Generic.List[string]]), in die Fehler je Anhang und der Hinweis
+    "Hoechstzahl an Mails erreicht" geschrieben werden (fuer die Anzeige im Modul).
+.PARAMETER Folder
+    Wie bei Get-HUOutlookFolder eine gespeicherte Ordnerangabe mit EntryId; leer = Posteingang des Standardprofils.
+.NOTES
+    Outlook fragt beim Zugriff auf Anhaenge nur ohne aktuellen Virenschutz nach (Object Model Guard).
+#>
+function Get-HUOutlookAttachments {
+    param($Session = $null, $Folder = $null, [int]$Days = 30, [string[]]$Extensions = @('.pdf'), [Parameter(Mandatory)][string]$TargetDir, [int]$MaxMails = 500,
+        $Problems = $null)
+    if (-not (Test-Path -LiteralPath $TargetDir)) { [void](New-Item -ItemType Directory -Path $TargetDir -Force) }
+    $rootDir = [IO.Path]::GetFullPath($TargetDir).TrimEnd('\') + '\'
+    $bad = @([IO.Path]::GetInvalidFileNameChars())
+    $ext = @($Extensions | ForEach-Object { "$_".ToLowerInvariant() })
+    $limit = (Get-Date).AddDays(-[Math]::Max(1, $Days))
+    return (Use-HUOutlookSession $Session {
+            param($s)
+            $out = New-Object 'System.Collections.Generic.List[object]'
+            $fld = $null; $items = $null
+            try {
+                $eid = $(if ($Folder -and $Folder.PSObject.Properties['EntryId']) { "$($Folder.EntryId)" } else { '' })
+                if ($eid) {
+                    $sid = $(if ($Folder.PSObject.Properties['StoreId']) { "$($Folder.StoreId)" } else { '' })
+                    $fld = $(if ($sid) { $s.Namespace.GetFolderFromID($eid, $sid) } else { $s.Namespace.GetFolderFromID($eid) })
+                } else { $fld = $s.Namespace.GetDefaultFolder(6) }   # olFolderInbox
+                $items = $fld.Items
+                $items.Sort('[ReceivedTime]', $true)
+                $n = 0
+                $it = $items.GetFirst()
+                while ($null -ne $it) {
+                    if ($n -ge $MaxMails) { if ($null -ne $Problems) { [void]$Problems.Add("Es wurden nur die neuesten $MaxMails Mails durchsucht.") }; break }
+                    $n++
+                    $atts = $null
+                    try {
+                        if ([int]$it.Class -ne 43) { continue }   # olMail
+                        $rcv = [datetime]$it.ReceivedTime
+                        if ($rcv -lt $limit) { break }
+                        $atts = $it.Attachments
+                        for ($k = 1; $k -le [int]$atts.Count; $k++) {
+                            $a = $null; $fn = ''
+                            try {
+                                $a = $atts.Item($k)
+                                $fn = "$($a.FileName)"
+                                # nur der letzte Namensteil, unzulaessige Zeichen ersetzen, erst danach die Endung bestimmen
+                                $safe = (($fn -split '[\\/]')[-1]).Trim()
+                                foreach ($ch in $bad) { $safe = $safe.Replace([string]$ch, '_') }
+                                if ($safe.Length -gt 120) { $safe = $safe.Substring($safe.Length - 120) }
+                                $e = [IO.Path]::GetExtension($safe).ToLowerInvariant()
+                                if (-not $safe -or $ext -notcontains $e) { continue }
+                                $base = [IO.Path]::GetFileNameWithoutExtension($safe); if (-not $base.Trim('.', ' ')) { $base = 'Anhang' }
+                                $dst = Join-Path $TargetDir "$base$e"; $i = 2
+                                while (Test-Path -LiteralPath $dst) { $dst = Join-Path $TargetDir "$($base)_$i$e"; $i++ }
+                                if (-not ([IO.Path]::GetFullPath($dst)).StartsWith($rootDir, [StringComparison]::OrdinalIgnoreCase)) { throw 'unzulässiger Dateiname' }
+                                $a.SaveAsFile($dst)
+                                $addr = ''; try { $addr = "$($it.SenderEmailAddress)" } catch { }
+                                $out.Add([pscustomobject]@{ EntryId = "$($it.EntryID)"; StoreId = "$($fld.StoreID)"; Subject = "$($it.Subject)"; Sender = "$($it.SenderName)"
+                                        SenderAddress = $addr; Received = $rcv; FileName = $fn; Path = $dst })
+                            } catch {
+                                if ($null -ne $Problems) { [void]$Problems.Add("Anhang $(if ($fn) { "'$fn' " })in einer Mail vom $($rcv.ToString('dd.MM.yyyy HH:mm')) nicht lesbar: $($_.Exception.Message)") }
+                            } finally { Remove-HUComObject $a }
+                        }
+                    } finally {
+                        Remove-HUComObject $atts
+                        $prev = $it; $it = $items.GetNext(); Remove-HUComObject $prev
+                    }
+                }
+                if ($null -ne $it) { Remove-HUComObject $it }
+            } finally { Remove-HUComObject @($items, $fld) }
+            return $out.ToArray()
+        })
+}
+
+<#
+.SYNOPSIS
     Mail im Outlook anzeigen, nie senden. Ohne Outlook (oder -Mailweg mailto): mailto: ohne Anhang.
     Rueckgabe: Way (outlook | mailto | fehler | testmodus), Message (Grund fuer den Rueckfall oder Fehler), From (verwendeter Absender).
     -From: Absender. -FromMode auto (Konto, sonst im Auftrag) | konto (nur ein Konto im Profil) | imAuftrag (gemeinsames Postfach).
@@ -943,5 +1023,5 @@ function Stop-HUOwnProcess([int]$ProcessId, [int]$GraceSeconds = 15) {
 Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode, Get-HUOutlookAccounts, Get-HUOutlookContacts,
     Open-HUOutlook, Close-HUOutlook, Invoke-HUOutlook, ConvertTo-HUOutlookFolderSpec, Get-HUOutlookFolder, Select-HUOutlookFolder,
     Find-HUOutlookItem, Get-HUOutlookItemKey, Set-HUOutlookAppointment, Set-HUOutlookTask, Complete-HUOutlookItem, Remove-HUOutlookItem,
-    New-HUMailtoUri, Show-HUMail, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
+    New-HUMailtoUri, Show-HUMail, Get-HUOutlookAttachments, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
     ConvertTo-HUWordText, Invoke-HUWordTemplate

@@ -1,4 +1,49 @@
-# Changelog
+﻿# Changelog
+
+## v1.0.2
+
+Stable-Release der Testversionen 1.0.1 bis 1.0.2 – „Außenstellen“.
+
+### 🏢 Außenstelle
+- **Zentrale oder Außenstelle:** Unter ⚙ Einstellungen › Verwalter › "Installation" legt ein Verwalter fest, ob diese Installation die Zentrale oder eine Außenstelle ist, z. B. ein Kindergarten.
+  - Eine Außenstelle ist eine eigene Installation mit eigenen Daten. Ihr Name steht im Fenstertitel, in der Kopfzeile und am Desktop-Symbol.
+- **Paket für Außenstelle:** Unter ⚙ Einstellungen › Verwalter › "Paket für Außenstelle erstellen ..." entsteht in der Zentrale ein fertiges ZIP.
+  - Name der Außenstelle und die Verwalter dort eintragen.
+  - Module wählen: mitliefern, sofort aktiv oder vorerst aus, Einstellungen des Moduls mitgeben (z. B. bei Reisen den Schlüssel für die Routenberechnung).
+  - Auf Wunsch kommt der Zugang für Updates der mitgelieferten Module dazu.
+  - Ins Paket kommen nur das geprüfte Programm, die gewählten Module und ihre Einstellungen. Daten, Benutzer und Protokolle der Zentrale bleiben, wo sie sind.
+  - Passt eine Programmdatei nicht zur freigegebenen Version, entsteht kein Paket, und HU-Amt sagt, was zu tun ist.
+- **Einrichten mit einem Doppelklick:** In der Außenstelle das ZIP auspacken und "Einrichten" doppelklicken.
+  - HU-Amt richtet sich im eigenen Benutzerordner ein, ganz ohne Administratorrechte. Andere Benutzer des PCs können dort nichts verändern.
+  - Das Desktop-Symbol, z. B. "HU-Amt Kindergarten", kommt von selbst. Danach startet HU-Amt.
+  - Ein neues Paket über ein bestehendes einrichten erneuert Programm und Module, die eingetragenen Daten bleiben.
+- **Prüfung beim ersten Start:** HU-Amt prüft das Programm gegen die signierte Prüfsumme und liest danach den Zugang für Updates ein.
+  - Schlägt die Prüfung fehl, kommt bei jedem Start eine Warnung, bis ein neues Paket eingerichtet ist.
+  - Ohne Internet beim ersten Start versucht HU-Amt das Einlesen beim nächsten Start wieder.
+- **Desktop-Symbol je Installation:** Beim ersten Start fragt HU-Amt nach dem Desktop-Symbol, wenn noch keines auf diese Installation zeigt. Ein gleichnamiges Symbol einer anderen Installation zählt nicht mehr.
+
+### 📦 Module
+- **Module ein- und ausschalten:** Unter ⚙ Einstellungen › Module zeigt die Liste alle Module dieser Installation. Mit "Aktiv" legt ein Verwalter fest, welche als Reiter erscheinen.
+  - Ein Klick setzt den Haken, das Häkchen im Spaltenkopf setzt bzw. leert alle.
+  - Gilt für alle Benutzer dieser Installation und wirkt nach einem Neustart. Abgeschaltete Module bleiben installiert.
+  - Im Testmodus und in der Demo lässt sich das nicht ändern.
+
+### 🔳 QR-Codes
+- **QR-Codes für Module:** Module können Daten als QR-Code auf ihre Ausdrucke setzen und aus Scans wieder lesen, z. B. Reisen aus dem unterschriebenen Scan einer Abrechnung.
+  - Gelesen wird aus Bildern und aus gescannten PDFs, wie sie Kopierer und Scanner speichern.
+  - Kann ein Scan nicht gelesen werden, nennt HU-Amt den Grund, z. B. ein Format, das HU-Amt nicht lesen kann.
+  - Scans aus Mails werden mit Grenzen für Größe und Inhalt gelesen, damit eine präparierte Datei HU-Amt nicht aufhält.
+
+### 📨 Outlook und Word
+- **Anhänge aus Mails holen:** Module können Anhänge aus dem Posteingang lesen. Die Mails bleiben dabei unverändert, nichts wird verschoben oder als gelesen markiert.
+
+### 🚧 Grenzen
+- **Paket nur aus einer freigegebenen Version:** Ein Paket entsteht nur aus einer Installation, die über Update geladen wurde und deren Version noch auf GitHub liegt.
+- **Paket sicher weitergeben:** Das ZIP enthält den Zugang und die mitgegebenen Einstellungen im Klartext. Die Prüfung beim ersten Start erkennt beschädigte Pakete, aber keine absichtlichen Änderungen am ZIP. Nur auf sicherem Weg weitergeben und danach löschen.
+- **Je Windows-Benutzer:** Wer in der Außenstelle HU-Amt braucht, richtet es mit seinem Windows-Benutzer selbst ein und hat eigene Daten.
+
+### ✅ Qualität
+- 539 Tests.
 
 ## v1.0.1
 
@@ -35,7 +80,7 @@
 - **Zugang einmal:** Der beigelegte Zugang wird für den Windows-Benutzer eingelesen, der HU-Amt in der Außenstelle zuerst startet. Neue Modulstände gelten danach für alle Benutzer dort.
 
 ### ✅ Qualität
-- 517 Tests, alle im strengen Modus wie die App.
+- 517 Tests.
 
 ## v1.0.0
 

@@ -153,7 +153,7 @@ if (-not $SmokeTest) {
 # 1. CORE-MODULE, FUNKTIONEN
 # ============================================================================
 Set-HUSplashStatus 'Module werden geladen ...'
-foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU.Contacts', 'HU.Data', 'HU.Pdf', 'HU.Import', 'HU.Tools')) {
+foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU.Contacts', 'HU.Data', 'HU.Pdf', 'HU.Qr', 'HU.Import', 'HU.Tools')) {
     $modPath = Join-Path $script:AppRoot "Core\$mod.psm1"
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking

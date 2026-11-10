@@ -190,10 +190,19 @@
                         <Button x:Name="btnAddonUpdate" Content="Module jetzt aktualisieren" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Neueste signierte Fassung der privaten Module laden"/>
                         <Button x:Name="btnAddonDev" Content="Ordner AddonsDev &#xF6;ffnen" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Module in Entwicklung (ohne Signatur)"/>
                     </WrapPanel>
-                    <DataGrid x:Name="gridModules" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="False" HeadersVisibility="Column"
-                              CanUserAddRows="False" CanUserDeleteRows="False" ToolTip="Alle Module dieser Installation. H&#xE4;kchen bei &#x201E;Aktiv&#x201C; = Modul erscheint als Reiter.">
+                    <DataGrid x:Name="gridModules" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="False" HeadersVisibility="Column" SelectionMode="Single"
+                              CanUserAddRows="False" CanUserSortColumns="False" CanUserDeleteRows="False" ToolTip="Alle Module dieser Installation. H&#xE4;kchen bei &#x201E;Aktiv&#x201C; = Modul erscheint als Reiter.">
                         <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header="Aktiv" Binding="{Binding Aktiv, UpdateSourceTrigger=PropertyChanged}"/>
+                            <DataGridTemplateColumn>
+                                <DataGridTemplateColumn.Header>
+                                    <CheckBox x:Name="chkModAll" Content="Aktiv" Style="{StaticResource DarkCheckBox}" ToolTip="Alle Module ein- bzw. ausschalten"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding Aktiv, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource DarkCheckBox}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Reiter" Binding="{Binding Reiter}" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Kennung" Binding="{Binding Id}" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Version" Binding="{Binding Version}" IsReadOnly="True"/>
@@ -240,7 +249,7 @@
                                          ToolTip="Name der Au&#xDF;enstelle, z. B. Kindergarten. Steht im Fenstertitel."/>
                             </DockPanel>
                             <TextBlock x:Name="txtInstInfo" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
-                                       Text="Zentrale und Au&#xDF;enstelle arbeiten getrennt, jede mit eigenen Daten. Die Art der Installation wirkt nach dem Speichern und einem Neustart."/>
+                                       Text="Eine Au&#xDF;enstelle ist eine eigene Installation mit eigenen Daten, meist aus einem Paket eingerichtet. Diese Einstellung &#xE4;ndert nur Name, Fenstertitel und Desktop-Symbol, nicht die Daten. Wirkt nach dem Speichern und einem Neustart."/>
                         </StackPanel>
                     </Border>
                     <Border DockPanel.Dock="Bottom" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,8,0,0">

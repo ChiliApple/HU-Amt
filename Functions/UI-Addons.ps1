@@ -392,7 +392,7 @@ function Import-HUAddonKeyFile([string]$Path, $Owner = $null, [switch]$FromPacka
         $out = @()
         foreach ($s in @($sources)) { $out += "$($s.Owner)/$($s.Repo)|$(Test-HUAddonTokenAccess $s.Owner $s.Repo $s.Token)" }
         return ($out -join "`n")
-    } -ArgumentList @((Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), $script:UpdateLib, (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src) -TimeoutSec 120 -BusyText 'Module werden geprüft ...' -State @{ Path = $Path; Name = $name; Items = $items; Owner = $Owner } -OnComplete {
+    } -ArgumentList @((Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), $script:UpdateLib, (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src) -TimeoutSec 120 -BusyText 'Module werden geprüft ...' -State @{ Path = $Path; Name = $name; Items = $items; Owner = $Owner; FromPackage = [bool]$FromPackage } -OnComplete {
         param($result, $st)
         $why = @{}
         foreach ($ln in @("$result" -split "`n" | Where-Object { $_ -match '\|' })) { $p = $ln -split '\|', 2; $why[$p[0]] = $p[1] }
@@ -416,8 +416,12 @@ function Import-HUAddonKeyFile([string]$Path, $Owner = $null, [switch]$FromPacka
             try { Remove-Item -LiteralPath $st.Path -Force -ErrorAction Stop; $txt += "Die Datei $($st.Name) wurde gelöscht."; Write-HULogInfo "Modul-Datei $($st.Name) gelöscht" }
             catch { $txt += "Die Datei $($st.Name) konnte nicht gelöscht werden, bitte selbst löschen:`n$($_.Exception.Message)"; Write-HULogWarn "Modul-Datei $($st.Name) nicht gelöscht: $($_.Exception.Message)" }
         }
-        Show-HUMessage $txt.Trim() -Icon $(if ($fail.Count) { 'Warning' } else { 'Info' }) -Title 'Module'
-        if ($done.Count) { Start-HUAddonUpdate -Loud }
+        if ($st.FromPackage) {
+            # Paket einer Aussenstelle: kurze Meldung fuer Laien, keine Repository-Namen (Details im Protokoll)
+            if ($fail.Count) { Show-HUMessage "Die Updates für die Module konnten noch nicht eingerichtet werden (keine Internetverbindung?).`n`nHU-Amt versucht es beim nächsten Start wieder. Arbeiten kannst du trotzdem ganz normal." -Icon Info -Title 'Module' }
+            else { try { Show-HUToast -Title 'Module' -Text 'Updates für die Module sind eingerichtet.' -Icon Success } catch { } }
+        } else { Show-HUMessage $txt.Trim() -Icon $(if ($fail.Count) { 'Warning' } else { 'Info' }) -Title 'Module' }
+        if ($done.Count) { Start-HUAddonUpdate -Loud:(-not $st.FromPackage) }
     }
 }
 

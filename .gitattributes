@@ -6,3 +6,4 @@
 *.ico binary
 *.xlsx binary
 *.zip binary
+*.dll binary

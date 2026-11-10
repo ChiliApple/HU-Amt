@@ -1,0 +1,18 @@
+﻿{
+    "_hinweis": "Wächter für Bibliotheken des Kerns. Ausgewertet vom Wächter im Kern (wöchentlich über .github/workflows/waechter-kern.yml, eine unveränderte Kopie von Vorlage-Modul.yml). Der Wächter ändert nichts, er meldet nur.",
+    "modul": "Kern",
+    "eintraege": [
+        {
+            "id": "zxing-net",
+            "version": "0.16.11",
+            "neueste": {
+                "art": "nuget",
+                "paket": "ZXing.Net"
+            },
+            "osv": {
+                "oekosystem": "NuGet",
+                "name": "ZXing.Net"
+            }
+        }
+    ]
+}
