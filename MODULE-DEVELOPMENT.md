@@ -111,6 +111,7 @@ Module bauen keine eigenen COM-Aufrufe, sondern nutzen den Kern (`Core\HU.Office
   - Für die Einstellungsseite: `Select-HUMailSender -Current <Angabe>` öffnet die Auswahl und gibt die Angabe zum Speichern zurück (`$null` bei Abbruch, `Address` leer = jeder wählt selbst).
 - `Show-HUMail -From -FromMode`: die Grundfunktion darunter. Rückgabe `Way` (`outlook`, `mailto`, `fehler`, `testmodus`), `Message` und `From`. Mit festem Absender weicht sie nie auf `mailto:` aus.
 - `Get-HUOutlookAccounts`: Mailkonten im Outlook-Profil (`Address`, `Name`, `Exchange`). Gemeinsame Postfächer ohne eigenes Konto stehen dort nicht.
+- `Get-HUOutlookAttachments -Days 30 -Extensions '.pdf' -TargetDir <Ordner> [-Folder <Angabe>]` (ab 1.0.2): Anhänge aus dem Posteingang speichern, neueste zuerst. Die Mails bleiben unverändert (nicht verschoben, nicht als gelesen markiert). Rückgabe je Anhang `EntryId`, `StoreId`, `Subject`, `Sender`, `SenderAddress`, `Received`, `FileName`, `Path`. Im Testmodus gesperrt.
 
 **Ohne Outlook**
 
@@ -200,6 +201,7 @@ Die Kern-Module (`Core\*.psm1`) laufen auch in einem Hintergrund-Runspace ohne F
 | Anhänge | `Core\HU.Data.psm1` | `Test-HUAttachment`, `Add-HUAttachment` (überschreibt nie, `-TimePrefix`), `Get-HUAttachments`, `Remove-HUAttachment` (nach `_entfernt\`) |
 | Gemeinsame Einstellungen | `Core\HU.Data.psm1` | `Read-HUSettings`, `Save-HUSettings` (`geaendert`, `geaendertVon`), `Merge-HUSettings`, `Test-HUPermittedUser $Liste $Benutzer -IsVerwalter`, `Get-HUUserDisplayName` |
 | PDF erzeugen | `Core\HU.Pdf.psm1` | `New-HUPdf [-Landscape]`, `Add-HUPdfText`, `Add-HUPdfLine`, `Add-HUPdfRect`, `ConvertTo-HUPdfJpeg`, `Add-HUPdfImage`, `Add-HUPdfTable` (über mehrere Seiten mit Kopfzeile), `Add-HUPdfPageFooter`, `Get-HUPdfBytes -Producer '<Modulname>'` |
+| QR-Codes (ab 1.0.2) | `Core\HU.Qr.psm1` | `New-HUQrPayload -Prefix -Data` (JSON, komprimiert, höchstens 2300 Zeichen), `Read-HUQrPayload -Text -Prefix`, `Add-HUPdfQrCode -Pdf -Text -X -Y -Size` (in ein HU.Pdf-Dokument), `Read-HUQrCodes -Path` (Bild oder gescanntes PDF, Rückgabe `Texts` und `Hint`). Bibliothek ZXing.Net im Kern, Module bringen dafür nichts mit. |
 | Excel und CSV | `Core\HU.Import.psm1` | `Read-HUImportFile`, `Read-HUXlsx [-SheetJs]`, `Read-HUCsv` (Kodierung und Trennzeichen erkannt), `New-HUXlsxBytes` (Excel schreiben, ohne Excel) |
 | Werkzeug-Aufrufe | `Core\HU.Tools.psm1` | `Invoke-HUNativeProcess` (Zeitlimit, Prozessbaum beenden), `ConvertTo-HUProcessArgument`, `Stop-HUProcessTree`, `ConvertTo-HUSafeFileName`, `Get-HUFreeFilePath`, `Get-HUFreeDirectoryPath` |
 | Fenster und Steuerelemente | `Functions\UI-Controls.ps1` | `New-HUModuleWindow` (XAML aus dem Modulordner, Thema, Zustand), `New-HUComboItem`, `Set-HUComboTag`, `Get-HUComboTag`, `Add-HUCalendar` (dunkler Kalender, Umschalt+Pfeil = Jahr), `Initialize-HUTimeCombo`, `Format-HUNumberInput` |

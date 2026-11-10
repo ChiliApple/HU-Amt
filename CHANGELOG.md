@@ -7,6 +7,19 @@
   - Im Spaltenkopf setzt bzw. leert ein Häkchen die ganze Spalte.
   - Der zuletzt gesetzte Haken zählt auch dann, wenn gleich danach „Paket erstellen“ bzw. „Speichern“ kommt.
 - **Paket nach dem Laden einer Vorversion:** Lag noch die Prüfsummenliste eines anderen Stands im Programmordner, lehnte HU-Amt das Paket ab. Jetzt holt es die passende Liste der installierten Version.
+- **Desktop-Symbol je Installation:** Beim ersten Start fragt HU-Amt nach dem Desktop-Symbol, wenn noch keines auf diese Installation zeigt. Ein gleichnamiges Symbol einer anderen Installation zählt nicht mehr.
+  - Eine Außenstelle bekommt ein eigenes Symbol, z. B. „HU-Amt Kindergarten“, und überschreibt das der Zentrale nicht.
+
+### 🔳 QR-Codes
+- **QR-Codes für die Module:** Module können Daten als QR-Code auf ihre Ausdrucke setzen und aus Scans wieder lesen, z. B. aus dem unterschriebenen Scan einer Abrechnung.
+  - Gelesen wird aus Bildern und aus gescannten PDFs, wie sie Kopierer und Scanner speichern.
+  - Kann ein Scan nicht gelesen werden, nennt HU-Amt den Grund, z. B. ein Format, das Windows nicht öffnet.
+
+### 📨 Outlook und Word
+- **Anhänge aus Mails holen:** Module können PDF-Anhänge aus dem Posteingang lesen. Die Mails bleiben dabei unverändert, nichts wird verschoben oder als gelesen markiert.
+
+### ⚠️ Nach dem Update
+- **Neue Bibliothek:** Für QR-Codes liegt ZXing.Net 0.16.11 im Programmordner (Lizenz Apache 2.0, siehe `THIRD-PARTY-NOTICES.md`). HU-Amt lädt sie nur mit gültiger Prüfsumme.
 
 ## v1.0.1
 
