@@ -316,6 +316,12 @@ function Show-HUSettingsDialog {
     $updInst = { $c.txtInstName.IsEnabled = ("$($c.cmbInstMode.SelectedItem.Tag)" -eq 'Aussenstelle') }
     & $updInst
     $c.cmbInstMode.Add_SelectionChanged({ & $updInst })
+    # Testmodus und Demo: Art der Installation und Module nicht aendern (gilt sonst nach dem Ende fuer alle)
+    if (Test-HUTestMode) {
+        foreach ($n in 'cmbInstMode', 'txtInstName', 'chkModAll') { if ($c[$n]) { $c[$n].IsEnabled = $false } }
+        $c.gridModules.IsReadOnly = $true
+        $c.cmbInstMode.ToolTip = 'Im Testmodus und in der Demo nicht änderbar.'
+    }
     if (Test-HUTestMode) { $c.btnOutpostPackage.IsEnabled = $false; $c.btnOutpostPackage.ToolTip = 'Im Testmodus und in der Demo nicht möglich.' }
     elseif ("$($inst.Mode)" -eq 'Aussenstelle') { $c.btnOutpostPackage.IsEnabled = $false; $c.btnOutpostPackage.ToolTip = 'Pakete für Außenstellen erstellt nur die Zentrale.' }
     $c.btnOutpostPackage.Add_Click({ Show-HUOutpostDialog -Owner $w })
@@ -407,9 +413,9 @@ function Show-HUSettingsDialog {
                 # Kanal in der Kopfzeile sofort nachziehen
                 try { [void](Update-UpdateConfig); Update-VersionDisplay } catch { }
                 # Zentrale / Aussenstelle und aktive Module (Config\installation.json, wirkt nach dem Neustart)
-                $instChanged = ("$($instNew.Mode)" -ne "$($inst.Mode)") -or ("$($instNew.Name)" -ne "$($inst.Name)") -or ((@($instNew.ModulesOff) -join ',') -ne (@($inst.ModulesOff) -join ','))
+                $instChanged = (-not (Test-HUTestMode)) -and ("$($instNew.Mode)" -ne "$($inst.Mode)") -or ((-not (Test-HUTestMode)) -and (("$($instNew.Name)" -ne "$($inst.Name)") -or ((@($instNew.ModulesOff) -join ',') -ne (@($inst.ModulesOff) -join ','))))
                 if ($instChanged) {
-                    try { Save-HUInstallationConfig -ConfigDir $script:ConfigDir -Config $instNew; $st.Restart = $true; Write-HULogOK "Installation: $(if ($instNew.Mode -eq 'Aussenstelle') { "Außenstelle $($instNew.Name)" } else { 'Zentrale' }), abgeschaltet: $(if (@($instNew.ModulesOff).Count) { @($instNew.ModulesOff) -join ', ' } else { 'keine' })" }
+                    try { Save-HUInstallationConfig -ConfigDir $script:ConfigDir -Config $instNew; $script:Installation = Get-HUInstallationConfig $script:ConfigDir; $st.Restart = $true; Write-HULogOK "Installation: $(if ($instNew.Mode -eq 'Aussenstelle') { "Außenstelle $($instNew.Name)" } else { 'Zentrale' }), abgeschaltet: $(if (@($instNew.ModulesOff).Count) { @($instNew.ModulesOff) -join ', ' } else { 'keine' })" }
                     catch { Show-HUMessage "Art der Installation bzw. Module nicht gespeichert:`n$($_.Exception.Message)" -Icon Warning -Owner $w; return }
                 }
                 if ($st.Changed) {

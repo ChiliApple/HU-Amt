@@ -12,6 +12,12 @@ function Show-HUOutpostDialog($Owner = $null) {
     $t = "Paket f$([char]0xFC)r Au$([char]0xDF)enstelle"
     if (-not (Test-HUVerwalter)) { Show-HUMessage 'Pakete für Außenstellen erstellen nur Verwalter.' $t -Icon Info -Owner $Owner; return }
     if (Test-HUTestMode) { Show-HUMessage 'Im Testmodus und in der Demo nicht möglich.' $t -Icon Info -Owner $Owner; return }
+    try { Remove-HUOldPackageTemp } catch { }
+    # eigene Update-Quelle bzw. eigenes Zertifikat: die Aussenstelle wuerde mit der offiziellen Quelle pruefen, darum ablehnen
+    $cfg0 = $null; try { $cfg0 = Update-UpdateConfig } catch { }
+    if ($cfg0 -and (("$($cfg0.Owner)" -and "$($cfg0.Owner)" -ne "$($script:App.repo.owner)") -or ("$($cfg0.Repo)" -and "$($cfg0.Repo)" -ne "$($script:App.repo.name)") -or ("$($cfg0.SignerThumbprint)" -and "$($cfg0.SignerThumbprint)" -ne "$($script:App.signer)"))) {
+        Show-HUMessage 'Diese Installation nutzt eine eigene Update-Quelle. Pakete für Außenstellen gehen nur mit der offiziellen Quelle (Einstellungen › Update).' $t -Icon Info -Owner $Owner; return
+    }
     # ins Paket kommen die signierten Module aus Addons\ - unabhaengig davon, welche Fassung gerade geladen ist (z. B. AddonsDev)
     $mods = @(Get-HUAddonsInDir (Get-HUAddonsDir) ([Version]$script:Version) 'Privat' | Where-Object { -not $_.Error } |
         Sort-Object @{ Expression = { $_.Order } }, @{ Expression = { $_.Title } })
@@ -24,20 +30,20 @@ function Show-HUOutpostDialog($Owner = $null) {
     </Window.Resources>
     <DockPanel Margin="16">
         <TextBlock DockPanel.Dock="Top" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,0,12"
-                   Text="Erstellt ein ZIP f&#xFC;r eine Au&#xDF;enstelle, z. B. auf einen USB-Stick. Dort wird es entpackt und mit Start-HU-Amt.cmd gestartet. Daten, Benutzer und Protokolle der Zentrale kommen nicht mit."/>
+                   Text="Erstellt ein ZIP f&#xFC;r eine Au&#xDF;enstelle. Dort wird es ausgepackt und mit Einrichten doppelgeklickt, HU-Amt richtet sich dann f&#xFC;r den Windows-Benutzer selbst ein. Daten, Benutzer und Protokolle der Zentrale kommen nicht mit."/>
         <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <TextBlock Text="Name der Au&#xDF;enstelle:" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,10,6"/>
             <TextBox x:Name="txtName" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="0,0,0,6" MaxLength="60" ToolTip="z. B. Kindergarten. Steht dort im Fenstertitel und im Namen des ZIP."/>
             <TextBlock Grid.Row="1" Text="Verwalter dort:" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <TextBox x:Name="txtAdmins" Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkTextBox}" ToolTip="Windows-Benutzernamen, mehrere mit Komma getrennt. Verwalter sehen dort Einstellungen, Module und Protokoll."/>
+            <TextBox x:Name="txtAdmins" Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkTextBox}" ToolTip="Windows-Benutzernamen der Verwalter in der Au&#xDF;enstelle, mehrere mit Komma getrennt. Nur Verwalter sehen dort Einstellungen, Module und Protokoll. Vorbelegt ist dein eigener Benutzername."/>
         </Grid>
         <StackPanel DockPanel.Dock="Bottom">
-            <CheckBox x:Name="chkKeys" IsChecked="True" Foreground="#CCCCCC" Margin="0,10,0,4" Content="Zugang f&#xFC;r Updates der mitgelieferten Module beilegen"
-                      ToolTip="Legt die hinterlegten Nur-Lese-Tokens der mitgelieferten Module bei. Beim ersten Start in der Au&#xDF;enstelle werden sie eingelesen und die Datei gel&#xF6;scht."/>
+            <CheckBox x:Name="chkKeys" IsChecked="True" Style="{StaticResource DarkCheckBox}" Margin="0,10,0,4" Content="Zugang f&#xFC;r Updates der mitgelieferten Module beilegen"
+                      ToolTip="Legt die hinterlegten Nur-Lese-Tokens der mitgelieferten Module bei. Wer HU-Amt in der Au&#xDF;enstelle einrichtet, bekommt damit die Updates der Module."/>
             <TextBlock x:Name="txtWarn" Foreground="#FFB74D" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,8"
-                       Text="Das ZIP enth&#xE4;lt den Zugang und die mitgegebenen Einstellungen (z. B. den Schl&#xFC;ssel f&#xFC;r die Routenberechnung) im Klartext. Den USB-Stick sicher verwahren und das ZIP nach dem Einrichten l&#xF6;schen."/>
+                       Text="Das ZIP enth&#xE4;lt den Zugang und die mitgegebenen Einstellungen (z. B. den Schl&#xFC;ssel f&#xFC;r die Routenberechnung) im Klartext. Nur auf sicherem Weg weitergeben und nach dem Einrichten l&#xF6;schen."/>
             <WrapPanel HorizontalAlignment="Right">
                 <Button x:Name="btnCreate" Content="Paket erstellen ..." Background="#388E3C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Speicherort w&#xE4;hlen und das ZIP erstellen"/>
                 <Button x:Name="btnClose" Content="Schlie&#xDF;en" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True" ToolTip="Fenster schlie&#xDF;en"/>
@@ -45,7 +51,7 @@ function Show-HUOutpostDialog($Owner = $null) {
         </StackPanel>
         <TextBlock DockPanel.Dock="Top" Text="Module" Foreground="#AAAAAA" FontSize="11" Margin="0,0,0,2"/>
         <DataGrid x:Name="gridMods" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="False" HeadersVisibility="Column" SelectionMode="Single"
-                  CanUserAddRows="False" CanUserSortColumns="False" CanUserDeleteRows="False" ToolTip="Mitliefern = Modul kommt ins Paket. Aktiv = erscheint dort sofort. Einstellungen = einstellungen.json des Moduls mitgeben.">
+                  CanUserAddRows="False" CanUserSortColumns="False" CanUserDeleteRows="False" ToolTip="Mitliefern = Modul kommt ins Paket. Aktiv = erscheint dort sofort. Einstellungen = Einstellungen des Moduls mitgeben (nur, wenn es welche gibt).">
             <DataGrid.Columns>
                 <DataGridTemplateColumn>
                     <DataGridTemplateColumn.Header>
@@ -59,7 +65,7 @@ function Show-HUOutpostDialog($Owner = $null) {
                 </DataGridTemplateColumn>
                 <DataGridTemplateColumn>
                     <DataGridTemplateColumn.Header>
-                        <CheckBox x:Name="chkAllAktiv" Content="Aktiv" Style="{StaticResource DarkCheckBox}" ToolTip="Alle mitgelieferten Module sofort aktiv bzw. alle vorerst aus"/>
+                        <CheckBox x:Name="chkAllAktiv" Content="Aktiv" Style="{StaticResource DarkCheckBox}" ToolTip="Bei allen Zeilen: sofort aktiv bzw. vorerst aus. Gilt nur f&#xFC;r Module mit Haken bei Mitliefern."/>
                     </DataGridTemplateColumn.Header>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -69,7 +75,7 @@ function Show-HUOutpostDialog($Owner = $null) {
                 </DataGridTemplateColumn>
                 <DataGridTemplateColumn>
                     <DataGridTemplateColumn.Header>
-                        <CheckBox x:Name="chkAllEinst" Content="Einstellungen" Style="{StaticResource DarkCheckBox}" ToolTip="Bei allen Modulen die Einstellungen mitgeben bzw. bei keinem"/>
+                        <CheckBox x:Name="chkAllEinst" Content="Einstellungen" Style="{StaticResource DarkCheckBox}" ToolTip="Einstellungen mitgeben bzw. nicht. Gibt es zu einem Modul keine Einstellungen, kommt nichts mit. Gilt nur f&#xFC;r Module mit Haken bei Mitliefern."/>
                     </DataGridTemplateColumn.Header>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -96,7 +102,8 @@ function Show-HUOutpostDialog($Owner = $null) {
         $r = $tbl.NewRow()
         $r['Id'] = "$($a.Id)"; $r['Reiter'] = "$($a.Title)"; $r['Version'] = "$($a.Version)"
         $r['Token'] = $(if (Find-HUAddonSourceFor "$($a.Id)" $sources) { 'ja' } else { 'nein' })
-        $r['Mit'] = $false; $r['Aktiv'] = $true; $r['Einst'] = $true
+        $hasSet = Test-Path -LiteralPath (Join-Path (Join-Path $script:DataRoot "$($a.Id)") 'einstellungen.json')
+        $r['Mit'] = $false; $r['Aktiv'] = $true; $r['Einst'] = [bool]$hasSet
         [void]$tbl.Rows.Add($r)
     }
     $c.gridMods.ItemsSource = $tbl.DefaultView
@@ -123,24 +130,26 @@ function Show-HUOutpostDialog($Owner = $null) {
             $dlg.Filter = 'ZIP-Datei (*.zip)|*.zip'; $dlg.FileName = "HU-Amt-$folder.zip"; $dlg.OverwritePrompt = $false
             if (-not $dlg.ShowDialog($w)) { return }
             $zip = $dlg.FileName
+            # vorhandene Datei wird erst ersetzt, wenn das neue Paket fertig ist
+            $over = $false
             if (Test-Path -LiteralPath $zip) {
                 if (-not (Confirm-HU -Warning "Die Datei gibt es schon:`n$zip`n`nErsetzen?" $t -Owner $w)) { return }
-                try { Remove-Item -LiteralPath $zip -Force -ErrorAction Stop } catch { Show-HUMessage "Die Datei lässt sich nicht ersetzen:`n$($_.Exception.Message)" $t -Icon Warning -Owner $w; return }
+                $over = $true
             }
             $cfg = $null; try { $cfg = Update-UpdateConfig } catch { }
             $inst = Get-HUInstalledInfo
             $ver = $(if ($inst -and $inst.PSObject.Properties['Version']) { "$($inst.Version)" } else { "$($script:Version)" })
-            $tp = $(if ($cfg -and $cfg.SignerThumbprint) { "$($cfg.SignerThumbprint)" } else { "$($script:App.signer)" })
+            $tp = "$($script:App.signer)"
             $owner = $(if ($cfg -and $cfg.Owner) { "$($cfg.Owner)" } else { "$($script:App.repo.owner)" })
             $repo = $(if ($cfg -and $cfg.Repo) { "$($cfg.Repo)" } else { "$($script:App.repo.name)" })
             $useSrc = $(if ([bool]$c.chkKeys.IsChecked) { @($sources | ForEach-Object { [pscustomobject]@{ Owner = $_.Owner; Repo = $_.Repo; Token = $_.Token } }) } else { @() })
             $jobArgs = @{
                 AppRoot = $script:AppRoot; DataRoot = $script:DataRoot; ConfigDir = $script:ConfigDir; ZipPath = $zip; Name = $name; Admins = $admins; Modules = $sel
                 Sources = $useSrc; IncludeKeys = [bool]$c.chkKeys.IsChecked; Version = $ver; Channel = $(if ($cfg) { "$($cfg.Channel)" } else { 'Stable' })
-                Thumbprint = $tp; Owner = $owner; Repo = $repo; User = "$($script:UserName)"
+                Thumbprint = $tp; Owner = $owner; Repo = $repo; User = "$($script:UserName)"; Overwrite = $over
                 Libs = @($script:UpdateLib, (Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), (Join-Path $script:AppRoot 'Functions\Core-Outpost.ps1')); PathsMod = (Join-Path $script:AppRoot 'Core\HU.Paths.psm1')
             }
-            $c.btnCreate.IsEnabled = $false; $c.btnCreate.Content = 'Paket wird erstellt …'
+            $c.btnCreate.IsEnabled = $false; $c.btnCreate.Content = 'Paket wird erstellt ...'
             Write-HULogInfo "Paket für Außenstelle $name wird erstellt: $zip"
             Start-HUBackgroundJob -Owner 'Paket' -LogPrefix 'Paket' -TimeoutSec 600 -Context @{ Window = $w; Button = $c.btnCreate; Title = $t } -Arguments @($jobArgs) -Script {
                 param($A)
@@ -150,7 +159,7 @@ function Show-HUOutpostDialog($Owner = $null) {
                 $m = Get-HUVerifiedInstallManifest -ConfigDir $A.ConfigDir -Version $A.Version -Owner $A.Owner -Repo $A.Repo -Thumbprint $A.Thumbprint
                 New-HUOutpostPackage -AppRoot $A.AppRoot -DataRoot $A.DataRoot -ZipPath $A.ZipPath -Name $A.Name -Admins $A.Admins -Modules $A.Modules `
                     -Sources $A.Sources -IncludeKeys:$A.IncludeKeys -Manifest $m.Manifest -Signature $m.Signature -Version $A.Version -Channel $A.Channel `
-                    -Thumbprint $A.Thumbprint -CreatedBy $A.User
+                    -Thumbprint $A.Thumbprint -CreatedBy $A.User -Overwrite:$A.Overwrite
             } -Done {
                 param($Res, $Err, $Ctx)
                 try { $Ctx.Button.IsEnabled = $true; $Ctx.Button.Content = 'Paket erstellen ...' } catch { }
@@ -167,7 +176,7 @@ function Show-HUOutpostDialog($Owner = $null) {
                 $(if (@($r.Settings).Count) { "`nEinstellungen mitgegeben: $(@($r.Settings) -join ', ')" }) +
                 $(if (@($r.Tokens).Count) { "`nZugang für Updates: $(@($r.Tokens).Count) Modul(e)" }) +
                 $(if (@($r.Warnings).Count) { "`n`nHinweise:`n  $(@($r.Warnings) -join "`n  ")" }) +
-                "`n`nIn der Außenstelle: ZIP an einen festen Platz entpacken (z. B. C:\), dann im Ordner $($r.Folder) Start-HU-Amt.cmd doppelklicken."
+                "`n`nIn der Außenstelle: ZIP mit Rechtsklick und 'Alle extrahieren ...' auspacken, dann Einrichten doppelklicken. HU-Amt richtet sich für den angemeldeten Windows-Benutzer ein."
                 Show-HUMessage $txt $Ctx.Title -Icon $(if (@($r.Warnings).Count) { 'Warning' } else { 'Info' }) -Owner $Ctx.Window
                 try { Open-HUPath (Split-Path $r.Path -Parent) } catch { }
             }
@@ -175,17 +184,19 @@ function Show-HUOutpostDialog($Owner = $null) {
     [void]$w.ShowDialog()
 }
 
-# Erster Start aus einem Paket: Programm einmal pruefen, beigelegten Zugang (Zugang.humodule) fuer diesen Benutzer einlesen.
-# Der Zugang wird ohne Verwalter-Pruefung eingelesen, aber nur, wenn seine Pruefsumme zu paket.json passt.
+# Start einer aus einem Paket eingerichteten Installation: Programm pruefen, bis es einmal geklappt hat (sonst bei jedem
+# Start eine Warnung), danach den beigelegten Zugang (Zugang.humodule) fuer diesen Benutzer einlesen.
+# Der Zugang wird ohne Verwalter-Pruefung eingelesen (die Installation liegt im eigenen Benutzerordner), aber nur nach
+# bestandener Pruefung und nur, wenn seine Pruefsumme zu paket.json passt.
 function Invoke-HUPackageFirstStart {
-    $cfg = $null; try { $cfg = Update-UpdateConfig } catch { }
-    $tp = $(if ($cfg -and $cfg.SignerThumbprint) { "$($cfg.SignerThumbprint)" } else { "$($script:App.signer)" })
-    $chk = Test-HUPackageFirstStart -AppRoot $script:AppRoot -Thumbprint $tp
-    if ($chk.Status -eq 'OK') { Write-HULogOK $chk.Text }
-    elseif ($chk.Status -eq 'Fehler') {
+    $chk = Test-HUPackageFirstStart -AppRoot $script:AppRoot -Thumbprint "$($script:App.signer)"
+    if ($chk.Status -eq 'Fehler') {
         Write-HULogError "Paket: $($chk.Text)"
-        Show-HUMessage "Das Programm passt nicht zum Paket:`n$($chk.Text)`n`nBitte das Paket neu entpacken oder ein neues Paket erstellen lassen." 'Paket' -Icon Warning -Owner $script:Window
+        Show-HUMessage ("HU-Amt ist beschädigt oder verändert.`n`nBitte HU-Amt nicht verwenden und in der Gemeinde um ein neues Paket bitten.`n`n" +
+            "Technischer Grund: $($chk.Text)") 'Paket' -Icon Warning -Owner $script:Window
+        return
     }
+    if ($chk.Status -eq 'OK') { Write-HULogOK $chk.Text }
     $kf = Get-HUPackageKeyFile $script:AppRoot
     if ($kf) { Import-HUAddonKeyFile $kf -Owner $script:Window -FromPackage }
 }

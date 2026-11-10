@@ -125,3 +125,44 @@ Describe 'Schreiben und Lesen' {
         (Read-HUQrCodes -Path $g).Hint | Should -Match 'JBIG2'
     }
 }
+
+Describe 'Schutz gegen praeparierte Dateien' {
+    It 'invertierter QR (hell auf dunkel) wird gelesen' {
+        $t = New-HUQrPayload -Prefix 'HUR1' -Data $script:Data
+        $bmp = New-TestQrBitmap $t
+        $w = $bmp.PixelWidth; $pix = New-Object byte[] ($w * $bmp.PixelHeight); $bmp.CopyPixels($pix, $w, 0)
+        for ($i = 0; $i -lt $pix.Length; $i++) { $pix[$i] = [byte](255 - $pix[$i]) }
+        $inv = [Windows.Media.Imaging.BitmapSource]::Create($w, $bmp.PixelHeight, 300, 300, [Windows.Media.PixelFormats]::Gray8, $null, $pix, $w)
+        @(Read-HUQrFromBitmap -Bitmap $inv) | Should -Be @($t)
+    }
+    It 'Entpacken ist begrenzt' {
+        $raw = New-Object byte[] 200000
+        $z = ConvertTo-TestZlib $raw
+        { & (Get-Module HU.Qr) { param($d) ConvertFrom-HUPdfFlate $d 1000 } $z } | Should -Throw '*zu groß*'
+    }
+    It 'unsinnige Bildgroesse und kaputte Zahlen brechen nichts ab' {
+        $t = New-HUQrPayload -Prefix 'HUR1' -Data $script:Data
+        $bmp = New-TestQrBitmap $t
+        $f = Join-Path $script:Tmp 'mix.pdf'
+        # zwei Bilder: eines mit Riesenmass, eines richtig
+        $jpg = ConvertTo-TestJpeg $bmp 70
+        $l1 = [Text.Encoding]::GetEncoding(28591); $ms = New-Object IO.MemoryStream
+        $w = { param($x) $b = $l1.GetBytes($x); $ms.Write($b, 0, $b.Length) }
+        & $w "%PDF-1.4`n7 0 obj << /Type /XObject /Subtype /Image /Width 99999999999 /Height 5 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length 3 >>`nstream`nabc`nendstream`nendobj`n"
+        & $w "8 0 obj << /Type /XObject /Subtype /Image /Width $($bmp.PixelWidth) /Height $($bmp.PixelHeight) /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /DCTDecode /Length $($jpg.Length) >>`nstream`n"
+        $ms.Write($jpg, 0, $jpg.Length); & $w "`nendstream`nendobj`n%%EOF`n"
+        [IO.File]::WriteAllBytes($f, $ms.ToArray())
+        $r = Read-HUQrCodes -Path $f
+        @($r.Texts) | Should -Be @($t)
+    }
+    It 'nur bekannte Bildformate, falsche Kennung im JPEG-Zweig wird abgelehnt' {
+        $f = Join-Path $script:Tmp 'x.jpg'; [IO.File]::WriteAllBytes($f, [byte[]](1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        (Read-HUQrCodes -Path $f).Hint | Should -Match 'nicht unterstützt'
+        $g = Join-Path $script:Tmp 'fake-dct.pdf'
+        New-TestImagePdf $g ([byte[]](0x89, 0x50, 0x4E, 0x47, 1, 2, 3, 4)) '/Width 10 /Height 10 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /DCTDecode'
+        (Read-HUQrCodes -Path $g).Hint | Should -Match 'nicht lesen'
+    }
+    It 'zu langer QR-Text wird nicht gelesen' {
+        Read-HUQrPayload -Text ('HUR1:' + ('A' * 5000)) -Prefix 'HUR1' | Should -BeNullOrEmpty
+    }
+}

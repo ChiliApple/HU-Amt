@@ -227,9 +227,10 @@ function Test-HUShortcut {
     $root = [IO.Path]::GetFullPath($script:AppRoot).TrimEnd('\') + '\'
     $sh = $null
     try {
-        foreach ($f in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('CommonDesktopDirectory'))) {
-            if (-not $f) { continue }
-            $lnk = Join-Path $f "$(Get-HUShortcutName).lnk"
+        # auch der Name von frueher (vor dem Umstellen auf Aussenstelle) zaehlt, wenn er auf diese Installation zeigt
+        $names = @("$(Get-HUShortcutName).lnk", "$($script:App.title).lnk") | Select-Object -Unique
+        $dirs = @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('CommonDesktopDirectory'), [Environment]::GetFolderPath('CommonPrograms'))
+        foreach ($lnk in @(foreach ($f in $dirs) { if ($f) { foreach ($n in $names) { Join-Path $f $n } } })) {
             if (-not (Test-Path -LiteralPath $lnk)) { continue }
             try {
                 if (-not $sh) { $sh = New-Object -ComObject WScript.Shell }

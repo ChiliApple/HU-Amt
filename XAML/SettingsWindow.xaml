@@ -249,7 +249,7 @@
                                          ToolTip="Name der Au&#xDF;enstelle, z. B. Kindergarten. Steht im Fenstertitel."/>
                             </DockPanel>
                             <TextBlock x:Name="txtInstInfo" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
-                                       Text="Zentrale und Au&#xDF;enstelle arbeiten getrennt, jede mit eigenen Daten. Die Art der Installation wirkt nach dem Speichern und einem Neustart."/>
+                                       Text="Eine Au&#xDF;enstelle ist eine eigene Installation mit eigenen Daten, meist aus einem Paket eingerichtet. Diese Einstellung &#xE4;ndert nur Name, Fenstertitel und Desktop-Symbol, nicht die Daten. Wirkt nach dem Speichern und einem Neustart."/>
                         </StackPanel>
                     </Border>
                     <Border DockPanel.Dock="Bottom" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,8,0,0">

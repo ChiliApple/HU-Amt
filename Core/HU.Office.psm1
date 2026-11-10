@@ -599,14 +599,22 @@ function New-HUMailtoUri {
     Anhaenge aus Mails holen (nur lesen): Posteingang, neueste zuerst, hoechstens -Days alt. Die Mails bleiben unberuehrt
     (nicht verschoben, nicht als gelesen markiert). Passende Anhaenge werden nach -TargetDir gespeichert (eindeutige Namen).
     Rueckgabe: je Anhang EntryId, StoreId, Subject, Sender, SenderAddress, Received (DateTime), FileName, Path.
+    Anhangsnamen kommen von aussen: nur der Dateiname zaehlt, unzulaessige Zeichen werden ersetzt, gespeichert wird nur
+    innerhalb von -TargetDir. Ein Fehler bei einem Anhang bricht die anderen nicht ab.
+.PARAMETER Problems
+    Optional eine Liste ([System.Collections.Generic.List[string]]), in die Fehler je Anhang und der Hinweis
+    "Hoechstzahl an Mails erreicht" geschrieben werden (fuer die Anzeige im Modul).
 .PARAMETER Folder
     Wie bei Get-HUOutlookFolder eine gespeicherte Ordnerangabe mit EntryId; leer = Posteingang des Standardprofils.
 .NOTES
     Outlook fragt beim Zugriff auf Anhaenge nur ohne aktuellen Virenschutz nach (Object Model Guard).
 #>
 function Get-HUOutlookAttachments {
-    param($Session = $null, $Folder = $null, [int]$Days = 30, [string[]]$Extensions = @('.pdf'), [Parameter(Mandatory)][string]$TargetDir, [int]$MaxMails = 500)
+    param($Session = $null, $Folder = $null, [int]$Days = 30, [string[]]$Extensions = @('.pdf'), [Parameter(Mandatory)][string]$TargetDir, [int]$MaxMails = 500,
+        $Problems = $null)
     if (-not (Test-Path -LiteralPath $TargetDir)) { [void](New-Item -ItemType Directory -Path $TargetDir -Force) }
+    $rootDir = [IO.Path]::GetFullPath($TargetDir).TrimEnd('\') + '\'
+    $bad = @([IO.Path]::GetInvalidFileNameChars())
     $ext = @($Extensions | ForEach-Object { "$_".ToLowerInvariant() })
     $limit = (Get-Date).AddDays(-[Math]::Max(1, $Days))
     return (Use-HUOutlookSession $Session {
@@ -623,7 +631,8 @@ function Get-HUOutlookAttachments {
                 $items.Sort('[ReceivedTime]', $true)
                 $n = 0
                 $it = $items.GetFirst()
-                while ($null -ne $it -and $n -lt $MaxMails) {
+                while ($null -ne $it) {
+                    if ($n -ge $MaxMails) { if ($null -ne $Problems) { [void]$Problems.Add("Es wurden nur die neuesten $MaxMails Mails durchsucht.") }; break }
                     $n++
                     $atts = $null
                     try {
@@ -632,18 +641,26 @@ function Get-HUOutlookAttachments {
                         if ($rcv -lt $limit) { break }
                         $atts = $it.Attachments
                         for ($k = 1; $k -le [int]$atts.Count; $k++) {
-                            $a = $atts.Item($k)
+                            $a = $null; $fn = ''
                             try {
+                                $a = $atts.Item($k)
                                 $fn = "$($a.FileName)"
-                                if (-not $fn -or $ext -notcontains [IO.Path]::GetExtension($fn).ToLowerInvariant()) { continue }
-                                $safe = ($fn -replace '[\/:*?"<>|]', '_')
-                                $base = [IO.Path]::GetFileNameWithoutExtension($safe); $e = [IO.Path]::GetExtension($safe)
-                                $dst = Join-Path $TargetDir $safe; $i = 2
+                                # nur der letzte Namensteil, unzulaessige Zeichen ersetzen, erst danach die Endung bestimmen
+                                $safe = (($fn -split '[\\/]')[-1]).Trim()
+                                foreach ($ch in $bad) { $safe = $safe.Replace([string]$ch, '_') }
+                                if ($safe.Length -gt 120) { $safe = $safe.Substring($safe.Length - 120) }
+                                $e = [IO.Path]::GetExtension($safe).ToLowerInvariant()
+                                if (-not $safe -or $ext -notcontains $e) { continue }
+                                $base = [IO.Path]::GetFileNameWithoutExtension($safe); if (-not $base.Trim('.', ' ')) { $base = 'Anhang' }
+                                $dst = Join-Path $TargetDir "$base$e"; $i = 2
                                 while (Test-Path -LiteralPath $dst) { $dst = Join-Path $TargetDir "$($base)_$i$e"; $i++ }
+                                if (-not ([IO.Path]::GetFullPath($dst)).StartsWith($rootDir, [StringComparison]::OrdinalIgnoreCase)) { throw 'unzulässiger Dateiname' }
                                 $a.SaveAsFile($dst)
                                 $addr = ''; try { $addr = "$($it.SenderEmailAddress)" } catch { }
                                 $out.Add([pscustomobject]@{ EntryId = "$($it.EntryID)"; StoreId = "$($fld.StoreID)"; Subject = "$($it.Subject)"; Sender = "$($it.SenderName)"
                                         SenderAddress = $addr; Received = $rcv; FileName = $fn; Path = $dst })
+                            } catch {
+                                if ($null -ne $Problems) { [void]$Problems.Add("Anhang $(if ($fn) { "'$fn' " })in einer Mail vom $($rcv.ToString('dd.MM.yyyy HH:mm')) nicht lesbar: $($_.Exception.Message)") }
                             } finally { Remove-HUComObject $a }
                         }
                     } finally {
