@@ -190,10 +190,19 @@
                         <Button x:Name="btnAddonUpdate" Content="Module jetzt aktualisieren" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Neueste signierte Fassung der privaten Module laden"/>
                         <Button x:Name="btnAddonDev" Content="Ordner AddonsDev &#xF6;ffnen" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Module in Entwicklung (ohne Signatur)"/>
                     </WrapPanel>
-                    <DataGrid x:Name="gridModules" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="False" HeadersVisibility="Column"
-                              CanUserAddRows="False" CanUserDeleteRows="False" ToolTip="Alle Module dieser Installation. H&#xE4;kchen bei &#x201E;Aktiv&#x201C; = Modul erscheint als Reiter.">
+                    <DataGrid x:Name="gridModules" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="False" HeadersVisibility="Column" SelectionMode="Single"
+                              CanUserAddRows="False" CanUserSortColumns="False" CanUserDeleteRows="False" ToolTip="Alle Module dieser Installation. H&#xE4;kchen bei &#x201E;Aktiv&#x201C; = Modul erscheint als Reiter.">
                         <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header="Aktiv" Binding="{Binding Aktiv, UpdateSourceTrigger=PropertyChanged}"/>
+                            <DataGridTemplateColumn>
+                                <DataGridTemplateColumn.Header>
+                                    <CheckBox x:Name="chkModAll" Content="Aktiv" Style="{StaticResource DarkCheckBox}" ToolTip="Alle Module ein- bzw. ausschalten"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding Aktiv, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource DarkCheckBox}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Reiter" Binding="{Binding Reiter}" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Kennung" Binding="{Binding Id}" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Version" Binding="{Binding Version}" IsReadOnly="True"/>

@@ -1,4 +1,12 @@
-# Changelog
+﻿# Changelog
+
+## v1.0.2
+
+### 🏢 Außenstelle
+- **Häkchen mit einem Klick:** Im Fenster „Paket für Außenstelle“ und unter ⚙ Einstellungen › Module setzt ein Klick den Haken. Bisher brauchte es zwei.
+  - Im Spaltenkopf setzt bzw. leert ein Häkchen die ganze Spalte.
+  - Der zuletzt gesetzte Haken zählt auch dann, wenn gleich danach „Paket erstellen“ bzw. „Speichern“ kommt.
+- **Paket nach dem Laden einer Vorversion:** Lag noch die Prüfsummenliste eines anderen Stands im Programmordner, lehnte HU-Amt das Paket ab. Jetzt holt es die passende Liste der installierten Version.
 
 ## v1.0.1
 

@@ -44,12 +44,39 @@ function Show-HUOutpostDialog($Owner = $null) {
             </WrapPanel>
         </StackPanel>
         <TextBlock DockPanel.Dock="Top" Text="Module" Foreground="#AAAAAA" FontSize="11" Margin="0,0,0,2"/>
-        <DataGrid x:Name="gridMods" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="False" HeadersVisibility="Column"
-                  CanUserAddRows="False" CanUserDeleteRows="False" ToolTip="Mitliefern = Modul kommt ins Paket. Aktiv = erscheint dort sofort. Einstellungen = einstellungen.json des Moduls mitgeben.">
+        <DataGrid x:Name="gridMods" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="False" HeadersVisibility="Column" SelectionMode="Single"
+                  CanUserAddRows="False" CanUserSortColumns="False" CanUserDeleteRows="False" ToolTip="Mitliefern = Modul kommt ins Paket. Aktiv = erscheint dort sofort. Einstellungen = einstellungen.json des Moduls mitgeben.">
             <DataGrid.Columns>
-                <DataGridCheckBoxColumn Header="Mitliefern" Binding="{Binding Mit, UpdateSourceTrigger=PropertyChanged}"/>
-                <DataGridCheckBoxColumn Header="Aktiv" Binding="{Binding Aktiv, UpdateSourceTrigger=PropertyChanged}"/>
-                <DataGridCheckBoxColumn Header="Einstellungen" Binding="{Binding Einst, UpdateSourceTrigger=PropertyChanged}"/>
+                <DataGridTemplateColumn>
+                    <DataGridTemplateColumn.Header>
+                        <CheckBox x:Name="chkAllMit" Content="Mitliefern" Style="{StaticResource DarkCheckBox}" ToolTip="Alle Module mitliefern bzw. keines"/>
+                    </DataGridTemplateColumn.Header>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding Mit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource DarkCheckBox}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn>
+                    <DataGridTemplateColumn.Header>
+                        <CheckBox x:Name="chkAllAktiv" Content="Aktiv" Style="{StaticResource DarkCheckBox}" ToolTip="Alle mitgelieferten Module sofort aktiv bzw. alle vorerst aus"/>
+                    </DataGridTemplateColumn.Header>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding Aktiv, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource DarkCheckBox}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn>
+                    <DataGridTemplateColumn.Header>
+                        <CheckBox x:Name="chkAllEinst" Content="Einstellungen" Style="{StaticResource DarkCheckBox}" ToolTip="Bei allen Modulen die Einstellungen mitgeben bzw. bei keinem"/>
+                    </DataGridTemplateColumn.Header>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding Einst, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource DarkCheckBox}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Modul" Binding="{Binding Reiter}" IsReadOnly="True"/>
                 <DataGridTextColumn Header="Version" Binding="{Binding Version}" IsReadOnly="True"/>
                 <DataGridTextColumn Header="Token hinterlegt" Binding="{Binding Token}" IsReadOnly="True"/>
@@ -73,6 +100,12 @@ function Show-HUOutpostDialog($Owner = $null) {
         [void]$tbl.Rows.Add($r)
     }
     $c.gridMods.ItemsSource = $tbl.DefaultView
+    # Kopf-Haekchen: ganze Spalte setzen bzw. leeren (Haken in den Zeilen genuegt je ein Klick)
+    $allCol = { param($Col, $Box) foreach ($r in @($tbl.Rows)) { $r[$Col] = [bool]$Box.IsChecked } }
+    $c.chkAllMit.IsChecked = $false; $c.chkAllAktiv.IsChecked = $true; $c.chkAllEinst.IsChecked = $true
+    $c.chkAllMit.Add_Click({ & $allCol 'Mit' $c.chkAllMit })
+    $c.chkAllAktiv.Add_Click({ & $allCol 'Aktiv' $c.chkAllAktiv })
+    $c.chkAllEinst.Add_Click({ & $allCol 'Einst' $c.chkAllEinst })
     $c.txtAdmins.Text = "$($script:UserName)"
     $c.btnClose.Add_Click({ $w.Close() })
     $c.btnCreate.Add_Click({
@@ -80,6 +113,9 @@ function Show-HUOutpostDialog($Owner = $null) {
             if (-not $name) { Show-HUMessage 'Bitte den Namen der Außenstelle eintragen, z. B. Kindergarten.' $t -Icon Info -Owner $w; return }
             $admins = @("$($c.txtAdmins.Text)" -split '[,;]' | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
             if (-not $admins.Count) { Show-HUMessage 'Bitte mindestens einen Verwalter für die Außenstelle eintragen.' $t -Icon Info -Owner $w; return }
+            # offene Bearbeitung der Tabelle uebernehmen, sonst fehlt der zuletzt gesetzte Haken
+            try { [void]$c.gridMods.CommitEdit([System.Windows.Controls.DataGridEditingUnit]::Row, $true) } catch { }
+            foreach ($rv in @($tbl.DefaultView)) { try { $rv.EndEdit() } catch { } }
             $sel = @($tbl.Rows | Where-Object { [bool]$_['Mit'] } | ForEach-Object { [pscustomobject]@{ Id = "$($_['Id'])"; Active = [bool]$_['Aktiv']; Settings = [bool]$_['Einst'] } })
             if (-not $sel.Count -and -not (Confirm-HU 'Kein Modul ausgewählt. Trotzdem ein Paket nur mit dem Programm erstellen?' $t -Owner $w)) { return }
             try { $folder = ConvertTo-HUPackageName $name } catch { Show-HUMessage $_.Exception.Message $t -Icon Info -Owner $w; return }

@@ -69,11 +69,14 @@ function ConvertTo-HUPackageName([string]$Name) {
     Rueckgabe: @{ Manifest = byte[]; Signature = byte[]; Source = 'lokal'|'GitHub' } oder wirft mit Grund.
 #>
 function Get-HUVerifiedInstallManifest {
-    param([string]$ConfigDir, [string]$Version, [string]$Owner, [string]$Repo, [string]$Thumbprint)
+    param([string]$ConfigDir, [string]$Version, [string]$Owner, [string]$Repo, [string]$Thumbprint, [string]$AppRoot = '')
     $mf = Join-Path $ConfigDir $script:HMManifestName; $sf = Join-Path $ConfigDir $script:HMSignatureName
     if ((Test-Path -LiteralPath $mf) -and (Test-Path -LiteralPath $sf)) {
         $man = [IO.File]::ReadAllBytes($mf); $sig = [IO.File]::ReadAllBytes($sf)
-        if (-not (Test-HMManifestSignature $man $sig $Thumbprint)) { return @{ Manifest = $man; Signature = $sig; Source = 'lokal' } }
+        # die lokale Datei gilt nur, wenn sie signiert ist UND zu den Programmdateien passt
+        # (sonst stammt sie von einem anderen Stand, z. B. nach dem Laden einer Vorversion mit einem aelteren Pull.ps1)
+        $root = $(if ($AppRoot) { $AppRoot } else { Split-Path $ConfigDir -Parent })
+        if (-not (Test-HMManifestSignature $man $sig $Thumbprint) -and -not @(Test-HUInstallFiles -AppRoot $root -Manifest $man).Count) { return @{ Manifest = $man; Signature = $sig; Source = 'lokal' } }
     }
     $v = ConvertTo-HMVersion $Version
     if (-not $v) { throw "Die installierte Version ist keine freigegebene Version ($Version). Ein Paket geht nur aus einer über Pull installierten Version." }

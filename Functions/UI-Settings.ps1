@@ -302,6 +302,9 @@ function Show-HUSettingsDialog {
             [void]$modTable.Rows.Add($r)
         }
         $c.gridModules.ItemsSource = $modTable.DefaultView
+        # Kopf-Haekchen "Aktiv": alle ein- bzw. ausschalten
+        $c.chkModAll.IsChecked = (-not @($modTable.Rows | Where-Object { -not [bool]$_['Aktiv'] }).Count)
+        $c.chkModAll.Add_Click({ foreach ($r in @($modTable.Rows)) { $r['Aktiv'] = [bool]$c.chkModAll.IsChecked } })
     }
     $c.btnAddonRepos.Add_Click({ Show-HUAddonDialog })
     $c.btnAddonUpdate.Add_Click({ Start-HUAddonUpdate -Loud })
@@ -366,6 +369,8 @@ function Show-HUSettingsDialog {
             $instNew = $null
             if ($adm) {
                 # Art der Installation und aktive Module pruefen, bevor irgendetwas gespeichert wird
+                try { [void]$c.gridModules.CommitEdit([System.Windows.Controls.DataGridEditingUnit]::Row, $true) } catch { }
+                foreach ($rv in @($modTable.DefaultView)) { try { $rv.EndEdit() } catch { } }
                 # abgeschaltet: Haken in der Liste weg; Eintraege fuer Module, die gerade nicht in der Liste stehen, bleiben erhalten
                 $tblIds = @($modTable.Rows | ForEach-Object { "$($_['Id'])" })
                 $offNew = @(@($inst.ModulesOff | Where-Object { $tblIds -notcontains "$_" }) + @($modTable.Rows | Where-Object { -not [bool]$_['Aktiv'] } | ForEach-Object { "$($_['Id'])" }))
