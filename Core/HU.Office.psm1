@@ -604,7 +604,7 @@ function New-HUMailtoUri {
 function Get-HUOutlookMailboxInbox {
     param([Parameter(Mandatory)]$Session, [Parameter(Mandatory)][string]$Mailbox)
     $addr = $Mailbox.Trim()
-    if ($addr -notmatch '^[^@\s;,]+@[^@\s;,]+$') { throw "'$addr' ist keine gültige Mailadresse." }
+    if ($addr -notmatch '^[^@\s;,]+@[^@\s;,]+\.[^@\s;,]+$') { throw "'$addr' ist keine gültige Mailadresse." }
     $acc = $null; $store = $null
     try {
         $acc = Find-HUOutlookAccount $Session $addr
@@ -616,8 +616,9 @@ function Get-HUOutlookMailboxInbox {
     finally { Remove-HUComObject @($store, $acc) }
     $rcp = $null
     try {
-        $rcp = $Session.Namespace.CreateRecipient($addr)
-        [void]$rcp.Resolve()
+        # Resolve wirft selbst, wenn Outlook offline ist oder das Adressbuch nicht erreicht: verstaendliche Meldung statt COM-Text
+        try { $rcp = $Session.Namespace.CreateRecipient($addr); [void]$rcp.Resolve() }
+        catch { throw "Das Postfach $addr lässt sich gerade nicht prüfen (Outlook offline oder Adressbuch nicht erreichbar). ($($_.Exception.Message))" }
         if (-not $rcp.Resolved) { throw "Das Postfach $addr ist in Outlook nicht bekannt." }
         try { return $Session.Namespace.GetSharedDefaultFolder($rcp, 6) }
         catch { throw "Auf den Posteingang von $addr gibt es kein Leserecht oder er ist nicht erreichbar. ($($_.Exception.Message))" }
@@ -706,6 +707,168 @@ function Get-HUOutlookAttachments {
             } finally { Remove-HUComObject @($items, $fld) }
             return $out.ToArray()
         })
+}
+
+# ---------------------------------------------------------------- Hineinziehen (auch Anhaenge direkt aus Outlook) -----------------------
+# Aus dem Explorer kommt FileDrop (Pfade). Aus Outlook (Anhang oder ganze Mail) kommt kein FileDrop, sondern
+# FileGroupDescriptorW (Namen und Groessen) und FileContents (Inhalt je Index). Der Inhalt wird in einen Ordner geschrieben.
+
+<#
+.SYNOPSIS
+    FileGroupDescriptorW lesen: UINT Anzahl, dann je Datei ein FILEDESCRIPTORW mit 592 Byte
+    (Name als UTF-16 ab Byte 72, 260 Zeichen; Groesse ab Byte 64/68, gueltig mit FD_FILESIZE 0x40).
+    Rueckgabe je Datei: Index, Name (nur der Dateiname), Size (-1 = unbekannt).
+#>
+function Read-HUFileGroupDescriptor([byte[]]$Bytes) {
+    if (-not $Bytes -or $Bytes.Length -lt 4) { return @() }
+    $n = [BitConverter]::ToUInt32($Bytes, 0)
+    $out = @()
+    for ($i = 0; $i -lt $n -and $i -lt 100; $i++) {
+        $o = 4 + 592 * $i
+        if ($o + 592 -gt $Bytes.Length) { break }
+        $flags = [BitConverter]::ToUInt32($Bytes, $o)
+        $name = [Text.Encoding]::Unicode.GetString($Bytes, $o + 72, 520)
+        $z = $name.IndexOf([char]0); if ($z -ge 0) { $name = $name.Substring(0, $z) }
+        $name = (($name -split '[\\/]')[-1]).Trim()
+        $size = [long]-1
+        if ($flags -band 0x40) { $size = ([long][BitConverter]::ToUInt32($Bytes, $o + 64) -shl 32) + [long][BitConverter]::ToUInt32($Bytes, $o + 68) }
+        $out += [pscustomobject]@{ Index = $i; Name = $name; Size = $size }
+    }
+    return $out
+}
+
+function Get-HUDropDescriptor($Data) {
+    try {
+        if (-not $Data.GetDataPresent('FileGroupDescriptorW')) { return @() }
+        $s = $Data.GetData('FileGroupDescriptorW')
+        if ($s -is [IO.MemoryStream]) { return @(Read-HUFileGroupDescriptor $s.ToArray()) }
+        if ($s -is [byte[]]) { return @(Read-HUFileGroupDescriptor $s) }
+    } catch { }
+    return @()
+}
+
+function Initialize-HUDropNative {
+    if ('HUDrop.Contents' -as [type]) { return }
+    Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+namespace HUDrop {
+    public static class Contents {
+        [DllImport("kernel32.dll")] static extern IntPtr GlobalLock(IntPtr h);
+        [DllImport("kernel32.dll")] static extern bool GlobalUnlock(IntPtr h);
+        [DllImport("kernel32.dll")] static extern UIntPtr GlobalSize(IntPtr h);
+        [DllImport("ole32.dll")] static extern void ReleaseStgMedium(ref STGMEDIUM m);
+        // Inhalt der Datei Nr. index (FileContents) als Bytes; max = Obergrenze in Byte
+        public static byte[] Get(object dataObject, short format, int index, long max) {
+            System.Runtime.InteropServices.ComTypes.IDataObject com = dataObject as System.Runtime.InteropServices.ComTypes.IDataObject;
+            if (com == null) throw new InvalidOperationException("Die gezogenen Daten lassen sich nicht lesen.");
+            FORMATETC f = new FORMATETC();
+            f.cfFormat = format; f.dwAspect = DVASPECT.DVASPECT_CONTENT; f.lindex = index; f.ptd = IntPtr.Zero;
+            f.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_HGLOBAL;
+            STGMEDIUM m;
+            com.GetData(ref f, out m);
+            try {
+                if (m.tymed == TYMED.TYMED_ISTREAM) {
+                    IStream s = (IStream)Marshal.GetObjectForIUnknown(m.unionmember);
+                    try {
+                        MemoryStream ms = new MemoryStream();
+                        byte[] buf = new byte[65536];
+                        IntPtr pRead = Marshal.AllocCoTaskMem(4);
+                        try {
+                            while (true) {
+                                s.Read(buf, buf.Length, pRead);
+                                int n = Marshal.ReadInt32(pRead);
+                                if (n <= 0) break;
+                                ms.Write(buf, 0, n);
+                                if (ms.Length > max) throw new InvalidOperationException("Die Datei ist zu groß.");
+                            }
+                        } finally { Marshal.FreeCoTaskMem(pRead); }
+                        return ms.ToArray();
+                    } finally { Marshal.ReleaseComObject(s); }
+                }
+                if (m.tymed == TYMED.TYMED_HGLOBAL) {
+                    IntPtr p = GlobalLock(m.unionmember);
+                    try {
+                        long len = (long)GlobalSize(m.unionmember).ToUInt64();
+                        if (len > max) throw new InvalidOperationException("Die Datei ist zu groß.");
+                        byte[] b = new byte[len];
+                        Marshal.Copy(p, b, 0, (int)len);
+                        return b;
+                    } finally { GlobalUnlock(m.unionmember); }
+                }
+                throw new InvalidOperationException("Unbekanntes Format der gezogenen Datei.");
+            } finally { ReleaseStgMedium(ref m); }
+        }
+    }
+}
+'@
+}
+
+# Inhalt der gezogenen Datei Nr. Index (eigene Funktion, damit die Tests sie ersetzen koennen)
+function Get-HUDropContent($Data, [int]$Index, [long]$MaxBytes = 104857600) {
+    Initialize-HUDropNative
+    $fmt = [int16][System.Windows.DataFormats]::GetDataFormat('FileContents').Id
+    return , ([HUDrop.Contents]::Get($Data, $fmt, $Index, $MaxBytes))
+}
+
+<#
+.SYNOPSIS
+    Namen der gezogenen Dateien schon waehrend des Ziehens (DragOver): Pfade aus dem Explorer oder Namen der Outlook-Anhaenge.
+#>
+function Get-HUDropNames($Data) {
+    try {
+        if ($Data.GetDataPresent([System.Windows.DataFormats]::FileDrop)) { return @($Data.GetData([System.Windows.DataFormats]::FileDrop) | Where-Object { $_ }) }
+    } catch { }
+    return @(Get-HUDropDescriptor $Data | ForEach-Object { $_.Name } | Where-Object { $_ })
+}
+
+function Test-HUDropHasFiles($Data) {
+    try { return ($Data.GetDataPresent([System.Windows.DataFormats]::FileDrop) -or $Data.GetDataPresent('FileGroupDescriptorW')) } catch { return $false }
+}
+
+<#
+.SYNOPSIS
+    Gezogene Dateien als Pfade (ab 1.0.4): aus dem Explorer die vorhandenen Dateien, aus Outlook die Anhaenge,
+    geschrieben nach -TargetDir (eindeutige, bereinigte Namen). -Problems sammelt Texte zu Dateien, die nicht gingen.
+    Ganze Mails aus Outlook kommen als .msg an; welche Endungen ein Modul nimmt, entscheidet das Modul.
+#>
+function Save-HUDroppedFiles {
+    param([Parameter(Mandatory)]$Data, [Parameter(Mandatory)][string]$TargetDir, [long]$MaxBytes = 104857600, $Problems = $null)
+    try {
+        if ($Data.GetDataPresent([System.Windows.DataFormats]::FileDrop)) {
+            return @($Data.GetData([System.Windows.DataFormats]::FileDrop) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
+        }
+    } catch { }
+    $desc = @(Get-HUDropDescriptor $Data)
+    if (-not $desc.Count) { return @() }
+    if (-not (Test-Path -LiteralPath $TargetDir)) { [void](New-Item -ItemType Directory -Path $TargetDir -Force) }
+    $rootDir = [IO.Path]::GetFullPath($TargetDir).TrimEnd('\') + '\'
+    $bad = @([IO.Path]::GetInvalidFileNameChars())
+    $out = @()
+    foreach ($d in $desc) {
+        $safe = "$($d.Name)"
+        foreach ($ch in $bad) { $safe = $safe.Replace([string]$ch, '_') }
+        if ($safe.Length -gt 120) { $safe = $safe.Substring($safe.Length - 120) }
+        $ext = [IO.Path]::GetExtension($safe)
+        $base = [IO.Path]::GetFileNameWithoutExtension($safe); if (-not $base.Trim('.', ' ')) { $base = 'Anhang' }
+        try {
+            if ($d.Size -gt $MaxBytes) { throw 'Die Datei ist zu groß.' }
+            $bytes = Get-HUDropContent -Data $Data -Index $d.Index -MaxBytes $MaxBytes
+            if ($null -eq $bytes) { throw 'kein Inhalt' }
+            # HGLOBAL kann groesser sein als die Datei: auf die Groesse laut Beschreibung kuerzen
+            if ($d.Size -ge 0 -and $bytes.Length -gt $d.Size) { $cut = New-Object byte[] ([int]$d.Size); [Array]::Copy($bytes, $cut, [int]$d.Size); $bytes = $cut }
+            $dst = Join-Path $TargetDir "$base$ext"; $i = 2
+            while (Test-Path -LiteralPath $dst) { $dst = Join-Path $TargetDir "$($base)_$i$ext"; $i++ }
+            if (-not ([IO.Path]::GetFullPath($dst)).StartsWith($rootDir, [StringComparison]::OrdinalIgnoreCase)) { throw 'unzulässiger Dateiname' }
+            [IO.File]::WriteAllBytes($dst, $bytes)
+            $out += $dst
+        } catch {
+            if ($null -ne $Problems) { [void]$Problems.Add("$($d.Name): $($_.Exception.Message)") }
+        }
+    }
+    return $out
 }
 
 <#
@@ -1057,5 +1220,6 @@ function Stop-HUOwnProcess([int]$ProcessId, [int]$GraceSeconds = 15) {
 Export-ModuleMember -Function Test-HUOutlookClassic, Test-HUWord, Remove-HUComObject, Test-HUOfficeKey, Test-HUOfficeTestMode, Get-HUOutlookAccounts, Get-HUOutlookContacts,
     Open-HUOutlook, Close-HUOutlook, Invoke-HUOutlook, ConvertTo-HUOutlookFolderSpec, Get-HUOutlookFolder, Select-HUOutlookFolder,
     Find-HUOutlookItem, Get-HUOutlookItemKey, Set-HUOutlookAppointment, Set-HUOutlookTask, Complete-HUOutlookItem, Remove-HUOutlookItem,
-    New-HUMailtoUri, Show-HUMail, Get-HUOutlookAttachments, Get-HUOutlookMailboxInbox, ConvertTo-HUIcsText, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
+    New-HUMailtoUri, Show-HUMail, Get-HUOutlookAttachments, Get-HUOutlookMailboxInbox, ConvertTo-HUIcsText,
+    Read-HUFileGroupDescriptor, Get-HUDropDescriptor, Get-HUDropContent, Get-HUDropNames, Test-HUDropHasFiles, Save-HUDroppedFiles, Format-HUIcsLine, New-HUIcsContent, New-HUIcsFile,
     ConvertTo-HUWordText, Invoke-HUWordTemplate

@@ -5,10 +5,16 @@
 ### 📧 Outlook
 - **Mail-Anhänge aus anderen Postfächern:** Module können Anhänge jetzt auch aus einem anderen Postfach lesen, z. B. einem gemeinsamen Postfach des Amts.
   - Geht mit einem zweiten Konto in Outlook oder mit einem freigegebenen Postfach, auf das man Leserecht hat.
-  - Fehlt das Postfach oder das Recht, sagt HU-Amt das klar.
+  - Fehlt das Postfach oder das Recht, sagt HU-Amt das klar, auch wenn Outlook gerade offline ist.
+- **Anhänge direkt aus Outlook hineinziehen:** Ein Anhang lässt sich jetzt direkt aus der Mail auf einen Reiter ziehen, ohne ihn vorher zu speichern.
+  - Das geht auch in Fenstern der Module, die das unterstützen.
+  - Lässt sich ein Anhang nicht holen, sagt HU-Amt welcher.
+
+### 🏢 Außenstelle
+- **Einrichten sicherer:** Ist ein Modul-Ordner nur eine Verknüpfung auf einen anderen Ordner, entfernt Einrichten nur die Verknüpfung, nie den Inhalt dahinter.
 
 ### ✅ Qualität
-- 546 Tests.
+- 553 Tests.
 
 ## v1.0.3
 

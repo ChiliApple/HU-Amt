@@ -401,3 +401,87 @@ Describe 'Anderes Postfach (Get-HUOutlookMailboxInbox, ab 1.0.4)' {
         } finally { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
+
+Describe 'Hineinziehen aus Outlook (ab 1.0.4)' {
+    BeforeAll {
+        Add-Type -AssemblyName PresentationCore
+        # FileGroupDescriptorW bauen: Anzahl, dann je Datei 592 Byte (Flags, Groesse ab 64/68, Name ab 72)
+        function New-FakeDescriptor([object[]]$Files) {
+            $b = New-Object byte[] (4 + 592 * $Files.Count)
+            [BitConverter]::GetBytes([uint32]$Files.Count).CopyTo($b, 0)
+            for ($i = 0; $i -lt $Files.Count; $i++) {
+                $o = 4 + 592 * $i
+                [BitConverter]::GetBytes([uint32]0x40).CopyTo($b, $o)
+                [BitConverter]::GetBytes([uint32]0).CopyTo($b, $o + 64)
+                [BitConverter]::GetBytes([uint32]$Files[$i].Size).CopyTo($b, $o + 68)
+                [Text.Encoding]::Unicode.GetBytes($Files[$i].Name).CopyTo($b, $o + 72)
+            }
+            return $b
+        }
+        function New-FakeData([hashtable]$Formats) {
+            $d = [pscustomobject]@{ F = $Formats }
+            $d | Add-Member ScriptMethod GetDataPresent { param($n) $this.F.ContainsKey("$n") }
+            $d | Add-Member ScriptMethod GetData { param($n) $this.F["$n"] }
+            return $d
+        }
+    }
+    It 'liest Namen und Groessen aus FileGroupDescriptorW, nur den Dateinamen' {
+        $r = @(Read-HUFileGroupDescriptor (New-FakeDescriptor @(@{ Name = 'Scan 1.pdf'; Size = 5 }, @{ Name = '..\..\boese.jpg'; Size = 7 })))
+        $r.Count | Should -Be 2
+        $r[0].Name | Should -Be 'Scan 1.pdf'; $r[0].Size | Should -Be 5; $r[0].Index | Should -Be 0
+        $r[1].Name | Should -Be 'boese.jpg'; $r[1].Index | Should -Be 1
+        @(Read-HUFileGroupDescriptor ([byte[]](1, 0))).Count | Should -Be 0
+    }
+    It 'Explorer: liefert vorhandene Dateien, nichts wird kopiert' {
+        $f = Join-Path ([IO.Path]::GetTempPath()) ("hu-drop-" + [guid]::NewGuid().ToString('N') + '.pdf')
+        [IO.File]::WriteAllText($f, 'x')
+        try {
+            $d = New-FakeData @{ ([System.Windows.DataFormats]::FileDrop) = [string[]]@($f, 'C:\gibt\es\nicht.pdf') }
+            @(Get-HUDropNames $d).Count | Should -Be 2
+            $r = @(Save-HUDroppedFiles -Data $d -TargetDir (Join-Path ([IO.Path]::GetTempPath()) 'hu-drop-nie'))
+            $r | Should -Be @($f)
+            Test-Path (Join-Path ([IO.Path]::GetTempPath()) 'hu-drop-nie') | Should -BeFalse
+        } finally { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+    }
+    It 'Outlook: schreibt die Anhaenge in den Zielordner, eindeutig, gekuerzt auf die Groesse, Fehler je Datei' {
+        $desc = New-FakeDescriptor @(@{ Name = 'Abrechnung.pdf'; Size = 3 }, @{ Name = 'Abrechnung.pdf'; Size = 2 }, @{ Name = 'kaputt.png'; Size = 1 })
+        $d = New-FakeData @{ FileGroupDescriptorW = (New-Object IO.MemoryStream (, $desc)) }
+        Mock -ModuleName HU.Office Get-HUDropContent {
+            if ($Index -eq 2) { throw 'nicht lesbar' }
+            return , ([byte[]](65, 66, 67, 68, 69))
+        }
+        $dir = Join-Path ([IO.Path]::GetTempPath()) ("hu-drop-" + [guid]::NewGuid().ToString('N'))
+        $prob = New-Object 'System.Collections.Generic.List[string]'
+        try {
+            @(Get-HUDropNames $d) | Should -Be @('Abrechnung.pdf', 'Abrechnung.pdf', 'kaputt.png')
+            Test-HUDropHasFiles $d | Should -BeTrue
+            $r = @(Save-HUDroppedFiles -Data $d -TargetDir $dir -Problems $prob)
+            $r.Count | Should -Be 2
+            [IO.Path]::GetFileName($r[0]) | Should -Be 'Abrechnung.pdf'
+            [IO.Path]::GetFileName($r[1]) | Should -Be 'Abrechnung_2.pdf'
+            [IO.File]::ReadAllText($r[0]) | Should -Be 'ABC'
+            [IO.File]::ReadAllText($r[1]) | Should -Be 'AB'
+            $prob.Count | Should -Be 1
+            $prob[0] | Should -BeLike 'kaputt.png:*nicht lesbar*'
+        } finally { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    It 'ohne Dateien: nichts' {
+        $d = New-FakeData @{ Text = 'hallo' }
+        Test-HUDropHasFiles $d | Should -BeFalse
+        @(Save-HUDroppedFiles -Data $d -TargetDir 'C:\nie').Count | Should -Be 0
+    }
+    It 'C#-Teil fuer FileContents laesst sich unter dieser PowerShell uebersetzen' {
+        { & (Get-Module HU.Office) { Initialize-HUDropNative } } | Should -Not -Throw
+        ('HUDrop.Contents' -as [type]) | Should -Not -BeNullOrEmpty
+    }
+}
+
+Describe 'Anderes Postfach: Grenzfaelle (Pruefung 092)' {
+    It 'Resolve wirft (offline): verstaendliche Meldung, Adresse ohne Punkt in der Domain ist ungueltig' {
+        $ns = [pscustomobject]@{ Accounts = @() }
+        $ns | Add-Member ScriptMethod CreateRecipient { param($a) $r = [pscustomobject]@{ Resolved = $false }; $r | Add-Member ScriptMethod Resolve { throw 'COM 0x80040115' }; $r }
+        $sess = [pscustomobject]@{ Namespace = $ns }
+        { Get-HUOutlookMailboxInbox -Session $sess -Mailbox 'amt@example.org' } | Should -Throw '*lässt sich gerade nicht prüfen*'
+        { Get-HUOutlookMailboxInbox -Session $sess -Mailbox 'amt@localhost' } | Should -Throw '*keine gültige Mailadresse*'
+    }
+}

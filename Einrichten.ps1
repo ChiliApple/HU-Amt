@@ -67,6 +67,8 @@ try {
         $keep = @(); if (Test-Path -LiteralPath $srcAdd) { $keep = @(Get-ChildItem -LiteralPath $srcAdd -Directory -Force | ForEach-Object { $_.Name }) }
         if (Test-Path -LiteralPath $tgtAdd) {
             foreach ($d in @(Get-ChildItem -LiteralPath $tgtAdd -Directory -Force | Where-Object { $keep -notcontains $_.Name })) {
+                # Verknuepfung (Junction/Symlink): nur die Verknuepfung entfernen, nie den Inhalt des Ziels
+                if ($d.Attributes -band [IO.FileAttributes]::ReparsePoint) { [IO.Directory]::Delete($d.FullName, $false); continue }
                 Remove-Item -LiteralPath $d.FullName -Recurse -Force
             }
         }
