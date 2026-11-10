@@ -158,7 +158,7 @@ foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-TestMode', 'UI-Theme', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-Outpost', 'Core-TestMode', 'UI-Theme', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Outpost', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -225,6 +225,9 @@ if ($saved) {
         }
     }
 }
+
+# Art der Installation (Zentrale / Aussenstelle) und abgeschaltete Module: Config\installation.json (Functions\Core-Outpost.ps1)
+$script:Installation = Get-HUInstallationConfig $script:ConfigDir
 
 # Farbschema (persoenlich, wirkt ab dem Start): Hell setzt die dunklen Farben beim Laden um (Functions\UI-Theme.ps1)
 Set-HUTheme "$($script:Settings.ui.theme)"
@@ -306,7 +309,9 @@ function Update-VersionDisplay {
     $t.Text = "v$($script:Version)  |  $txt"
     $t.Foreground = Get-HUBrush $col 'Fg'
     $t.ToolTip = $(if ($cfg -and $cfg.UseBranch) { "Updates kommen direkt aus dem Repo (Branch $($cfg.Branch)), ohne freigegebene Version" } elseif ($txt -eq 'Kanal Test') { 'Updates: auch Testversionen.' } else { 'Updates: nur freigegebene Versionen.' })
-    $script:Window.Title = "$(if ($script:DemoActive) { 'DEMO - ' } elseif ($script:TestModeActive) { 'TEST - ' })$($script:AppTitle) v$($script:Version)"
+    $ost = ''; try { $ost = Get-HUOutpostLabel $script:Installation } catch { }
+    if ($ost) { $t.Text = "$($t.Text)  |  $ost" }
+    $script:Window.Title = "$(if ($script:DemoActive) { 'DEMO - ' } elseif ($script:TestModeActive) { 'TEST - ' })$($script:AppTitle)$(if ($ost) { " - $ost" }) v$($script:Version)"
 }
 
 # ============================================================================
@@ -479,6 +484,8 @@ $script:OnContentRendered = {
     }
     # Erststart ohne Verwalter: einmal fragen, ob dieser Benutzer Verwalter wird
     if (-not $script:TestModeActive) { try { [void](Request-HUFirstVerwalter) } catch { Write-HULogWarn "Verwalter: $($_.Exception.Message)" } }
+    # Erster Start aus einem Paket fuer eine Aussenstelle: Programm pruefen, beigelegten Zugang fuer Modul-Updates einlesen
+    if (-not $script:TestModeActive) { try { Invoke-HUPackageFirstStart } catch { Write-HULogWarn "Paket: $($_.Exception.Message)" } }
     # Rechte der Verwalter-Liste: nur ins Protokoll (keine Meldung fuer Benutzer); Details sieht der Verwalter in den Einstellungen
     if (-not $script:TestModeActive) {
         # im Hintergrund mit Zeitlimit, damit eine langsame Freigabe den Start nicht blockiert

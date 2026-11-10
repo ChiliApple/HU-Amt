@@ -7,6 +7,11 @@ Config/update.json
 Config/installed.json
 Config/pull-journal.json
 Config/powershell-host.txt
+Config/installation.json
+Config/paket.json
+Config/HU-Amt-files.sha256
+Config/HU-Amt-files.sha256.p7s
+Zugang.humodule
 Config/GitHubToken_*.xml
 *.tmp
 *.pulltmp

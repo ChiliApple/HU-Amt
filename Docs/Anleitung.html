@@ -153,6 +153,20 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li>Sind alle gespeichert, löscht HU-Amt die Datei. Sonst bleibt sie, und die Meldung nennt, was fehlt.</li>
   </ol>
   <div class="note warn"><b class="h">Je Windows-Benutzer</b>Der Token wird verschlüsselt nur für den eigenen Windows-Benutzer gespeichert. Jeder Verwalter, der Module aktualisiert, zieht die Zugangsdatei selbst ein. Die Datei wie ein Kennwort behandeln und nicht weitergeben.</div>
+  <h3 id="module-aktiv">Module ein- und ausschalten</h3>
+  <p><span class="ui">⚙ Einstellungen</span> › <b>Module</b> zeigt alle Module dieser Installation. Mit dem Häkchen <b>Aktiv</b> legt ein Verwalter fest, welche als Reiter erscheinen. Das gilt für alle Benutzer dieser Installation und wirkt nach dem Speichern und einem Neustart. Abgeschaltete Module bleiben installiert und lassen sich jederzeit wieder einschalten.</p>
+  <h3 id="aussenstelle">Außenstelle</h3>
+  <p>Eine Außenstelle, z. B. ein Kindergarten, arbeitet mit einer eigenen Installation und eigenen Daten. Im Fenstertitel steht dann <b>Außenstelle</b> mit ihrem Namen. Eingestellt wird das unter <span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b> › <b>Installation</b>.</p>
+  <p><b>Paket erstellen (in der Zentrale):</b> <span class="ui">⚙ Einstellungen</span> › <b>Verwalter</b> › <span class="ui b">Paket für Außenstelle erstellen …</span></p>
+  <ol class="steps">
+    <li>Namen der Außenstelle und die Verwalter dort eintragen (Windows-Benutzernamen, mit Komma getrennt).</li>
+    <li>Module wählen: <b>Mitliefern</b> kommt ins Paket, <b>Aktiv</b> erscheint dort sofort, <b>Einstellungen</b> gibt die Einstellungen des Moduls mit (z. B. bei Reisen den Schlüssel für die Routenberechnung).</li>
+    <li>Auf Wunsch den Zugang für Updates der mitgelieferten Module beilegen.</li>
+    <li><span class="ui">Paket erstellen …</span> und den Speicherort wählen, z. B. einen USB-Stick.</li>
+  </ol>
+  <p>Ins Paket kommen nur das geprüfte Programm, die gewählten Module und die Einstellungen. Daten, Benutzer und Protokolle der Zentrale bleiben, wo sie sind. Passt eine Programmdatei nicht zur freigegebenen Version, entsteht kein Paket.</p>
+  <p><b>In der Außenstelle:</b> Den Ordner aus dem ZIP an einen festen Platz kopieren (z. B. <code>C:\HU-Amt-Kindergarten</code>, nicht in Downloads oder OneDrive) und <code>Start-HU-Amt.cmd</code> doppelklicken. Beim ersten Start prüft HU-Amt das Programm und liest den beigelegten Zugang ein. Danach kommen Updates wie gewohnt.</p>
+  <div class="note warn"><b class="h">USB-Stick sicher verwahren</b>Das ZIP enthält den Zugang und die mitgegebenen Einstellungen im Klartext. Nach dem Einrichten das ZIP löschen.</div>
   <h3 id="sicherung">App-Sicherung</h3>
   <p><span class="ui">⚙ Einstellungen</span> › <b>Sicherung</b> (nur Verwalter): Sicherungsordner wählen (auch Netzfreigabe oder USB, nie im Programmordner), <span class="ui">Kennwort festlegen …</span> – auf Wunsch <i>Für die automatische Sicherung merken</i> (verschlüsselt beim eigenen Windows-Benutzer) –, dann <span class="ui b">Jetzt sichern</span> oder automatisch <i>täglich</i> bzw. <i>wöchentlich</i>. Die Automatik läuft beim Start oder solange die App offen ist; auf der Freigabe sichert der Erste, dem es fällig wird. <i>aufbewahren</i> legt fest, wie viele Sicherungen je PC bleiben.</p>
   <table>

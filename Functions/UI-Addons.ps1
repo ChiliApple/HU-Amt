@@ -8,6 +8,7 @@
 #>
 
 $script:LoadedAddons = @()
+$script:AllAddons = @()         # alle gueltigen Module dieser Installation, auch abgeschaltete (Einstellungen > Module)
 $script:AddonByTab = @{}
 $script:AddonHeader = @{}       # Kennung -> urspruengliche Reiter-Beschriftung (fuer die Zahl im Postfach)
 $script:AddonInboxTimer = $null
@@ -71,7 +72,12 @@ function Get-HUAddonStartList {
         Write-HULogWarn "Modul $($i.Id) $($i.Version) aus AddonsDev geladen - Entwicklung, ohne Signaturpruefung"
         $lists += $i
     }
-    return @(Merge-HUAddonList $lists)
+    $all = @(Merge-HUAddonList $lists)
+    $script:AllAddons = $all
+    # fuer diese Installation abgeschaltet (Einstellungen > Module, Config\installation.json "moduleAus")
+    $instOff = @(); try { if ($script:Installation) { $instOff = @($script:Installation.ModulesOff) } } catch { }
+    foreach ($i in @($all | Where-Object { $instOff -contains $_.Id })) { Write-HULogInfo "Modul $($i.Title) ist für diese Installation abgeschaltet" }
+    return @($all | Where-Object { $instOff -notcontains $_.Id })
 }
 
 # Beim Beenden: Module mit Hintergrundarbeit stoppen (Stop-HUAddon<Id>, optional)
@@ -366,13 +372,14 @@ function Show-HUAddonDialog {
 # Modul-Datei (*.humodule) einlesen (nur Verwalter): alle Repositories mit Token pruefen und hinterlegen.
 # Die Datei wird geloescht, wenn alle Eintraege gespeichert sind; sonst bleibt sie und die Meldung nennt, was fehlt.
 # Tokens erscheinen nie in Meldungen oder im Protokoll.
-function Import-HUAddonKeyFile([string]$Path, $Owner = $null) {
+# -FromPackage: Zugang aus einem Paket fuer eine Aussenstelle (Pruefsumme schon geprueft) - ohne Verwalter-Pruefung und ohne Rueckfrage.
+function Import-HUAddonKeyFile([string]$Path, $Owner = $null, [switch]$FromPackage) {
     $name = [IO.Path]::GetFileName($Path)
-    if (-not (Test-HUVerwalter)) { Show-HUMessage "Module eintragen dürfen nur Verwalter.`n`nDie Datei $name bleibt unverändert." -Icon Info -Owner $Owner; return }
+    if (-not $FromPackage -and -not (Test-HUVerwalter)) { Show-HUMessage "Module eintragen dürfen nur Verwalter.`n`nDie Datei $name bleibt unverändert." -Icon Info -Owner $Owner; return }
     try { $items = @(Read-HUAddonKeyFile $Path) }
     catch { Write-HULogWarn "Modul-Datei $($name): $($_.Exception.Message)"; Show-HUMessage "$name kann nicht gelesen werden:`n$($_.Exception.Message)" -Icon Warning -Owner $Owner; return }
     $list = ($items | ForEach-Object { if ($_.Error) { "  - $($_.Error)" } else { "  - $($_.Owner)/$($_.Repo)" } }) -join "`n"
-    if (-not (Confirm-HU "Diese Module aus $name eintragen?`n`n$list`n`nVorhandene Einträge für dieselben Repositories werden ersetzt. Ist alles eingetragen, wird die Datei gelöscht." 'Module' -Owner $Owner)) { return }
+    if (-not $FromPackage -and -not (Confirm-HU "Diese Module aus $name eintragen?`n`n$list`n`nVorhandene Einträge für dieselben Repositories werden ersetzt. Ist alles eingetragen, wird die Datei gelöscht." 'Module' -Owner $Owner)) { return }
     $ok = @($items | Where-Object { -not $_.Error })
     if (-not $ok.Count) { Show-HUMessage "In $name ist kein brauchbarer Eintrag.`n`n$list" -Icon Warning -Owner $Owner; return }
     Write-HULogInfo "Modul-Datei $($name): $($ok.Count) Repository(s) werden geprüft ..."

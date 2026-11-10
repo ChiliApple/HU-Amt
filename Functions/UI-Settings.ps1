@@ -211,7 +211,7 @@ function Show-HUSettingsDialog {
     $w = $d.Window; $c = $d.C
     Restore-HUDialogState $w 'SettingsWindow'
     $S = $script:Settings
-    $st = @{ Saved = $false; Names = (New-Object System.Collections.ArrayList); Changed = $false }
+    $st = @{ Saved = $false; Names = (New-Object System.Collections.ArrayList); Changed = $false; Restart = $false }
 
     # nur Verwalter: Reiter und Einstellungen, die fuer die ganze Installation gelten
     foreach ($n in 'tabAppBackup', 'tabModules', 'tabAdmins') { $c[$n].Visibility = $(if ($adm) { 'Visible' } else { 'Collapsed' }) }
@@ -287,13 +287,35 @@ function Show-HUSettingsDialog {
     $c.btnOtherVersion.Add_Click({ $w.Close(); Show-HUVersionPicker })
 
     # ---------------- Module ----------------
+    # alle Module dieser Installation, auch abgeschaltete; "Aktiv" gilt fuer alle Benutzer (Config\installation.json)
+    $inst = $script:Installation; if (-not $inst) { $inst = Get-HUInstallationConfig $script:ConfigDir }
+    $modTable = New-Object System.Data.DataTable
+    foreach ($col in 'Reiter', 'Id', 'Version', 'Herkunft', 'Ziehen') { [void]$modTable.Columns.Add($col, [string]) }
+    [void]$modTable.Columns.Add('Aktiv', [bool])
     if ($adm) {
-        $c.gridModules.ItemsSource = @($script:LoadedAddons | ForEach-Object {
-                [pscustomobject]@{ Reiter = "$($_.Title)"; Id = $_.Id; Version = "$($_.Version)"; Herkunft = "$($_.Source)"; Ziehen = $(if (@($_.Drop).Count) { @($_.Drop) -join ' ' } else { '-' }) } })
+        $allMods = @($script:AllAddons); if (-not $allMods.Count) { $allMods = @($script:LoadedAddons) }
+        foreach ($a in $allMods) {
+            $r = $modTable.NewRow()
+            $r['Reiter'] = "$($a.Title)"; $r['Id'] = "$($a.Id)"; $r['Version'] = "$($a.Version)"; $r['Herkunft'] = "$($a.Source)"
+            $r['Ziehen'] = $(if (@($a.Drop).Count) { @($a.Drop) -join ' ' } else { '-' })
+            $r['Aktiv'] = -not (@($inst.ModulesOff) -contains "$($a.Id)")
+            [void]$modTable.Rows.Add($r)
+        }
+        $c.gridModules.ItemsSource = $modTable.DefaultView
     }
     $c.btnAddonRepos.Add_Click({ Show-HUAddonDialog })
     $c.btnAddonUpdate.Add_Click({ Start-HUAddonUpdate -Loud })
     $c.btnAddonDev.Add_Click({ $p = Join-Path $script:AppRoot 'AddonsDev'; if (-not (Test-Path -LiteralPath $p)) { [void](New-Item -ItemType Directory -Path $p -Force) }; Open-HUPath $p })
+
+    # ---------------- Zentrale / Aussenstelle (Reiter Verwalter) ----------------
+    & $selTag $c.cmbInstMode "$($inst.Mode)"
+    $c.txtInstName.Text = "$($inst.Name)"
+    $updInst = { $c.txtInstName.IsEnabled = ("$($c.cmbInstMode.SelectedItem.Tag)" -eq 'Aussenstelle') }
+    & $updInst
+    $c.cmbInstMode.Add_SelectionChanged({ & $updInst })
+    if (Test-HUTestMode) { $c.btnOutpostPackage.IsEnabled = $false; $c.btnOutpostPackage.ToolTip = 'Im Testmodus und in der Demo nicht möglich.' }
+    elseif ("$($inst.Mode)" -eq 'Aussenstelle') { $c.btnOutpostPackage.IsEnabled = $false; $c.btnOutpostPackage.ToolTip = 'Pakete für Außenstellen erstellt nur die Zentrale.' }
+    $c.btnOutpostPackage.Add_Click({ Show-HUOutpostDialog -Owner $w })
 
     # ---------------- Verwalter ----------------
     $list = Get-HUVerwalterList
@@ -341,7 +363,19 @@ function Show-HUSettingsDialog {
 
     # ---------------- Speichern ----------------
     $c.btnSave.Add_Click({
+            $instNew = $null
             if ($adm) {
+                # Art der Installation und aktive Module pruefen, bevor irgendetwas gespeichert wird
+                # abgeschaltet: Haken in der Liste weg; Eintraege fuer Module, die gerade nicht in der Liste stehen, bleiben erhalten
+                $tblIds = @($modTable.Rows | ForEach-Object { "$($_['Id'])" })
+                $offNew = @(@($inst.ModulesOff | Where-Object { $tblIds -notcontains "$_" }) + @($modTable.Rows | Where-Object { -not [bool]$_['Aktiv'] } | ForEach-Object { "$($_['Id'])" }))
+                $instNew = [pscustomobject]@{
+                    Mode = $(if ($c.cmbInstMode.SelectedItem) { "$($c.cmbInstMode.SelectedItem.Tag)" } else { "$($inst.Mode)" })
+                    Name = "$($c.txtInstName.Text)".Trim()
+                    ModulesOff = @($offNew | Where-Object { "$_" } | Sort-Object -Unique)
+                }
+                if ($instNew.Mode -eq 'Zentrale') { $instNew.Name = '' }
+                if ($instNew.Mode -eq 'Aussenstelle' -and -not $instNew.Name) { $c.tabSettings.SelectedItem = $c.tabAdmins; Show-HUMessage 'Bitte einen Namen für die Außenstelle eintragen, z. B. Kindergarten.' -Icon Info -Owner $w; return }
                 $abErr = Save-HUAbSettingsFromForm $c
                 if ($abErr) { $c.tabSettings.SelectedItem = $c.tabAppBackup; Show-HUMessage $abErr -Icon Warning -Owner $w; return }
                 if (-not [bool]$c.chkRequireSig.IsChecked -and -not ($ucfg -and $ucfg.AllowUnsigned) -and -not (Confirm-HU -Warning "Auch Updates ohne Signatur annehmen?`n`nDas ist nur zum Testen gedacht." 'Update' -Owner $w)) { $c.tabSettings.SelectedItem = $c.tabUpdate; return }
@@ -367,6 +401,12 @@ function Show-HUSettingsDialog {
                 } catch { Write-HULogWarn "update.json: $($_.Exception.Message)" }
                 # Kanal in der Kopfzeile sofort nachziehen
                 try { [void](Update-UpdateConfig); Update-VersionDisplay } catch { }
+                # Zentrale / Aussenstelle und aktive Module (Config\installation.json, wirkt nach dem Neustart)
+                $instChanged = ("$($instNew.Mode)" -ne "$($inst.Mode)") -or ("$($instNew.Name)" -ne "$($inst.Name)") -or ((@($instNew.ModulesOff) -join ',') -ne (@($inst.ModulesOff) -join ','))
+                if ($instChanged) {
+                    try { Save-HUInstallationConfig -ConfigDir $script:ConfigDir -Config $instNew; $st.Restart = $true; Write-HULogOK "Installation: $(if ($instNew.Mode -eq 'Aussenstelle') { "Außenstelle $($instNew.Name)" } else { 'Zentrale' }), abgeschaltet: $(if (@($instNew.ModulesOff).Count) { @($instNew.ModulesOff) -join ', ' } else { 'keine' })" }
+                    catch { Show-HUMessage "Art der Installation bzw. Module nicht gespeichert:`n$($_.Exception.Message)" -Icon Warning -Owner $w; return }
+                }
                 if ($st.Changed) {
                     $why = Save-HUVerwalterList @($st.Names)
                     if ($why) { Show-HUMessage "Verwalter nicht gespeichert:`n$why" -Icon Warning -Owner $w; return }
@@ -378,6 +418,7 @@ function Show-HUSettingsDialog {
             Write-HULogOK 'Einstellungen gespeichert.'
             Update-HUAdminView
             $w.Close()
+            if ($st.Restart) { if (Confirm-HU "Module bzw. Art der Installation wirken nach dem Neustart.`n`nJetzt neu starten?" 'Einstellungen' -Owner $script:Window) { Restart-HUApp }; return }
             if ($themeNew -ne $themeOld -and (Confirm-HU "Das Farbschema $([char]0x201E)$themeNew$([char]0x201C) wirkt nach dem Neustart.`n`nJetzt neu starten?" 'Farbschema' -Owner $script:Window)) { Restart-HUApp }
         })
     $c.btnCancel.Add_Click({ $w.Close() })
