@@ -249,6 +249,15 @@ Describe 'Einrichten in der Aussenstelle (Einrichten.ps1)' {
         [IO.File]::ReadAllText((Join-Path $t 'Main.ps1')) | Should -Be '# Main'
         ([IO.File]::ReadAllText($pj) | ConvertFrom-Json).geprueft | Should -Be $false
     }
+    It 'neues Paket ohne ein Modul: das Modul wird entfernt, seine Daten bleiben' {
+        $t = Join-Path $script:Tgt 'HU-Amt-Kindergarten'
+        Set-TestFile (Join-Path $t 'Addons\PDF\addon.json') '{ "id": "PDF" }'
+        Set-TestFile (Join-Path $t 'Data\PDF\eigene.json') '{ "pdf": 1 }'
+        Invoke-Einrichten | Should -Be 0
+        Test-Path -LiteralPath (Join-Path $t 'Addons\PDF') | Should -BeFalse
+        Test-Path -LiteralPath (Join-Path $t 'Addons\Reiseabrechnung\addon.json') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $t 'Data\PDF\eigene.json') | Should -BeTrue
+    }
     It 'aus einem unvollstaendigen Ordner: Abbruch mit Hinweis aufs Auspacken' {
         $half = Join-Path $script:Out2 'halb'
         [void](New-Item -ItemType Directory -Path $half)
@@ -256,6 +265,24 @@ Describe 'Einrichten in der Aussenstelle (Einrichten.ps1)' {
         $o = & $script:Ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $half 'Einrichten.ps1') -TargetRoot $script:Tgt -NoStart -Quiet
         $LASTEXITCODE | Should -Be 1
         ($o -join ' ') | Should -Match 'Alle extrahieren'
+    }
+}
+
+Describe 'Zugaenge ohne Modul nach einem neuen Paket' {
+    BeforeAll {
+        $script:App3 = New-TestDir
+        Set-TestFile (Join-Path $script:App3 'Addons\Reiseabrechnung\addon.json') '{ "id": "Reiseabrechnung" }'
+        Set-TestFile (Join-Path $script:App3 'Addons\OhneJson\Addon.ps1') '# kein addon.json'
+    }
+    AfterAll { Remove-Item -LiteralPath $script:App3 -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'meldet nur Zugaenge, zu denen kein Modul in Addons liegt' {
+        $r = @(Get-HUPackageStaleSources -AppRoot $script:App3 -Sources $script:Sources)
+        @($r | ForEach-Object { $_.Repo }) | Should -Be @('HU-Amt-PDF', 'HU-Amt-Buchung', 'HU-Amt-Kassa-PDF')
+    }
+    It 'ohne Addons-Ordner gelten alle Zugaenge als ueberzaehlig' {
+        $e = New-TestDir
+        try { @(Get-HUPackageStaleSources -AppRoot $e -Sources $script:Sources).Count | Should -Be 4 } finally { Remove-Item -LiteralPath $e -Recurse -Force }
     }
 }
 

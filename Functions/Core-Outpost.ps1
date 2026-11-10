@@ -345,6 +345,22 @@ function Test-HUPackageFirstStart([string]$AppRoot, [string]$Thumbprint) {
     return @{ Status = 'OK'; Text = "Paket $($p.name) vom $($p.erstellt) geprüft: Programm unverändert." }
 }
 
+# Hinterlegte Zugaenge ohne Modul in Addons\ (Zuordnung wie beim Paketbau: Repository "HU-Amt-<Id>" oder "<Id>").
+# Nach einem neuen Paket bleiben sonst Zugaenge entfernter Module, und das Modul-Update laedt sie wieder.
+function Get-HUPackageStaleSources([string]$AppRoot, [object[]]$Sources) {
+    $ids = @()
+    $ad = Join-Path $AppRoot 'Addons'
+    if (Test-Path -LiteralPath $ad) { $ids = @(Get-ChildItem -LiteralPath $ad -Directory -Force | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'addon.json') } | ForEach-Object { $_.Name }) }
+    $out = @()
+    foreach ($s in @($Sources)) {
+        if (-not $s) { continue }
+        $hit = $false
+        foreach ($i in $ids) { if (Find-HUAddonSourceFor $i @($s)) { $hit = $true; break } }
+        if (-not $hit) { $out += $s }
+    }
+    return $out
+}
+
 # Beigelegte Zugangsdatei des Pakets (Zugang.humodule im Programmordner, Pruefsumme laut paket.json). '' = keine
 function Get-HUPackageKeyFile([string]$AppRoot) {
     $kf = Join-Path $AppRoot $script:HUPackageKeyName

@@ -1,6 +1,6 @@
 ﻿# HU-Amt: Ordner und Rechte auf dem Server
 
-Anleitung für die IT. Liegt jeder Installation bei. Stand: HU-Amt 0.1.14.
+Anleitung für die IT. Liegt jeder Installation bei. Stand: HU-Amt 1.0.3.
 
 HU-Amt ist ein Büroprogramm ohne Installation. Es läuft aus einem Ordner auf dem Server, alle Bediensteten starten es von dort. Das Programm selbst und seine Daten liegen in zwei getrennten Ordnern. Wer was darf, regeln nur die NTFS-Rechte. HU-Amt hat keine eigene Benutzerverwaltung.
 
@@ -77,7 +77,18 @@ icacls "D:\Freigaben\freigabe\HU-Amt-Daten\Verwalter.txt" /inheritance:r /grant:
 
 Prüfen: `icacls "<Pfad>"` zeigt die gesetzten Rechte. In HU-Amt zeigt Einstellungen › Verwalter danach keine Warnung mehr.
 
-## 6. Später: Rechte je Modul
+## 6. Außenstellen
+
+Eine Außenstelle (z. B. Kindergarten) bekommt vom Verwalter ein ZIP-Paket. Dort richtet jeder Windows-Benutzer HU-Amt selbst ein: ZIP auspacken, `Einrichten` doppelklicken.
+
+- **Ziel:** `%LOCALAPPDATA%\HU-Amt-<Name>` des angemeldeten Benutzers, also im eigenen Profil. Keine Administratorrechte, kein Schreiben nach `C:\` oder `C:\Program Files`, keine Freigabe nötig.
+- **Rechte:** Nur dieser Benutzer darf dort schreiben. Andere Benutzer des PCs können weder Programm noch Verwalter-Liste ändern.
+- **Mehrere Benutzer:** Jeder richtet HU-Amt einmal für sich ein und hat eigene Daten.
+- **Prüfung:** Beim ersten Start prüft HU-Amt alle Programmdateien gegen die signierte Prüfsummenliste.
+- **Sicherung:** Die Daten der Außenstelle liegen im Benutzerprofil. Wird das Profil nicht gesichert, bitte in HU-Amt die App-Sicherung einschalten.
+- **Ausführungsrichtlinie:** HU-Amt startet PowerShell mit `-ExecutionPolicy Bypass` nur für den eigenen Prozess. Eine per Gruppenrichtlinie erzwungene Ausführungsrichtlinie hat Vorrang. Dann startet HU-Amt dort nicht, bis die IT eine Ausnahme regelt.
+
+## 7. Später: Rechte je Modul
 
 Jedes Modul hat seinen eigenen Ordner in `HU-Amt-Daten` (z. B. `Buchung`, `Kostenzuordnung`, `Reiseabrechnung`). Sollen nur bestimmte Bedienstete ein Modul sehen, bekommt dieser Ordner eine eigene Gruppe (z. B. `GG_HU-Amt-Buchung`) und die allgemeine Benutzergruppe dort keine Rechte mehr. Eine kommende Version von HU-Amt blendet Module ohne Zugriff dann aus. Dazu folgt eine eigene Anleitung, bis dahin bitte nichts an den Modulordnern ändern.
 
