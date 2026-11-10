@@ -1,5 +1,42 @@
 # Changelog
 
+## v1.0.1
+
+### 🏢 Außenstelle
+- **Zentrale oder Außenstelle:** Unter ⚙ Einstellungen › Verwalter › „Installation“ wählt ein Verwalter, ob diese Installation die Zentrale oder eine Außenstelle ist, z. B. ein Kindergarten.
+  - Eine Außenstelle hat einen Namen, der im Fenstertitel und in der Kopfzeile steht.
+  - Zentrale und Außenstelle arbeiten getrennt, jede mit eigenen Daten.
+- **Paket für Außenstelle:** Unter ⚙ Einstellungen › Verwalter › „Paket für Außenstelle erstellen …“ entsteht in der Zentrale ein fertiges ZIP, z. B. für einen USB-Stick.
+  - Name der Außenstelle und die Verwalter dort eintragen.
+  - Module wählen: mitliefern, sofort aktiv oder vorerst aus, Einstellungen des Moduls mitgeben (z. B. bei Reisen den Schlüssel für die Routenberechnung).
+  - Auf Wunsch kommt der Zugang für Updates der mitgelieferten Module dazu.
+  - Ins Paket kommen nur das geprüfte Programm, die gewählten Module und die Einstellungen. Daten, Benutzer und Protokolle der Zentrale bleiben, wo sie sind.
+  - Passt eine Programmdatei nicht zur freigegebenen Version, entsteht kein Paket.
+- **Erster Start in der Außenstelle:** ZIP entpacken, `Start-HU-Amt.cmd` doppelklicken, fertig.
+  - HU-Amt prüft beim ersten Start das Programm gegen die signierte Prüfsumme.
+  - Der beigelegte Zugang wird eingelesen und die Datei danach gelöscht. Updates kommen dann wie gewohnt.
+
+### 📦 Module
+- **Module ein- und ausschalten:** Unter ⚙ Einstellungen › Module zeigt die Liste alle Module dieser Installation. Mit „Aktiv“ legt ein Verwalter fest, welche als Reiter erscheinen.
+  - Gilt für alle Benutzer dieser Installation und wirkt nach einem Neustart.
+  - Abgeschaltete Module bleiben installiert und lassen sich jederzeit wieder einschalten.
+
+### 🔄 Update
+- **Prüfsumme bleibt da:** Nach einem Update hebt HU-Amt die signierte Prüfsummenliste der Version auf. Pakete für Außenstellen lassen sich damit auch ohne Internet prüfen.
+
+### ❓ Hilfe
+- **Anleitung ergänzt:** Neue Abschnitte zu „Module ein- und ausschalten“ und „Außenstelle“.
+
+### ⚠️ Nach dem Update
+- **USB-Stick sicher verwahren:** Ein Paket enthält den Zugang und die mitgegebenen Einstellungen im Klartext. Nach dem Einrichten das ZIP löschen.
+
+### 🚧 Grenzen
+- **Nur aus einer freigegebenen Version:** Ein Paket entsteht nur aus einer Installation, die über Update oder `Pull.ps1` geladen wurde.
+- **Zugang einmal:** Der beigelegte Zugang wird für den Windows-Benutzer eingelesen, der HU-Amt in der Außenstelle zuerst startet. Neue Modulstände gelten danach für alle Benutzer dort.
+
+### ✅ Qualität
+- 517 Tests, alle im strengen Modus wie die App.
+
 ## v1.0.0
 
 Stable-Release der Testversionen 0.0.1 bis 0.1.14 – „Ein Fenster für die Gemeindeverwaltung“.

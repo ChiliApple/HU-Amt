@@ -29,7 +29,8 @@
     laesst sich nicht loeschen). Dann kommt "Bitte zuerst schliessen: ...".
 
     Lokale Daten bleiben unangetastet: Data\ (alle Daten, Benutzer, Token), Addons\, AddonsDev\, bin\, Config\update.json,
-    Config\installed.json, Config\powershell-host.txt, HU-Amt.exe.
+    Config\installed.json, Config\installation.json, Config\datenort.json, Config\powershell-host.txt, HU-Amt.exe.
+    Nach dem Laden eines Releases liegt dessen signierte Pruefsummen-Datei als Config\HU-Amt-files.sha256 (+ .p7s) bei.
     Token (nur fuer private Repos): Umgebungsvariable HU_GITHUB_TOKEN oder Data\Benutzer\<Name>\Token\GitHub.xml (DPAPI).
 
     Erstinstallation: Wer installiert, wird Verwalter (Data\Verwalter.txt mit dem Windows-Benutzernamen), aber nur,
@@ -511,6 +512,15 @@ try {
         Check = $verified; Date = (Get-Date).ToString('yyyy-MM-dd HH:mm'); Files = $ok; FileList = $newFiles
     } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $instFile -Encoding UTF8
 } catch { }
+# signierte Pruefsummen-Datei des installierten Stands aufheben (Paket fuer Aussenstellen, Pruefung ohne Netz)
+if (-not $useBranch -and $manBytes) {
+    try {
+        $sigKeep = $(try { $sigBytes } catch { $null })
+        [IO.File]::WriteAllBytes((Join-Path $cfgDir $script:HMManifestName), $manBytes)
+        $sigFile = Join-Path $cfgDir $script:HMSignatureName
+        if ($sigKeep) { [IO.File]::WriteAllBytes($sigFile, $sigKeep) } elseif (Test-Path -LiteralPath $sigFile) { Remove-Item -LiteralPath $sigFile -Force }
+    } catch { Write-Host "Pruefsummen-Datei nicht aufgehoben: $($_.Exception.Message)" -ForegroundColor Yellow }
+}
 # --- 7. Erstinstallation: wer installiert, wird Verwalter (nur ohne bestehende Liste; ein Update aendert sie nie)
 if ($isFirstInstall -and $repl -eq 0) {
     $admFile = Join-Path $Target 'Data\Verwalter.txt'

@@ -179,23 +179,26 @@
             </TabItem>
 
             <!-- ================= MODULE (nur HU-Amt) ================= -->
-            <TabItem Header="Module" x:Name="tabModules" Style="{StaticResource DarkTabItem}" ToolTip="Geladene Module">
+            <TabItem Header="Module" x:Name="tabModules" Style="{StaticResource DarkTabItem}" ToolTip="Module dieser Installation">
                 <DockPanel Margin="4,12,4,4">
-                    <TextBlock DockPanel.Dock="Top" Text="Geladene Module" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock DockPanel.Dock="Top" Text="Module dieser Installation" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Text="Mit &#x201E;Aktiv&#x201C; legst du fest, welche Module in dieser Installation erscheinen. Gilt f&#xFC;r alle Benutzer, wirkt nach dem Speichern und einem Neustart."/>
                     <WrapPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
                         <Button x:Name="btnAddonRepos" Content="Private Module hinterlegen ..." Background="#1976D2" Style="{StaticResource DarkButton}" Margin="0,0,8,6"
                                 ToolTip="Repository und Nur-Lese-Token eines privaten Moduls hinterlegen"/>
                         <Button x:Name="btnAddonUpdate" Content="Module jetzt aktualisieren" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Neueste signierte Fassung der privaten Module laden"/>
                         <Button x:Name="btnAddonDev" Content="Ordner AddonsDev &#xF6;ffnen" Style="{StaticResource ToolButton}" Margin="0,0,8,6" ToolTip="Module in Entwicklung (ohne Signatur)"/>
                     </WrapPanel>
-                    <DataGrid x:Name="gridModules" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
-                              ToolTip="Module, die gerade geladen sind">
+                    <DataGrid x:Name="gridModules" Style="{StaticResource DarkDataGrid}" AutoGenerateColumns="False" IsReadOnly="False" HeadersVisibility="Column"
+                              CanUserAddRows="False" CanUserDeleteRows="False" ToolTip="Alle Module dieser Installation. H&#xE4;kchen bei &#x201E;Aktiv&#x201C; = Modul erscheint als Reiter.">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Reiter" Binding="{Binding Reiter}"/>
-                            <DataGridTextColumn Header="Kennung" Binding="{Binding Id}"/>
-                            <DataGridTextColumn Header="Version" Binding="{Binding Version}"/>
-                            <DataGridTextColumn Header="Herkunft" Binding="{Binding Herkunft}"/>
-                            <DataGridTextColumn Header="Dateien hineinziehen" Binding="{Binding Ziehen}"/>
+                            <DataGridCheckBoxColumn Header="Aktiv" Binding="{Binding Aktiv, UpdateSourceTrigger=PropertyChanged}"/>
+                            <DataGridTextColumn Header="Reiter" Binding="{Binding Reiter}" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Kennung" Binding="{Binding Id}" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Herkunft" Binding="{Binding Herkunft}" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Dateien hineinziehen" Binding="{Binding Ziehen}" IsReadOnly="True"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>
@@ -220,6 +223,25 @@
                             <TextBlock x:Name="txtTestModeInfo" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"
                                        Text="Testmodus: zum Ausprobieren neuer Module ohne echte Daten. Gilt bis zum n&#xE4;chsten normalen Neustart."/>
                         </DockPanel>
+                    </Border>
+                    <Border DockPanel.Dock="Bottom" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,8,0,0">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button x:Name="btnOutpostPackage" DockPanel.Dock="Right" Content="Paket f&#xFC;r Au&#xDF;enstelle erstellen ..." Background="#1976D2" Style="{StaticResource DarkButton}" Margin="8,0,0,0"
+                                        ToolTip="ZIP f&#xFC;r eine Au&#xDF;enstelle erstellen (z. B. auf einen USB-Stick): Programm, gew&#xE4;hlte Module, Verwalter und Einstellungen, fertig zum Entpacken und Starten."/>
+                                <TextBlock Text="Installation:" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="cmbInstMode" Width="140" Style="{StaticResource DarkComboBox}" VerticalAlignment="Center"
+                                          ToolTip="Zentrale: die Hauptinstallation (z. B. Gemeindeamt). Au&#xDF;enstelle: eigene Installation einer Stelle (z. B. Kindergarten), meist aus einem Paket.">
+                                    <ComboBoxItem Content="Zentrale" Tag="Zentrale"/>
+                                    <ComboBoxItem Content="Au&#xDF;enstelle" Tag="Aussenstelle"/>
+                                </ComboBox>
+                                <TextBlock Text="Name:" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="12,0,8,0"/>
+                                <TextBox x:Name="txtInstName" Width="200" HorizontalAlignment="Left" Style="{StaticResource DarkTextBox}" VerticalAlignment="Center" MaxLength="60"
+                                         ToolTip="Name der Au&#xDF;enstelle, z. B. Kindergarten. Steht im Fenstertitel."/>
+                            </DockPanel>
+                            <TextBlock x:Name="txtInstInfo" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
+                                       Text="Zentrale und Au&#xDF;enstelle arbeiten getrennt, jede mit eigenen Daten. Die Art der Installation wirkt nach dem Speichern und einem Neustart."/>
+                        </StackPanel>
                     </Border>
                     <Border DockPanel.Dock="Bottom" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,8,0,0">
                         <DockPanel>

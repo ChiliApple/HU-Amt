@@ -144,6 +144,10 @@ $b.OutlookId = $r.EntryId
 - **Verschiebbare Bereiche (GridSplitter):** Der Kern merkt sich in jedem Reiter und in jedem Fenster mit `Restore-HUDialogState`/`Save-HUDialogState` die Zeilen- und Spaltengrößen aller Grids mit Splitter (je Benutzer, ab 0.1.10). **Module bauen dafür nichts Eigenes.** Ein Grid bekommt am besten ein `x:Name`, dann bleibt die Zuordnung auch bei Umbauten stabil.
 - **Fenstergröße und -position:** `Restore-HUDialogState $w '<Name>'` beim Öffnen, `Save-HUDialogState $w '<Name>'` beim Schließen.
 - **Tabellen:** Spaltenbreite nach Inhalt, Knöpfe wachsen mit der Beschriftung, Anfasser an jedem größenveränderbaren Fenster (über `New-HUWindow`).
+- **Listen: Anlegen und Entfernen (ab 1.0.1, Udo 08.11.2026):** Jede Liste, in der man Einträge anlegen kann, hat auch „Entfernen“.
+  - Noch nicht gespeicherte Einträge: immer entfernbar, ohne Rückfrage.
+  - Gespeicherte Einträge: nur entfernbar, wenn kein Datensatz darauf verweist (per ID prüfen). Sonst eine Meldung, wo der Eintrag verwendet wird, und der Hinweis auf „inaktiv“ bzw. „ausblenden“. Nichts Verwendetes löschen, damit alte Vorgänge vollständig bleiben.
+  - Vor dem Entfernen eines gespeicherten Eintrags Rückfrage, das Entfernen mit Benutzer und Zeit festhalten.
 - **Farbschema Dunkel/Hell (ab 1.0.0):** Jeder Benutzer wählt es unter Einstellungen › Allgemein. Module gestalten weiter dunkel wie bisher, der Kern setzt die Farben für Hell beim Laden um.
   - XAML: automatisch über `New-HUWindow`, `Get-HUThemedXaml`, den Reiter des Moduls und `Show-HUToast`. Nichts zu tun.
   - Farben im Code: immer `Get-HUBrush '<#RRGGBB>' '<Rolle>'`, nie `BrushConverter`, `ColorConverter` oder `[Windows.Media.Brushes]::…`. Rollen: `Fg` Schrift, `Bg` Fläche, `Border` Rahmen, `Btn` graue Knopffläche mit weißer Schrift. Ohne Rolle bleiben Weiß und kräftige Farben unverändert.
