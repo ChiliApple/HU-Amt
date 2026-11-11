@@ -158,7 +158,7 @@ foreach ($mod in @('HU.Logging', 'HU.AppBackup', 'HU.Exchange', 'HU.Office', 'HU
     if (-not (Test-Path -LiteralPath $modPath)) { Show-HUFatal "Core-Modul fehlt: $modPath`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     Import-Module $modPath -Force -DisableNameChecking
 }
-foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-Outpost', 'Core-TestMode', 'UI-Theme', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Outpost', 'UI-Help', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
+foreach ($f in @('Core-Async', 'Core-Update', 'Core-Addons', 'Core-Outpost', 'Core-TestMode', 'Core-Changelog', 'UI-Theme', 'UI-Common', 'UI-Controls', 'UI-Jobs', 'UI-State', 'UI-Shell', 'UI-Splash', 'UI-Update', 'UI-Addons', 'UI-AppBackup', 'UI-Support', 'UI-Settings', 'UI-Outpost', 'UI-Help', 'UI-Changelog', 'UI-TestAssistant', 'UI-Mail', 'UI-Contacts')) {
     $fp = Join-Path $script:AppRoot "Functions\$f.ps1"
     if (-not (Test-Path -LiteralPath $fp)) { Show-HUFatal "Datei fehlt: $fp`n`nPull.ps1 ausführen, um die Dateien zu laden." }
     . $fp
@@ -319,6 +319,12 @@ function Update-VersionDisplay {
 # ============================================================================
 $c['btnSettings'].Add_Click({ Open-HUSettings })
 $c['btnSupport'].Add_Click({ Show-HUSupport })
+# Farbschema mit einem Klick: Sonne im dunklen Schema (auf Hell), Mond im hellen (auf Dunkel)
+if ($c['btnTheme']) {
+    $c['btnTheme'].Content = $(if (Test-HULightTheme) { [char]::ConvertFromUtf32(0x1F319) } else { [string][char]0x2600 })
+    $c['btnTheme'].ToolTip = $(if (Test-HULightTheme) { 'Auf dunkles Farbschema umschalten (HU-Amt startet dafür neu)' } else { 'Auf helles Farbschema umschalten (HU-Amt startet dafür neu)' })
+    $c['btnTheme'].Add_Click({ Switch-HUThemeQuick })
+}
 Register-HUAbMainStatus
 Register-HUHelpHandlers
 Register-HUUpdateHandlers
@@ -465,6 +471,7 @@ $script:OnContentRendered = {
                     Show-HUAbout; $script:SmokeSteps += 'Fenster-Info'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                     Open-HUSettings; $script:SmokeSteps += 'Fenster-Einstellungen'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                     Show-HUAddonDialog; $script:SmokeSteps += 'Fenster-Module'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
+                    Show-HUChangelog; $script:SmokeSteps += 'Fenster-Neuigkeiten'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                     if (-not (Get-HUHelpPage $null)) { throw 'Grundhilfe fehlt' }
                     $script:SmokeSteps += 'Hilfe'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                 } finally { $closer.Stop() }
@@ -486,6 +493,8 @@ $script:OnContentRendered = {
     if (-not $script:TestModeActive) { try { [void](Request-HUFirstVerwalter) } catch { Write-HULogWarn "Verwalter: $($_.Exception.Message)" } }
     # Erster Start aus einem Paket fuer eine Aussenstelle: Programm pruefen, beigelegten Zugang fuer Modul-Updates einlesen
     if (-not $script:TestModeActive) { try { Invoke-HUPackageFirstStart } catch { Write-HULogWarn "Paket: $($_.Exception.Message)" } }
+    # Erster Start dieses Benutzers nach einem Update: Fenster "Neu in dieser Version" (Programm und Module, Functions\UI-Changelog.ps1)
+    if (-not $script:TestModeActive) { try { Invoke-HUChangelogOnStart } catch { Write-HULogWarn "Neuigkeiten: $($_.Exception.Message)" } }
     # Rechte der Verwalter-Liste: nur ins Protokoll (keine Meldung fuer Benutzer); Details sieht der Verwalter in den Einstellungen
     if (-not $script:TestModeActive) {
         # im Hintergrund mit Zeitlimit, damit eine langsame Freigabe den Start nicht blockiert

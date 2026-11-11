@@ -56,6 +56,7 @@ Funktionen in `Addon.ps1` (Konvention statt Schnittstelle):
 
 - Ein Release enthält `HU-Amt-files.sha256` (Prüfsummen aller Dateien, erstellt von den automatischen Tests auf GitHub) und `HU-Amt-files.sha256.p7s` (Signatur des Herausgebers).
 - Kanal **Stabil** nimmt nur freigegebene Releases, Kanal **Test** auch Vorab-Releases. In beiden Fällen nur signierte.
+- **`CHANGELOG.md` im Modulordner** (ab 1.0.4): Das Fenster "Neu in dieser Version" zeigt jedem Benutzer beim ersten Start nach einem Update die neuen Abschnitte. Ein Abschnitt beginnt mit `## v1.2.3` (Zusatz danach erlaubt, z. B. `(Stable, 11.11.2026)`), darunter `### <Emoji> <Bereich>`, Punkte `- **Titel:** Text` und eingerückte Unterpunkte. Gezeigt werden `**fett**` und `` `Code` ``, sonst kein Markdown.
 
 ## Datei-Austausch mit anderen Programmen
 
@@ -112,6 +113,8 @@ Module bauen keine eigenen COM-Aufrufe, sondern nutzen den Kern (`Core\HU.Office
 - `Show-HUMail -From -FromMode`: die Grundfunktion darunter. Rückgabe `Way` (`outlook`, `mailto`, `fehler`, `testmodus`), `Message` und `From`. Mit festem Absender weicht sie nie auf `mailto:` aus.
 - `Get-HUOutlookAccounts`: Mailkonten im Outlook-Profil (`Address`, `Name`, `Exchange`). Gemeinsame Postfächer ohne eigenes Konto stehen dort nicht.
 - `Get-HUOutlookAttachments -Days 30 -Extensions '.pdf' -TargetDir <Ordner> [-Folder <Angabe>]` (ab 1.0.2): Anhänge aus dem Posteingang speichern, neueste zuerst. Die Mails bleiben unverändert (nicht verschoben, nicht als gelesen markiert). Rückgabe je Anhang `EntryId`, `StoreId`, `Subject`, `Sender`, `SenderAddress`, `Received`, `FileName`, `Path`. Im Testmodus gesperrt.
+  - `-Mailbox <Adresse>` (ab 1.0.4): Posteingang eines anderen Postfachs statt des eigenen. Zuerst ein Konto im Outlook-Profil mit dieser Adresse, sonst ein freigegebenes Postfach (Exchange, Leserecht nötig). Unbekannte Adresse oder fehlendes Recht: Fehler mit verständlicher Meldung. Mehrere Postfächer: je Adresse einmal aufrufen.
+- `Save-HUDroppedFiles -Data <e.Data> -TargetDir <Ordner> [-Problems <Liste>]` (ab 1.0.4): gezogene Dateien als Pfade, für eigene Fenster eines Moduls. Aus dem Explorer die vorhandenen Dateien, aus Outlook (Anhang direkt aus der Mail, kommt ohne `FileDrop`) die Anhänge, geschrieben nach `-TargetDir`. Fürs Ziehen selbst: `Test-HUDropHasFiles` und `Get-HUDropNames` (Namen schon während des Ziehens). Auf den Reiter gezogene Outlook-Anhänge löst der Kern selbst, das Modul bekommt in `Invoke-HUAddonDrop<Id>` wie immer Pfade.
 
 **Ohne Outlook**
 

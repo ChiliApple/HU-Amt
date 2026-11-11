@@ -100,6 +100,21 @@ function Get-HUDropFiles($e) {
         return @($e.Data.GetData([System.Windows.DataFormats]::FileDrop) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
     } catch { return @() }
 }
+# Anhaenge direkt aus Outlook (ab 1.0.4): in einen eigenen Temp-Ordner schreiben, alte Ordner (aelter als 1 Tag) wegraeumen
+function Save-HUDropOutlookFiles($e) {
+    if (-not (Get-Command Save-HUDroppedFiles -ErrorAction SilentlyContinue)) { return @() }
+    $base = [IO.Path]::GetTempPath()
+    try {
+        foreach ($old in @(Get-ChildItem -LiteralPath $base -Directory -Filter 'HU-Amt-Drop-*' -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-1) })) {
+            Remove-Item -LiteralPath $old.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    } catch { }
+    $dir = Join-Path $base ('HU-Amt-Drop-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    $prob = New-Object 'System.Collections.Generic.List[string]'
+    $files = @(Save-HUDroppedFiles -Data $e.Data -TargetDir $dir -Problems $prob)
+    if ($prob.Count) { Show-HUMessage ("Aus Outlook nicht übernommen:`n" + ($prob -join "`n")) -Icon Warning }
+    return $files
+}
 function Test-HUAddonCanDrop($Info) {
     return ($Info -and @($Info.Drop).Count -and (Get-Command "Invoke-HUAddonDrop$($Info.Id)" -CommandType Function -ErrorAction SilentlyContinue))
 }
@@ -126,8 +141,13 @@ function Register-HUFileDrop {
         param($s, $e)
         # nur Dateien behandeln: alles andere (z. B. ein gezogener Reiter) muss bis zum Ziel durchkommen,
         # sonst sperrt Effects=None + Handled das Verschieben der Reiter
-        if (-not $e.Data.GetDataPresent([System.Windows.DataFormats]::FileDrop)) { return }
-        $fl = @(Get-HUDropFiles $e)
+        $outlook = $false
+        if (-not $e.Data.GetDataPresent([System.Windows.DataFormats]::FileDrop)) {
+            # Anhang direkt aus Outlook: nur die Namen sind schon bekannt, der Inhalt kommt erst beim Loslassen
+            if (-not ((Get-Command Get-HUDropNames -ErrorAction SilentlyContinue) -and $e.Data.GetDataPresent('FileGroupDescriptorW'))) { return }
+            $outlook = $true
+        }
+        $fl = $(if ($outlook) { @(Get-HUDropNames $e.Data) } else { @(Get-HUDropFiles $e) })
         $t = $(if (@($fl | Where-Object { Test-HUAddonKeyFile $_ }).Count) { $true } else { Resolve-HUDropTarget $fl })
         $e.Effects = $(if ($t) { [System.Windows.DragDropEffects]::Copy } else { [System.Windows.DragDropEffects]::None })
         $e.Handled = $true
@@ -137,6 +157,13 @@ function Register-HUFileDrop {
     $w.Add_PreviewDrop({
             param($s, $e)
             $files = @(Get-HUDropFiles $e)
+            if (-not $files.Count -and -not $e.Data.GetDataPresent([System.Windows.DataFormats]::FileDrop) -and $e.Data.GetDataPresent('FileGroupDescriptorW')) {
+                # erst pruefen, ob ein Reiter die Namen nimmt, dann die Anhaenge aus Outlook als Dateien holen
+                $names = @(Get-HUDropNames $e.Data)
+                if (-not $names.Count -or -not (@($names | Where-Object { Test-HUAddonKeyFile $_ }).Count -or (Resolve-HUDropTarget $names))) { return }
+                $e.Handled = $true
+                $files = @(Save-HUDropOutlookFiles $e)
+            }
             if (-not $files.Count) { return }
             $e.Handled = $true
             # Modul-Dateien (*.humodule) behandelt der Kern selbst, kein Modul bekommt sie

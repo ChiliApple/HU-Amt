@@ -195,7 +195,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><td>Reihenfolge</td><td>Reiter mit der Maus verschieben; die Reihenfolge bleibt beim nächsten Start. Rechtsklick auf einen Reiter: Reihenfolge zurücksetzen.</td></tr>
     <tr><td>Protokoll</td><td>Nur für Verwalter, neueste Einträge oben. Höhe am Griff ziehen.</td></tr>
   </table>
-  <p><span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b>: <i>Reiter beim Start</i> (z. B. zuletzt verwendeter), <i>Oberflächengröße</i>, <i>Startanimation</i>, <i>Farbschema</i> (Dunkel oder Hell, wirkt nach dem Neustart) und <span class="ui b">Demo starten …</span> (<a href="#demo">Demo</a>). Nur Verwalter: <i>PowerShell beim Start</i> (Automatisch, PowerShell 7 oder Windows PowerShell 5.1) und <i>Protokoll-Stufe</i> mit Log-Ordner.</p>
+  <p><span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b>: <i>Reiter beim Start</i> (z. B. zuletzt verwendeter), <i>Oberflächengröße</i>, <i>Startanimation</i>, <i>Farbschema</i> (Dunkel oder Hell, wirkt nach dem Neustart; schneller geht es mit dem Knopf <span class="ui">☀</span> bzw. Mond oben rechts) und <span class="ui b">Demo starten …</span> (<a href="#demo">Demo</a>). Nur Verwalter: <i>PowerShell beim Start</i> (Automatisch, PowerShell 7 oder Windows PowerShell 5.1) und <i>Protokoll-Stufe</i> mit Log-Ordner.</p>
   <div class="note tip"><b class="h">Bleibt gespeichert</b>Fensterposition und -größe, Höhe des Protokolls, Reihenfolge der Reiter, letzter Reiter und die Einstellungen der Module – je Windows-Benutzer in <code>Data\Benutzer\&lt;Name&gt;</code>. <kbd>Strg</kbd> + Mausrad skaliert die Oberfläche, <kbd>Strg</kbd>+<kbd>0</kbd> = 100 %.</div>
   <h3 id="demo">Ausprobieren: Demo und Testmodus</h3>
   <p><b>Demo (für alle):</b> <span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b> › <span class="ui b">Demo starten …</span>. HU-Amt startet neu, mit Beispieldaten in allen Modulen. Probier alles aus, nichts davon ist echt.</p>
@@ -219,6 +219,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <h2><span class="n">3</span>Dateien hineinziehen und weitergeben</h2>
   <ul>
     <li>Dateien aus dem Explorer ins Fenster ziehen: Sie gehen an den offenen Reiter.</li>
+    <li>Anhänge gehen auch direkt aus einer Mail in Outlook, ohne sie vorher zu speichern (ab Version 1.0.4).</li>
     <li>Passt die Datei nicht zu diesem Reiter, aber zu genau einem anderen, wechselt HU-Amt dorthin.</li>
     <li>Reiter können Dateien an andere Reiter weitergeben, z. B. die Texterkennung an die Kostenzuordnung. Die Datei kommt als Kopie ins Postfach des Ziels im gemeinsamen Datenordner – das klappt auch von einem anderen PC aus. Am Reiter steht die Zahl wartender Dateien, z. B. „Kostenzuordnung (3)“; sie wird jede Minute neu gezählt.</li>
     <li>Ob und wohin weitergegeben wird, legst du im Modul fest. Am Inhalt wird nichts erraten.</li>
@@ -491,6 +492,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 <section id="update">
   <h2><span class="n">12</span>Update</h2>
   <p>Beim Start sucht HU-Amt im Hintergrund nach Updates; bei einer neuen Version wird <span class="ui">Update</span> gold. Klick: HU-Amt schließt sich, <code>Pull.ps1</code> lädt die neue Version ganz, prüft jede Datei gegen die Prüfsummen-Liste und die Signatur des Herausgebers und ersetzt erst dann. Bei einem Fehler bleibt alles, wie es war. Danach startet HU-Amt neu. <code>Data\</code> und lokale Einstellungen werden nie angefasst.</p>
+  <p><b>Neu in dieser Version:</b> Beim ersten Öffnen nach einem Update zeigt HU-Amt jedem Benutzer einmal, was sich geändert hat: vom Programm und von jedem Modul, das seit seinem letzten Start neu ist. Wer HU-Amt zum ersten Mal startet, bekommt das Fenster nicht. Im Testmodus und in der Demo kommt es nicht. Wieder öffnen: Rechtsklick auf <span class="ui">?</span> › <i>Neu in dieser Version</i>.</p>
   <table>
     <tr><th>Rechtsklick auf Update</th><th>Wirkung</th></tr>
     <tr><td>Jetzt nach Updates suchen</td><td>sofort prüfen</td></tr>

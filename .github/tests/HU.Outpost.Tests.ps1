@@ -258,6 +258,21 @@ Describe 'Einrichten in der Aussenstelle (Einrichten.ps1)' {
         Test-Path -LiteralPath (Join-Path $t 'Addons\Reiseabrechnung\addon.json') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $t 'Data\PDF\eigene.json') | Should -BeTrue
     }
+    It 'Modul als Verknuepfung (Junction): nur die Verknuepfung geht, das Ziel bleibt (Pruefung 092)' {
+        $t = Join-Path $script:Tgt 'HU-Amt-Kindergarten'
+        $outside = New-TestDir
+        Set-TestFile (Join-Path $outside 'wichtig.txt') 'bleibt'
+        $link = Join-Path $t 'Addons\Verlinkt'
+        [void](New-Item -ItemType Junction -Path $link -Target $outside)
+        try {
+            Invoke-Einrichten | Should -Be 0
+            Test-Path -LiteralPath $link | Should -BeFalse
+            Test-Path -LiteralPath (Join-Path $outside 'wichtig.txt') | Should -BeTrue
+        } finally {
+            if (Test-Path -LiteralPath $link) { [IO.Directory]::Delete($link, $false) }
+            Remove-Item -LiteralPath $outside -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
     It 'aus einem unvollstaendigen Ordner: Abbruch mit Hinweis aufs Auspacken' {
         $half = Join-Path $script:Out2 'halb'
         [void](New-Item -ItemType Directory -Path $half)
