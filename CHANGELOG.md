@@ -11,6 +11,7 @@ Stable-Release der Testversionen 1.0.3 bis 1.0.4 – „Postfächer und Außenst
 - **Anhänge direkt aus Outlook hineinziehen:** Ein Anhang lässt sich jetzt direkt aus der Mail auf einen Reiter ziehen, ohne ihn vorher zu speichern.
   - Das geht auch in Fenstern der Module, die das unterstützen.
   - Lässt sich ein Anhang nicht holen, sagt HU-Amt welcher.
+  - Gezogen werden Anhänge, nicht die ganze Mail. Dafür kommt ein Hinweis.
 
 ### 🆕 Neuigkeiten
 - **Fenster "Neu in dieser Version":** Beim ersten Öffnen nach einem Update zeigt HU-Amt, was sich geändert hat.
@@ -28,7 +29,7 @@ Stable-Release der Testversionen 1.0.3 bis 1.0.4 – „Postfächer und Außenst
 - **Einrichten sicherer:** Ist ein Modul-Ordner nur eine Verknüpfung auf einen anderen Ordner, entfernt Einrichten nur die Verknüpfung, nie den Inhalt dahinter.
 
 ### ✅ Qualität
-- 560 Tests.
+- 561 Tests.
 
 ## v1.0.3
 

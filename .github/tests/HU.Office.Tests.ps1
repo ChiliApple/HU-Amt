@@ -474,6 +474,18 @@ Describe 'Hineinziehen aus Outlook (ab 1.0.4)' {
         { & (Get-Module HU.Office) { Initialize-HUDropNative } } | Should -Not -Throw
         ('HUDrop.Contents' -as [type]) | Should -Not -BeNullOrEmpty
     }
+    It 'ohne Mock: Format-ID ab 0xC000 wird umgerechnet, kein Int16-Fehler (Pruefung 092, Kern-B3)' {
+        & (Get-Module HU.Office) { Initialize-HUDropNative }
+        [System.Windows.DataFormats]::GetDataFormat('FileContents').Id | Should -BeGreaterThan 32767
+        [HUDrop.Contents]::ToFormat(0xC0A5) | Should -Be ([int16]-16219)
+        [HUDrop.Contents]::ToFormat(15) | Should -Be ([int16]15)
+        # echtes WPF-Datenobjekt ohne FileContents: Windows meldet "Format fehlt", nicht der Cast
+        $d = New-Object System.Windows.DataObject
+        $err = $null
+        try { [void](Get-HUDropContent -Data $d -Index 0) } catch { $err = "$($_.Exception.Message) $($_.Exception.InnerException)" }
+        $err | Should -Not -BeNullOrEmpty
+        $err | Should -Not -Match 'Int16'
+    }
 }
 
 Describe 'Anderes Postfach: Grenzfaelle (Pruefung 092)' {

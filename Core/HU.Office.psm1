@@ -761,12 +761,14 @@ namespace HUDrop {
         [DllImport("kernel32.dll")] static extern UIntPtr GlobalSize(IntPtr h);
         [DllImport("ole32.dll")] static extern void ReleaseStgMedium(ref STGMEDIUM m);
         // Inhalt der Datei Nr. index (FileContents) als Bytes; max = Obergrenze in Byte
-        public static byte[] Get(object dataObject, short format, int index, long max) {
+        // Registrierte Formate (z. B. FileContents) haben IDs ab 0xC000; FORMATETC.cfFormat ist short: ohne Pruefung umrechnen
+        public static short ToFormat(int id) { return unchecked((short)id); }
+        public static byte[] Get(object dataObject, int format, int index, long max) {
             System.Runtime.InteropServices.ComTypes.IDataObject com = dataObject as System.Runtime.InteropServices.ComTypes.IDataObject;
             if (com == null) throw new InvalidOperationException("Die gezogenen Daten lassen sich nicht lesen.");
             FORMATETC f = new FORMATETC();
-            f.cfFormat = format; f.dwAspect = DVASPECT.DVASPECT_CONTENT; f.lindex = index; f.ptd = IntPtr.Zero;
-            f.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_HGLOBAL;
+            f.cfFormat = ToFormat(format); f.dwAspect = DVASPECT.DVASPECT_CONTENT; f.lindex = index; f.ptd = IntPtr.Zero;
+            f.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_HGLOBAL | TYMED.TYMED_ISTORAGE;
             STGMEDIUM m;
             com.GetData(ref f, out m);
             try {
@@ -798,6 +800,7 @@ namespace HUDrop {
                         return b;
                     } finally { GlobalUnlock(m.unionmember); }
                 }
+                if (m.tymed == TYMED.TYMED_ISTORAGE) throw new InvalidOperationException("Eine ganze Mail lässt sich nicht übernehmen. Bitte nur den Anhang aus der Mail ziehen.");
                 throw new InvalidOperationException("Unbekanntes Format der gezogenen Datei.");
             } finally { ReleaseStgMedium(ref m); }
         }
@@ -809,7 +812,7 @@ namespace HUDrop {
 # Inhalt der gezogenen Datei Nr. Index (eigene Funktion, damit die Tests sie ersetzen koennen)
 function Get-HUDropContent($Data, [int]$Index, [long]$MaxBytes = 104857600) {
     Initialize-HUDropNative
-    $fmt = [int16][System.Windows.DataFormats]::GetDataFormat('FileContents').Id
+    $fmt = [int][System.Windows.DataFormats]::GetDataFormat('FileContents').Id   # ab 0xC000, Umrechnung in HUDrop.Contents
     return , ([HUDrop.Contents]::Get($Data, $fmt, $Index, $MaxBytes))
 }
 
@@ -832,7 +835,7 @@ function Test-HUDropHasFiles($Data) {
 .SYNOPSIS
     Gezogene Dateien als Pfade (ab 1.0.4): aus dem Explorer die vorhandenen Dateien, aus Outlook die Anhaenge,
     geschrieben nach -TargetDir (eindeutige, bereinigte Namen). -Problems sammelt Texte zu Dateien, die nicht gingen.
-    Ganze Mails aus Outlook kommen als .msg an; welche Endungen ein Modul nimmt, entscheidet das Modul.
+    Ganze Mails (nicht nur ein Anhang) gehen nicht, dafuer kommt eine Meldung je Mail; welche Endungen ein Modul nimmt, entscheidet das Modul.
 #>
 function Save-HUDroppedFiles {
     param([Parameter(Mandatory)]$Data, [Parameter(Mandatory)][string]$TargetDir, [long]$MaxBytes = 104857600, $Problems = $null)
