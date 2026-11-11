@@ -454,16 +454,32 @@ $script:OnContentRendered = {
                 if (-not (Test-Path -LiteralPath $z)) { throw 'Support-ZIP fehlt' }
                 Remove-Item -LiteralPath $zf -Recurse -Force
                 $script:SmokeSteps += 'Support'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
-                # Fenster wirklich aufbauen: ein zweiter Timer schliesst das jeweils offene Fenster nach kurzer Zeit
+                # Fenster wirklich aufbauen und nach kurzer Zeit schliessen. Auf GitHub ohne Bildschirm feuern Zeitgeber der
+                # Oberflaeche manchmal gar nicht (Diagnose 11.11.2026: "Zeitgeber kam nicht"); dann blieb ein Fenster offen und der
+                # Waechter meldete "Oberflaeche blockiert". Darum stoesst ein eigener Thread das Schliessen alle 1,2 s ueber den
+                # Dispatcher an (das kam im Diagnose-Lauf immer durch); der Zeitgeber bleibt als zweiter Weg.
+                $closeNow = {
+                    if ($script:LastDialog -and $script:LastDialog.IsVisible) {
+                        if ($env:HUAMT_SMOKE_SHOTS) { Save-HUWindowShot $script:LastDialog (Join-Path $env:HUAMT_SMOKE_SHOTS "Fenster-$($script:LastDialog.Title).png") }
+                        Set-HUSmokeMark "Starttest: schliesse $($script:LastDialog.Title)"; $script:LastDialog.Close()
+                    }
+                }
+                $script:SmokeState.CloseAction = [Action]$closeNow
+                $script:SmokeState.CloseOn = $true
                 $closer = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Normal)
                 $closer.Interval = [TimeSpan]::FromMilliseconds(1200)
-                $closer.Add_Tick({
-                        if ($script:LastDialog -and $script:LastDialog.IsVisible) {
-                            if ($env:HUAMT_SMOKE_SHOTS) { Save-HUWindowShot $script:LastDialog (Join-Path $env:HUAMT_SMOKE_SHOTS "Fenster-$($script:LastDialog.Title).png") }
-                            Set-HUSmokeMark "Starttest: schliesse $($script:LastDialog.Title)"; $script:LastDialog.Close()
-                        }
-                    })
+                $closer.Add_Tick($closeNow)
                 $closer.Start()
+                $cr = [runspacefactory]::CreateRunspace(); $cr.Open()
+                $cp = [powershell]::Create(); $cp.Runspace = $cr
+                [void]$cp.AddScript({
+                        param($St)
+                        while ($St.CloseOn) {
+                            Start-Sleep -Milliseconds 1200
+                            if ($St.CloseOn) { try { [void]$St.Disp.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Normal, $St.CloseAction) } catch { } }
+                        }
+                    }).AddArgument($script:SmokeState)
+                [void]$cp.BeginInvoke()
                 try {
                     Show-HUSupport; $script:SmokeSteps += 'Fenster-Support'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                     Open-HUSettings -Tab 'Sicherung'; $script:SmokeSteps += 'Fenster-Sicherung'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
@@ -474,7 +490,7 @@ $script:OnContentRendered = {
                     Show-HUChangelog; $script:SmokeSteps += 'Fenster-Neuigkeiten'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
                     if (-not (Get-HUHelpPage $null)) { throw 'Grundhilfe fehlt' }
                     $script:SmokeSteps += 'Hilfe'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
-                } finally { $closer.Stop() }
+                } finally { $closer.Stop(); $script:SmokeState.CloseOn = $false }
                 Save-HUWindowState
                 if (-not (Test-Path -LiteralPath (Join-Path $script:UserRoot 'ui-state.json'))) { throw 'Fensterzustand nicht gespeichert' }
                 $script:SmokeSteps += 'Fensterzustand'; $script:SmokeState.Steps = ($script:SmokeSteps -join ',')
