@@ -2,6 +2,8 @@
 
 ## v1.0.5
 
+Stable-Release der Testversion 1.0.5 – „Alles auf einmal signieren“.
+
 ### 🔏 Herausgeber
 - **Alle Releases auf einmal signieren und freigeben:** Rechtsklick auf Update › "Alle Releases signieren und freigeben" sucht im Programm und in allen hinterlegten Modulen gleichzeitig.
   - Eine Liste zeigt alles Offene, z. B. "Reiseabrechnung: signieren v1.0.4, freigeben v1.0.4".
@@ -13,6 +15,10 @@
 - **Modul-Updates beim Start viel schneller:** HU-Amt holt zuerst nur die Versionsangabe jedes Moduls und lädt die übrigen Dateien nur, wenn die Fassung wirklich neu ist.
   - Bisher wurden bei jedem Start alle Dateien aller Module geladen und erst danach verglichen. Die Meldung "geladen, wirkt nach dem Neustart" kam deshalb erst nach Minuten.
   - Eine Fassung, die schon geladen ist und auf den Neustart wartet, wird nicht noch einmal geladen.
+
+### 🏢 Außenstelle
+- **Verwalter der Zentrale vorausgefüllt:** Im Fenster "Paket für Außenstelle" stehen bei "Verwalter dort" jetzt alle Verwalter der Zentrale, nicht nur, wer das Paket baut.
+  - So kann jeder Verwalter der Zentrale auch in der Außenstelle verwalten. Die Person in der Außenstelle kommt wie bisher dazu.
 
 ### ✅ Qualität
 - 568 Tests.
