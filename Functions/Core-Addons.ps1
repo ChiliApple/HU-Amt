@@ -301,13 +301,41 @@ function Install-HUAddon([string]$Owner, [string]$Repo, [string]$Token, [string]
         New-Item -ItemType Directory -Path $stage -Force | Out-Null
         try {
             $h = @{ Accept = 'application/vnd.github.v3.raw'; 'User-Agent' = $script:HMUserAgent; Authorization = "token $Token" }
-            foreach ($k in $m.Keys) {
-                if ($k -match '(^[\\/])|(\.\.)|:' -or $k -notmatch '^[A-Za-z0-9._/ -]+$') { throw "unzulaessiger Pfad im Release: $k" }
-                $dst = Join-Path $stage ($k -replace '/', '\')
-                $dd = Split-Path $dst -Parent; if (-not (Test-Path -LiteralPath $dd)) { New-Item -ItemType Directory -Path $dd -Force | Out-Null }
-                $enc = ($k -split '/' | ForEach-Object { [uri]::EscapeDataString($_) }) -join '/'
-                Invoke-WebRequest "https://api.github.com/repos/$Owner/$Repo/contents/${enc}?ref=$($rel.Tag)" -Headers $h -UseBasicParsing -TimeoutSec 60 -OutFile $dst -ErrorAction Stop
-                if ((Get-HMFileSha256 $dst) -ne $m[$k]) { throw "Pruefsumme stimmt nicht: $k" }
+            foreach ($k in $m.Keys) { if ($k -match '(^[\\/])|(\.\.)|:' -or $k -notmatch '^[A-Za-z0-9._/ -]+$') { throw "unzulaessiger Pfad im Release: $k" } }
+            # Ab 1.0.7: das ganze Modul als EIN Archiv holen (zipball des Release-Tags) statt jede Datei einzeln (90 s -> wenige s).
+            # Jede Datei wird wie bisher gegen die signierte Pruefsummen-Liste geprueft; nur Dateien aus der Liste kommen ins Modul.
+            # Geht das Archiv nicht (oder passt eine Pruefsumme nicht), wird wie bisher Datei fuer Datei geladen.
+            $viaZip = $false
+            $zip = Join-Path ([IO.Path]::GetTempPath()) ('hu-addon-' + [guid]::NewGuid().ToString('N') + '.zip')
+            $unz = "$zip.d"
+            try {
+                Invoke-WebRequest "https://api.github.com/repos/$Owner/$Repo/zipball/$($rel.Tag)" -Headers @{ 'User-Agent' = $script:HMUserAgent; Authorization = "token $Token" } -UseBasicParsing -TimeoutSec 180 -OutFile $zip -ErrorAction Stop
+                Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+                [IO.Compression.ZipFile]::ExtractToDirectory($zip, $unz)
+                $zr = @(Get-ChildItem -LiteralPath $unz -Directory)[0]
+                if (-not $zr) { throw 'Archiv leer' }
+                foreach ($k in $m.Keys) {
+                    $src = Join-Path $zr.FullName ($k -replace '/', '\')
+                    if (-not (Test-Path -LiteralPath $src -PathType Leaf)) { throw "fehlt im Archiv: $k" }
+                    if ((Get-HMFileSha256 $src) -ne $m[$k]) { throw "Pruefsumme im Archiv stimmt nicht: $k" }
+                    $dst = Join-Path $stage ($k -replace '/', '\')
+                    $dd = Split-Path $dst -Parent; if (-not (Test-Path -LiteralPath $dd)) { New-Item -ItemType Directory -Path $dd -Force | Out-Null }
+                    Copy-Item -LiteralPath $src -Destination $dst -Force
+                }
+                $viaZip = $true
+            } catch { $viaZip = $false }
+            finally {
+                Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
+                Remove-Item -LiteralPath $unz -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            if (-not $viaZip) {
+                foreach ($k in $m.Keys) {
+                    $dst = Join-Path $stage ($k -replace '/', '\')
+                    $dd = Split-Path $dst -Parent; if (-not (Test-Path -LiteralPath $dd)) { New-Item -ItemType Directory -Path $dd -Force | Out-Null }
+                    $enc = ($k -split '/' | ForEach-Object { [uri]::EscapeDataString($_) }) -join '/'
+                    Invoke-WebRequest "https://api.github.com/repos/$Owner/$Repo/contents/${enc}?ref=$($rel.Tag)" -Headers $h -UseBasicParsing -TimeoutSec 60 -OutFile $dst -ErrorAction Stop
+                    if ((Get-HMFileSha256 $dst) -ne $m[$k]) { throw "Pruefsumme stimmt nicht: $k" }
+                }
             }
             [System.IO.File]::WriteAllBytes((Join-Path $stage $script:HUAddonManifest), $man)
             [System.IO.File]::WriteAllBytes((Join-Path $stage $script:HUAddonSignature), $sig)

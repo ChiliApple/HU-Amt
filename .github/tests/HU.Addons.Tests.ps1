@@ -208,6 +208,17 @@ Describe 'Modul-Update: schneller Weg ohne alle Dateien (ab 1.0.5)' {
         Mock Get-HMFileSha256 { 'HASH' }
         Mock Invoke-WebRequest {
             $j = [ordered]@{ id = $script:RelId; title = $script:RelId; version = $script:RelVer }
+            if ("$Uri" -like '*zipball*') {
+                # Archiv wie von GitHub: ein Ordner oben, darin die Dateien; mit $script:ZipKaputt kein gueltiges Archiv
+                if ($script:ZipKaputt) { [IO.File]::WriteAllText($OutFile, 'kein zip'); return }
+                $src = Join-Path ([IO.Path]::GetTempPath()) ('hu-zsrc-' + [guid]::NewGuid().ToString('N')); $top = Join-Path $src 'o-r-abc123'
+                [void](New-Item -ItemType Directory -Path $top -Force)
+                foreach ($n in 'addon.json', 'Addon.ps1', 'Tab.xaml') { [IO.File]::WriteAllText((Join-Path $top $n), ($j | ConvertTo-Json)) }
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                [IO.Compression.ZipFile]::CreateFromDirectory($src, $OutFile)
+                Remove-Item -LiteralPath $src -Recurse -Force
+                return
+            }
             [IO.File]::WriteAllText($OutFile, ($j | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
         }
     }
@@ -225,9 +236,17 @@ Describe 'Modul-Update: schneller Weg ohne alle Dateien (ab 1.0.5)' {
         $r.Text | Should -BeLike '*wartet auf den Neustart*'
         Should -Invoke Invoke-WebRequest -Times 1 -Exactly
     }
-    It 'neuere Version: alle Dateien werden geladen' {
-        $script:RelId = 'Reisen'; $script:RelVer = '1.0.5'
+    It 'neuere Version: ein Archiv statt jeder Datei einzeln (ab 1.0.7)' {
+        $script:RelId = 'Reisen'; $script:RelVer = '1.0.5'; $script:ZipKaputt = $false
         [void](Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x')
-        Should -Invoke Invoke-WebRequest -Times 4 -Exactly
+        Should -Invoke Invoke-WebRequest -Times 2 -Exactly
+        Should -Invoke Invoke-WebRequest -Times 1 -Exactly -ParameterFilter { "$Uri" -like '*zipball/v1.0.5' }
+    }
+    It 'Archiv geht nicht: wie bisher Datei fuer Datei' {
+        $script:RelId = 'Reisen'; $script:RelVer = '1.0.5'; $script:ZipKaputt = $true
+        [void](Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x')
+        Should -Invoke Invoke-WebRequest -Times 5 -Exactly
+        # 1x addon.json zum Vergleichen, 1x Archiv (kaputt), dann 3 Dateien einzeln
+        Should -Invoke Invoke-WebRequest -Times 4 -Exactly -ParameterFilter { "$Uri" -like '*/contents/*' }
     }
 }

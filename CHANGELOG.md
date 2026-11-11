@@ -1,5 +1,21 @@
 ﻿# Changelog
 
+## v1.0.7
+
+Stable-Release der Testversion 1.0.7 – „Module in Sekunden“.
+
+### 📦 Module
+- **Neue Modul-Fassungen in Sekunden geladen:** Ein neues Modul kommt jetzt als ein Paket von GitHub statt Datei für Datei. Bei Reisen dauerte das bisher etwa 90 Sekunden, jetzt rund 7.
+  - Jede Datei wird wie bisher gegen die signierte Prüfsummen-Liste geprüft.
+  - Klappt das Paket einmal nicht, lädt HU-Amt wie bisher Datei für Datei.
+
+### ⬆️ Update
+- **Programm-Update schneller:** Auch das Update von HU-Amt selbst lädt jetzt ein Paket statt jeder Datei einzeln: rund 10 statt 35 Sekunden, mit derselben Prüfung jeder Datei.
+  - Wirkt ab dem nächsten Update nach 1.0.7, weil das Update immer mit dem schon installierten Programm läuft.
+
+### ✅ Qualität
+- 569 Tests.
+
 ## v1.0.6
 
 Stable-Release der Testversion 1.0.6 – „Verwalter im Paket“.

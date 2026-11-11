@@ -407,6 +407,21 @@ if (-not $files.Count) { Stop-HMPull 'Repo-Inhalt leer' }
 Write-Host "$($files.Count) Dateien`n" -ForegroundColor Gray
 
 # --- 4. alles laden und pruefen (noch nichts ersetzen)
+# Ab 1.0.7: zuerst das ganze Release als EIN Archiv (zipball des Commits), statt jede Datei einzeln (ca. 30 s -> wenige s).
+# Jede Datei wird danach wie bisher gegen die Pruefsummen-Liste geprueft. Fehlt eine Datei im Archiv oder geht das Archiv
+# nicht, wird diese Datei wie bisher einzeln geladen.
+$zipRoot = $null; $zipTmp = $null
+try {
+    $zipTmp = Join-Path ([IO.Path]::GetTempPath()) ('hu-pull-' + [guid]::NewGuid().ToString('N'))
+    $zf = "$zipTmp.zip"
+    $zh = New-GHHeaders 'application/vnd.github+json'
+    Invoke-WebRequest "https://api.github.com/repos/$Owner/$Repo/zipball/$ref" -Headers $zh -UseBasicParsing -TimeoutSec 180 -OutFile $zf -ErrorAction Stop
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    [IO.Compression.ZipFile]::ExtractToDirectory($zf, $zipTmp)
+    Remove-Item -LiteralPath $zf -Force -ErrorAction SilentlyContinue
+    $zipRoot = @(Get-ChildItem -LiteralPath $zipTmp -Directory)[0].FullName
+    Write-Host "Archiv geladen, Dateien werden geprueft`n" -ForegroundColor Gray
+} catch { $zipRoot = $null; Write-Host "Archiv nicht ladbar ($($_.Exception.Message)), lade Datei fuer Datei`n" -ForegroundColor DarkYellow }
 $staged = New-Object System.Collections.Generic.List[object]
 $fail = 0
 foreach ($f in $files) {
@@ -416,6 +431,16 @@ foreach ($f in $files) {
     Write-Host ('  {0,-48} ... ' -f $f.path) -NoNewline
     $tmp = "$local.pulltmp"
     $done = $false; $lastErr = ''
+    # aus dem Archiv, wenn die Datei dort liegt und (mit Pruefsummen-Liste) die Pruefsumme stimmt
+    if ($zipRoot) {
+        $zsrc = Join-Path $zipRoot ($f.path -replace '/', '\')
+        if (Test-Path -LiteralPath $zsrc -PathType Leaf) {
+            try {
+                Copy-Item -LiteralPath $zsrc -Destination $tmp -Force -ErrorAction Stop
+                if (-not $manifest -or (Get-HMFileSha256 $tmp) -eq $manifest[$f.path]) { $done = $true } else { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+            } catch { $done = $false }
+        }
+    }
     for ($try = 1; $try -le 5 -and -not $done; $try++) {
         try {
             $enc = (($f.path -split '/') | ForEach-Object { [uri]::EscapeDataString($_) }) -join '/'
@@ -435,6 +460,8 @@ foreach ($f in $files) {
     } else { Write-Host "OK ($((Get-Item -LiteralPath $tmp -Force).Length) bytes)" -ForegroundColor Green }
     $staged.Add(@($tmp, $local))
 }
+# entpacktes Archiv wegraeumen (die geprueften Dateien liegen als *.pulltmp im Ziel)
+if ($zipTmp) { Remove-Item -LiteralPath $zipTmp -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -LiteralPath "$zipTmp.zip" -Force -ErrorAction SilentlyContinue }
 if ($fail) {
     foreach ($s in $staged) { Remove-Item -LiteralPath $s[0] -Force -ErrorAction SilentlyContinue }
     Stop-HMPull "$fail Datei(en) nicht geladen oder Pruefsumme falsch - es wurde NICHTS veraendert, HU-Amt bleibt auf der bisherigen Version."
