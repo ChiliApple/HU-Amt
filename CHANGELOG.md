@@ -12,11 +12,23 @@ Stable-Release der Testversionen 1.0.3 bis 1.0.4 – „Postfächer und Außenst
   - Das geht auch in Fenstern der Module, die das unterstützen.
   - Lässt sich ein Anhang nicht holen, sagt HU-Amt welcher.
 
+### 🆕 Neuigkeiten
+- **Fenster "Neu in dieser Version":** Beim ersten Öffnen nach einem Update zeigt HU-Amt, was sich geändert hat.
+  - Gilt für jeden Benutzer einzeln, auch für Module, die sich seit dem letzten Start geändert haben.
+  - Dargestellt wie auf GitHub, mit Überschriften, fetten Titeln und Unterpunkten, im dunklen oder hellen Farbschema.
+  - Jederzeit wieder: Rechtsklick auf "?" und "Neu in dieser Version".
+  - Nicht im Testmodus und nicht in der Demo.
+
+### 🎨 Oberfläche
+- **Farbschema mit einem Klick:** Oben rechts neben Support schaltet ein Knopf zwischen Dunkel und Hell um.
+  - Im dunklen Schema zeigt er eine Sonne, im hellen einen Mond.
+  - HU-Amt fragt kurz nach und startet dann im neuen Schema neu. Die Einstellung gilt nur für dich.
+
 ### 🏢 Außenstelle
 - **Einrichten sicherer:** Ist ein Modul-Ordner nur eine Verknüpfung auf einen anderen Ordner, entfernt Einrichten nur die Verknüpfung, nie den Inhalt dahinter.
 
 ### ✅ Qualität
-- 553 Tests.
+- 560 Tests.
 
 ## v1.0.3
 

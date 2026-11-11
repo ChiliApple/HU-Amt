@@ -47,6 +47,9 @@ function Register-HUHelpHandlers {
         $mi = New-Object System.Windows.Controls.MenuItem; $mi.Header = $p[0]; $mi.Tag = $p[1]; $mi.ToolTip = $p[2]
         $mi.Add_Click({ param($s, $e) if ("$($s.Tag)" -eq 'all') { Show-HUHelp -Overview } else { Show-HUHelp } }); [void]$cm.Items.Add($mi)
     }
+    # ab 1.0.4: Neuigkeiten der installierten Version (Programm und Module)
+    $mn = New-Object System.Windows.Controls.MenuItem; $mn.Header = 'Neu in dieser Version'; $mn.ToolTip = 'Was sich in dieser Version von HU-Amt und den Modulen geändert hat'
+    $mn.Add_Click({ Show-HUChangelog }); [void]$cm.Items.Add($mn)
     $b.ContextMenu = $cm
-    $b.ToolTip = "Anleitung (F1)`nRechtsklick: Übersicht"
+    $b.ToolTip = "Anleitung (F1)`nRechtsklick: Übersicht, Neu in dieser Version"
 }

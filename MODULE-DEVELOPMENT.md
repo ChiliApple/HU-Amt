@@ -56,6 +56,7 @@ Funktionen in `Addon.ps1` (Konvention statt Schnittstelle):
 
 - Ein Release enthält `HU-Amt-files.sha256` (Prüfsummen aller Dateien, erstellt von den automatischen Tests auf GitHub) und `HU-Amt-files.sha256.p7s` (Signatur des Herausgebers).
 - Kanal **Stabil** nimmt nur freigegebene Releases, Kanal **Test** auch Vorab-Releases. In beiden Fällen nur signierte.
+- **`CHANGELOG.md` im Modulordner** (ab 1.0.4): Das Fenster "Neu in dieser Version" zeigt jedem Benutzer beim ersten Start nach einem Update die neuen Abschnitte. Ein Abschnitt beginnt mit `## v1.2.3` (Zusatz danach erlaubt, z. B. `(Stable, 11.11.2026)`), darunter `### <Emoji> <Bereich>`, Punkte `- **Titel:** Text` und eingerückte Unterpunkte. Gezeigt werden `**fett**` und `` `Code` ``, sonst kein Markdown.
 
 ## Datei-Austausch mit anderen Programmen
 

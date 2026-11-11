@@ -70,6 +70,24 @@ function Request-HUFirstVerwalter {
     return $true
 }
 
+# Knopf im Kopf (ab 1.0.4): Farbschema Dunkel/Hell umschalten, persoenlich, wirkt nach dem Neustart.
+# In der Demo kommt das Schema aus den echten Einstellungen, dort also nicht umschalten.
+function Switch-HUThemeQuick {
+    $new = $(if (Test-HULightTheme) { 'Dunkel' } else { 'Hell' })
+    if ((Get-Command Test-HUDemoMode -ErrorAction SilentlyContinue) -and (Test-HUDemoMode)) {
+        Show-HUMessage 'In der Demo gilt das Farbschema aus dem normalen Programm. Bitte dort umschalten.' -Icon Info
+        return
+    }
+    if (-not (Confirm-HU "Farbschema auf $new umstellen?`n`nHU-Amt startet dafür neu." 'Farbschema' -Owner $script:Window)) { return }
+    try {
+        if (-not $script:Settings.PSObject.Properties['ui'] -or $null -eq $script:Settings.ui) { Set-HUProp $script:Settings 'ui' ([pscustomobject]@{}) }
+        Set-HUProp $script:Settings.ui 'theme' $new
+        Save-HUUserSettings
+    } catch { Show-HUMessage "Farbschema nicht gespeichert:`n$($_.Exception.Message)" -Icon Error; return }
+    Write-HULogOK "Farbschema: $new"
+    Restart-HUApp
+}
+
 function Open-HUSettings([string]$Tab = '') {
     [void](Show-HUSettingsDialog -Tab $Tab)
 }

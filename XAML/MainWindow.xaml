@@ -39,6 +39,8 @@
                             ToolTip="Einstellungen: Allgemein, Sicherung, Update"/>
                     <Button x:Name="btnSupport" Content="&#x1F6DF; Support" Style="{StaticResource ToolButton}" Margin="0,0,6,0"
                             ToolTip="Protokolle als ZIP packen, um Hilfe anzufragen"/>
+                    <Button x:Name="btnTheme" Content="&#x2600;" Style="{StaticResource ToolButton}" Width="32" Margin="0,0,6,0"
+                            ToolTip="Farbschema umschalten zwischen Dunkel und Hell (HU-Amt startet dafür neu)"/>
                     <Button x:Name="btnHelp" Content="?" Style="{StaticResource ToolButton}" Width="32" Margin="0,0,6,0"
                             ToolTip="Anleitung (F1)"/>
                     <Button x:Name="btnUpdate" Content="Update" Style="{StaticResource ToolButton}"
