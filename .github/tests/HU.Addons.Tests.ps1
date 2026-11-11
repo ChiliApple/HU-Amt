@@ -193,3 +193,41 @@ Describe 'Postfach zwischen Modulen' {
         Test-HUAddonId 'Wiederherstellung' | Should -BeFalse
     }
 }
+
+Describe 'Modul-Update: schneller Weg ohne alle Dateien (ab 1.0.5)' {
+    BeforeAll {
+        $script:AD = Join-Path ([IO.Path]::GetTempPath()) ('hu-addupd-' + [guid]::NewGuid().ToString('N'))
+        [void](New-Item -ItemType Directory -Path $script:AD)
+        [void](New-TestAddon $script:AD 'Reisen' @{ version = '1.0.4' })
+        [void](New-TestAddon (Join-Path $script:AD '.pending') 'Fristen' @{ version = '1.0.5' })
+        # GitHub nachgestellt: signiertes Release, Liste mit addon.json, addon.json mit der Version aus $script:RelVer
+        Mock Get-HMReleases { @([pscustomobject]@{ Version = [version]'1.0.5'; Tag = 'v1.0.5'; Prerelease = $false; ManifestUrl = 'm'; ManifestApi = 'm'; SignatureUrl = 's'; SignatureApi = 's' }) }
+        Mock Get-HMReleaseAsset { [byte[]](1, 2, 3) }
+        Mock Test-HMManifestSignature { '' }
+        Mock ConvertFrom-HMManifest { @{ 'addon.json' = 'HASH'; 'Addon.ps1' = 'HASH'; 'Tab.xaml' = 'HASH' } }
+        Mock Get-HMFileSha256 { 'HASH' }
+        Mock Invoke-WebRequest {
+            $j = [ordered]@{ id = $script:RelId; title = $script:RelId; version = $script:RelVer }
+            [IO.File]::WriteAllText($OutFile, ($j | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
+        }
+    }
+    AfterAll { Remove-Item -LiteralPath $script:AD -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'gleiche Version installiert: nur addon.json geladen, Status Aktuell' {
+        $script:RelId = 'Reisen'; $script:RelVer = '1.0.4'
+        $r = Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x'
+        $r.Status | Should -Be 'Aktuell'
+        Should -Invoke Invoke-WebRequest -Times 1 -Exactly
+    }
+    It 'Fassung wartet schon auf den Neustart: nicht noch einmal laden' {
+        $script:RelId = 'Fristen'; $script:RelVer = '1.0.5'
+        $r = Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x'
+        $r.Status | Should -Be 'Aktuell'
+        $r.Text | Should -BeLike '*wartet auf den Neustart*'
+        Should -Invoke Invoke-WebRequest -Times 1 -Exactly
+    }
+    It 'neuere Version: alle Dateien werden geladen' {
+        $script:RelId = 'Reisen'; $script:RelVer = '1.0.5'
+        [void](Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x')
+        Should -Invoke Invoke-WebRequest -Times 4 -Exactly
+    }
+}

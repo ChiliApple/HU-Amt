@@ -70,3 +70,35 @@ Describe 'Update im gemeinsamen Netzordner' {
         $iCheck | Should -BeLessThan $iLoad
     }
 }
+
+Describe 'Alle Releases signieren und freigeben: was offen ist (Get-HMReleasePlan, ab 1.0.5)' {
+    BeforeAll {
+        . (Join-Path $script:Root 'Functions\Core-Update.ps1')
+        function New-R([string]$Tag, [bool]$Pre, [bool]$Man, [bool]$Sig) {
+            [pscustomobject]@{ Version = [version]($Tag.TrimStart('v')); Tag = $Tag; Prerelease = $Pre; ManifestUrl = $(if ($Man) { 'm' } else { '' }); SignatureUrl = $(if ($Sig) { 's' } else { '' }) }
+        }
+    }
+    It 'neues Vorab-Release ohne Signatur: signieren und freigeben' {
+        $p = Get-HMReleasePlan @((New-R 'v1.0.5' $true $true $false), (New-R 'v1.0.4' $false $true $true))
+        $p.ToSign | Should -Be @('v1.0.5')
+        $p.Publish | Should -Be 'v1.0.5'
+        $p.Stable | Should -Be 'v1.0.4'
+    }
+    It 'schon signiertes Vorab-Release: nur freigeben; mehrere: das neueste' {
+        $p = Get-HMReleasePlan @((New-R 'v1.0.3' $true $true $true), (New-R 'v1.0.4' $true $true $true), (New-R 'v1.0.2' $false $true $true))
+        @($p.ToSign).Count | Should -Be 0
+        $p.Publish | Should -Be 'v1.0.4'
+    }
+    It 'alles freigegeben: nichts offen; Release ohne Pruefsummen-Datei wird gemeldet, nicht freigegeben' {
+        $p = Get-HMReleasePlan @((New-R 'v1.0.4' $false $true $true), (New-R 'v1.0.3' $true $true $true))
+        @($p.ToSign).Count | Should -Be 0
+        $p.Publish | Should -Be ''
+        $q = Get-HMReleasePlan @((New-R 'v1.0.5' $true $false $false), (New-R 'v1.0.4' $false $true $true))
+        $q.Publish | Should -Be ''
+        $q.NoManifest | Should -Be @('v1.0.5')
+    }
+    It 'ohne freigegebenes Release: neuestes Vorab-Release ist der Kandidat' {
+        (Get-HMReleasePlan @((New-R 'v0.1.0' $true $true $false))).Publish | Should -Be 'v0.1.0'
+        (Get-HMReleasePlan @()).Publish | Should -Be ''
+    }
+}

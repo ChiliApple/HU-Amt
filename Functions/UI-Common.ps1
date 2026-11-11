@@ -210,6 +210,12 @@ function Set-HUOutputTools($Root) {
 }
 
 # Fenster aus XAML erzeugen; liefert @{ Window = ...; C = @{ Name = Element } } mit allen x:Name-Elementen
+# Starttest (CI): Wegmarke mit Uhrzeit. Haengt die Oberflaeche, schreibt der Waechter die letzte Marke ins Ergebnis.
+# Ausserhalb des Starttests tut die Funktion nichts.
+function Set-HUSmokeMark([string]$Text) {
+    try { if ($script:SmokeState) { $script:SmokeState.Mark = "$Text @ $((Get-Date).ToString('HH:mm:ss.fff'))" } } catch { }
+}
+
 function New-HUWindow([string]$Name, [string]$XamlText = '') {
     $x = if ($XamlText) { $XamlText } else { Get-HUXaml $Name }
     try { $x = Convert-HUXamlTheme $x } catch { try { Write-HULog -Message "Farbschema: $($_.Exception.Message)" -Level 'WARN' } catch { } }

@@ -225,8 +225,10 @@ function Complete-HUDataLocationChange($Res, $Err, $Ctx, [switch]$NoCopy) {
 function Show-HUSettingsDialog {
     param([string]$Tab = '')
     $adm = Test-HUVerwalter
+    Set-HUSmokeMark "Einstellungen: Fenster bauen"
     $d = New-HUWindow 'SettingsWindow'
     $w = $d.Window; $c = $d.C
+    Set-HUSmokeMark "Einstellungen: Zustand holen"
     Restore-HUDialogState $w 'SettingsWindow'
     $S = $script:Settings
     $st = @{ Saved = $false; Names = (New-Object System.Collections.ArrayList); Changed = $false; Restart = $false }
@@ -269,7 +271,9 @@ function Show-HUSettingsDialog {
         $exe = Join-Path $script:AppRoot $script:LauncherName
         $c.txtShortcutInfo.Text = "Starter: $(if (Test-Path -LiteralPath $exe) { $exe } else { 'noch nicht erstellt' })  |  Verknüpfung vorhanden: $(if (Test-HUShortcut) { 'ja' } else { 'nein' })"
     }
+    Set-HUSmokeMark "Einstellungen: Verknuepfung pruefen"
     & $updShortcutInfo
+    Set-HUSmokeMark "Einstellungen: Verknuepfung geprueft"
     # PowerShell beim Start (Config\powershell-host.txt)
     & $selTag $c.cmbPsHost (Get-HUPsHostSetting)
     $c.txtPsHostInfo.Text = "$(Get-HUPsHostInfoText) Änderung wirkt beim nächsten Start."
@@ -291,19 +295,23 @@ function Show-HUSettingsDialog {
         })
 
     # ---------------- Sicherung ----------------
+    Set-HUSmokeMark "Einstellungen: Sicherung"
     if ($adm) { Initialize-HUAbSettingsTab $c $w }
 
     # ---------------- Update ----------------
+    Set-HUSmokeMark "Einstellungen: Update-Konfiguration"
     $ucfg = Update-UpdateConfig
     $uRaw = Read-HUJsonFile (Join-Path $script:ConfigDir 'update.json')
     & $selTag $c.cmbChannel $(if ($ucfg) { "$($ucfg.Channel)" } else { 'Stable' })
     $c.chkRequireSig.IsChecked = -not ($uRaw -and $uRaw.PSObject.Properties['AllowUnsigned'] -and $uRaw.AllowUnsigned -eq $true)
     $c.chkCheckOnStart.IsChecked = [bool](Get-HUProp $S.ui 'checkUpdatesOnStart' $true)
+    Set-HUSmokeMark "Einstellungen: Installationsstand"
     $inst = Get-HUInstalledInfo
     $c.txtUpdateInfo.Text = "Installiert: v$($script:Version)$(if ($inst -and $inst.PSObject.Properties['Date']) { " (geladen $($inst.Date), $(Get-HUProp $inst 'Check' ''))" } else { ' (nicht über Pull.ps1 installiert)' })`nQuelle: github.com/$(if ($ucfg) { "$($ucfg.Owner)/$($ucfg.Repo)" })`nSignierte Releases werden mit dem Zertifikat des Herausgebers geprüft (Fingerabdruck im Programm). Eigene Quelle: Config\update.json (Owner, Repo, SignerThumbprint).$(if (-not $adm) { "`nKanal und Signatur stellt ein Verwalter ein." })"
     $c.btnCheckNow.Add_Click({ Invoke-UpdateCheck; Show-HUMessage 'Die Prüfung läuft im Hintergrund - bei neuer Version wird der Knopf Update gold.' -Owner $w })
     $c.btnOtherVersion.Add_Click({ $w.Close(); Show-HUVersionPicker })
 
+    Set-HUSmokeMark "Einstellungen: Module"
     # ---------------- Module ----------------
     # alle Module dieser Installation, auch abgeschaltete; "Aktiv" gilt fuer alle Benutzer (Config\installation.json)
     $inst = $script:Installation; if (-not $inst) { $inst = Get-HUInstallationConfig $script:ConfigDir }
@@ -344,6 +352,7 @@ function Show-HUSettingsDialog {
     elseif ("$($inst.Mode)" -eq 'Aussenstelle') { $c.btnOutpostPackage.IsEnabled = $false; $c.btnOutpostPackage.ToolTip = 'Pakete für Außenstellen erstellt nur die Zentrale.' }
     $c.btnOutpostPackage.Add_Click({ Show-HUOutpostDialog -Owner $w })
 
+    Set-HUSmokeMark "Einstellungen: Verwalter"
     # ---------------- Verwalter ----------------
     $list = Get-HUVerwalterList
     if ($list) { foreach ($n in $list) { [void]$st.Names.Add($n) } }
@@ -371,6 +380,7 @@ function Show-HUSettingsDialog {
             }
     } catch { $c.txtAdminAcl.Visibility = 'Collapsed' }
     # Datenordner (nur Verwalter sehen den Reiter)
+    Set-HUSmokeMark "Einstellungen: Datenordner"
     Update-HUDataLocationInfo $c.txtDataLocation
     $c.btnDataLocation.Add_Click({ Invoke-HUDataLocationChange -Owner $w -Info $c.txtDataLocation -Button $c.btnDataLocation })
     $addName = { param($n) $n = "$n".Trim(); if (-not $n) { return }; if (@($st.Names | Where-Object { $_ -ieq $n }).Count) { return }; [void]$st.Names.Add($n); $st.Changed = $true; & $fillAdm }
@@ -455,6 +465,10 @@ function Show-HUSettingsDialog {
 
     switch ($Tab) { 'Update' { $c.tabSettings.SelectedItem = $c.tabUpdate } 'Sicherung' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabAppBackup } } 'Module' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabModules } } 'Verwalter' { if ($adm) { $c.tabSettings.SelectedItem = $c.tabAdmins } } default { } }
     $c.txtSettingsInfo.Text = "Programmordner: $($script:AppRoot)  |  Datenordner: $($script:DataRoot)$(if ($adm) { "  |  Verwalter: $($script:UserName)" })"
+    $w.Add_Loaded({ Set-HUSmokeMark "Einstellungen: geladen" })
+    $w.Add_ContentRendered({ Set-HUSmokeMark "Einstellungen: gezeigt" })
+    Set-HUSmokeMark "Einstellungen: ShowDialog"
     [void]$w.ShowDialog()
+    Set-HUSmokeMark "Einstellungen: geschlossen"
     return $st.Saved
 }
