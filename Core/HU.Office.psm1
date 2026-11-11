@@ -868,7 +868,9 @@ function Save-HUDroppedFiles {
             [IO.File]::WriteAllBytes($dst, $bytes)
             $out += $dst
         } catch {
-            if ($null -ne $Problems) { [void]$Problems.Add("$($d.Name): $($_.Exception.Message)") }
+            # innerste Meldung zeigen, nicht "Ausnahme beim Aufrufen von Get ..." (Pruefung 092, Kern-B5)
+            $ex = $_.Exception; while ($ex.InnerException) { $ex = $ex.InnerException }
+            if ($null -ne $Problems) { [void]$Problems.Add("$($d.Name): $($ex.Message)") }
         }
     }
     return $out

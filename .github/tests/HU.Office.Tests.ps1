@@ -447,7 +447,8 @@ Describe 'Hineinziehen aus Outlook (ab 1.0.4)' {
         $desc = New-FakeDescriptor @(@{ Name = 'Abrechnung.pdf'; Size = 3 }, @{ Name = 'Abrechnung.pdf'; Size = 2 }, @{ Name = 'kaputt.png'; Size = 1 })
         $d = New-FakeData @{ FileGroupDescriptorW = (New-Object IO.MemoryStream (, $desc)) }
         Mock -ModuleName HU.Office Get-HUDropContent {
-            if ($Index -eq 2) { throw 'nicht lesbar' }
+            # wie eine .NET-Ausnahme aus dem C#-Teil: PowerShell verpackt sie, gezeigt wird die innere Meldung (Kern-B5)
+            if ($Index -eq 2) { throw (New-Object System.Management.Automation.MethodInvocationException('Ausnahme beim Aufrufen von "Get"', (New-Object InvalidOperationException('nicht lesbar')))) }
             return , ([byte[]](65, 66, 67, 68, 69))
         }
         $dir = Join-Path ([IO.Path]::GetTempPath()) ("hu-drop-" + [guid]::NewGuid().ToString('N'))
@@ -462,7 +463,7 @@ Describe 'Hineinziehen aus Outlook (ab 1.0.4)' {
             [IO.File]::ReadAllText($r[0]) | Should -Be 'ABC'
             [IO.File]::ReadAllText($r[1]) | Should -Be 'AB'
             $prob.Count | Should -Be 1
-            $prob[0] | Should -BeLike 'kaputt.png:*nicht lesbar*'
+            $prob[0] | Should -Be 'kaputt.png: nicht lesbar'
         } finally { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue }
     }
     It 'ohne Dateien: nichts' {
