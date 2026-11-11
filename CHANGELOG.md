@@ -1,5 +1,16 @@
 ﻿# Changelog
 
+## v1.0.6
+
+Stable-Release der Testversion 1.0.6 – „Verwalter im Paket“.
+
+### 🏢 Außenstelle
+- **Verwalter der Zentrale vorausgefüllt:** Im Fenster "Paket für Außenstelle" stehen bei "Verwalter dort" jetzt alle Verwalter der Zentrale, nicht nur, wer das Paket baut.
+  - So kann jeder Verwalter der Zentrale auch in der Außenstelle verwalten. Die Person in der Außenstelle kommt wie bisher dazu.
+
+### ✅ Qualität
+- 568 Tests.
+
 ## v1.0.5
 
 ### 🔏 Herausgeber

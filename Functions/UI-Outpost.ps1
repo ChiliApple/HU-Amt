@@ -37,7 +37,7 @@ function Show-HUOutpostDialog($Owner = $null) {
             <TextBlock Text="Name der Au&#xDF;enstelle:" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,10,6"/>
             <TextBox x:Name="txtName" Grid.Column="1" Style="{StaticResource DarkTextBox}" Margin="0,0,0,6" MaxLength="60" ToolTip="z. B. Kindergarten. Steht dort im Fenstertitel und im Namen des ZIP."/>
             <TextBlock Grid.Row="1" Text="Verwalter dort:" Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <TextBox x:Name="txtAdmins" Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkTextBox}" ToolTip="Windows-Benutzernamen der Verwalter in der Au&#xDF;enstelle, mehrere mit Komma getrennt. Nur Verwalter sehen dort Einstellungen, Module und Protokoll. Vorbelegt ist dein eigener Benutzername."/>
+            <TextBox x:Name="txtAdmins" Grid.Row="1" Grid.Column="1" Style="{StaticResource DarkTextBox}" ToolTip="Windows-Benutzernamen der Verwalter in der Au&#xDF;enstelle, mehrere mit Komma getrennt. Nur Verwalter sehen dort Einstellungen, Module und Protokoll. Vorbelegt sind die Verwalter der Zentrale."/>
         </Grid>
         <StackPanel DockPanel.Dock="Bottom">
             <CheckBox x:Name="chkKeys" IsChecked="True" Style="{StaticResource DarkCheckBox}" Margin="0,10,0,4" Content="Zugang f&#xFC;r Updates der mitgelieferten Module beilegen"
@@ -113,7 +113,10 @@ function Show-HUOutpostDialog($Owner = $null) {
     $c.chkAllMit.Add_Click({ & $allCol 'Mit' $c.chkAllMit })
     $c.chkAllAktiv.Add_Click({ & $allCol 'Aktiv' $c.chkAllAktiv })
     $c.chkAllEinst.Add_Click({ & $allCol 'Einst' $c.chkAllEinst })
-    $c.txtAdmins.Text = "$($script:UserName)"
+    # Vorbelegt (ab 1.0.6): alle Verwalter der Zentrale, damit jeder von ihnen auch dort verwalten kann; sonst nur man selbst
+    $za = @(); try { $za = @(Get-HUVerwalterList | Where-Object { $_ }) } catch { }
+    if ($za -notcontains "$($script:UserName)") { $za = @("$($script:UserName)") + $za }
+    $c.txtAdmins.Text = (@($za | Select-Object -Unique) -join ', ')
     $c.btnClose.Add_Click({ $w.Close() })
     $c.btnCreate.Add_Click({
             $name = "$($c.txtName.Text)".Trim()
