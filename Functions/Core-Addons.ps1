@@ -278,6 +278,25 @@ function Install-HUAddon([string]$Owner, [string]$Repo, [string]$Token, [string]
         if ($why) { $res.Text = "Signatur: $why"; return $res }
         $m = ConvertFrom-HMManifest ([System.Text.Encoding]::UTF8.GetString($man))
         if (-not $m.ContainsKey('addon.json')) { $res.Text = 'kein Modul (addon.json fehlt im Release)'; return $res }
+        # Schneller Weg (ab 1.0.5): erst nur addon.json holen (Pruefsumme laut signierter Liste). Ist diese Fassung schon
+        # installiert oder wartet sie schon auf den Neustart, wird nichts weiter geladen. Vorher wurden bei jedem Start alle
+        # Dateien jedes Moduls geladen und erst danach verglichen: die Meldung kam deshalb erst nach Minuten.
+        $probe = Join-Path ([IO.Path]::GetTempPath()) ('hu-addon-' + [guid]::NewGuid().ToString('N') + '.json')
+        try {
+            $hp = @{ Accept = 'application/vnd.github.v3.raw'; 'User-Agent' = $script:HMUserAgent; Authorization = "token $Token" }
+            Invoke-WebRequest "https://api.github.com/repos/$Owner/$Repo/contents/addon.json?ref=$($rel.Tag)" -Headers $hp -UseBasicParsing -TimeoutSec 60 -OutFile $probe -ErrorAction Stop
+            if ((Get-HMFileSha256 $probe) -eq $m['addon.json']) {
+                $pj = [IO.File]::ReadAllText($probe, [Text.Encoding]::UTF8) | ConvertFrom-Json
+                $aid = "$($pj.id)"; $aver = ConvertTo-HMVersion "$($pj.version)"; $atitle = $(if ("$($pj.title)") { "$($pj.title)" } else { $aid })
+                if ($aid -match '^[A-Za-z0-9_-]+$' -and $aver) {
+                    $cur0 = Read-HUAddonInfo (Join-Path $AddonsDir $aid)
+                    if (-not $cur0.Error -and $cur0.Version -ge $aver) { $res.Id = $aid; $res.Version = $aver; $res.Status = 'Aktuell'; $res.Text = "$atitle $aver ist aktuell"; return $res }
+                    $pen0 = Read-HUAddonInfo (Join-Path (Join-Path $AddonsDir '.pending') $aid)
+                    if (-not $pen0.Error -and $pen0.Version -ge $aver) { $res.Id = $aid; $res.Version = $aver; $res.Status = 'Aktuell'; $res.Text = "$atitle $aver ist geladen und wartet auf den Neustart"; return $res }
+                }
+            }
+        } catch { }   # schneller Weg geht nicht: wie bisher alles laden und dann vergleichen
+        finally { if (Test-Path -LiteralPath $probe) { Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue } }
         $stage = Join-Path (Join-Path $AddonsDir '.staging') ([guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $stage -Force | Out-Null
         try {

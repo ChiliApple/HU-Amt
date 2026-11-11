@@ -223,6 +223,22 @@ function Publish-HMRelease([string]$Owner, [string]$Repo, [string]$Tag, [string]
     $body = @{ prerelease = $false; make_latest = 'true' } | ConvertTo-Json -Depth 10 -Compress
     Invoke-RestMethod "https://api.github.com/repos/$Owner/$Repo/releases/$($rel.id)" -Method Patch -Headers $h -ContentType 'application/json' -Body $body -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop | Out-Null
 }
+
+# Was in einem Repository offen ist (ab 1.0.5, fuer "Alle Releases signieren und freigeben"):
+# ToSign = Releases mit Pruefsummen-Datei ohne Signatur; Publish = neuestes Vorab-Release mit Pruefsummen-Datei, neuer als das
+# freigegebene (wird es im selben Durchgang signiert, darf es danach freigegeben werden); Stable = bisher freigegeben;
+# NoManifest = Releases ohne Pruefsummen-Datei (automatische Tests noch nicht fertig oder fehlgeschlagen).
+function Get-HMReleasePlan($Releases) {
+    $l = @($Releases | Where-Object { $_ -and $_.Version } | Sort-Object Version -Descending)
+    $stable = @($l | Where-Object { -not $_.Prerelease })[0]
+    $cand = @($l | Where-Object { $_.Prerelease -and $_.ManifestUrl -and (-not $stable -or $_.Version -gt $stable.Version) })[0]
+    return [pscustomobject]@{
+        ToSign     = @($l | Where-Object { $_.ManifestUrl -and -not $_.SignatureUrl } | ForEach-Object { "$($_.Tag)" })
+        Publish    = $(if ($cand) { "$($cand.Tag)" } else { '' })
+        Stable     = $(if ($stable) { "$($stable.Tag)" } else { '' })
+        NoManifest = @($l | Where-Object { -not $_.ManifestUrl -and (-not $stable -or $_.Version -gt $stable.Version) } | ForEach-Object { "$($_.Tag)" })
+    }
+}
 # Stand von main gegen die Releases: Wird die neue Version gerade gebaut?
 # Nach dem Merge laufen erst die automatischen Tests (einige Minuten), erst danach legt die CI das Release samt Pruefsummen-Datei an.
 # Rueckgabe: Sha, AgeMin (Minuten seit dem Commit), Tag (Release dieses Commits, sonst leer), HasManifest

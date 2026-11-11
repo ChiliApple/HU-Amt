@@ -1,5 +1,22 @@
 ﻿# Changelog
 
+## v1.0.5
+
+### 🔏 Herausgeber
+- **Alle Releases auf einmal signieren und freigeben:** Rechtsklick auf Update › "Alle Releases signieren und freigeben" sucht im Programm und in allen hinterlegten Modulen gleichzeitig.
+  - Eine Liste zeigt alles Offene, z. B. "Reiseabrechnung: signieren v1.0.4, freigeben v1.0.4".
+  - Eine Rückfrage, dann "Signieren und freigeben" oder "Nur signieren" (Kanal Test). Kein Durchklicken je Modul mehr.
+  - Geht bei einem Modul etwas schief, laufen die anderen weiter, und die Zusammenfassung sagt, wo es hakt.
+  - Die Einzel-Einträge für Programm und Modul bleiben für Sonderfälle.
+
+### 📦 Module
+- **Modul-Updates beim Start viel schneller:** HU-Amt holt zuerst nur die Versionsangabe jedes Moduls und lädt die übrigen Dateien nur, wenn die Fassung wirklich neu ist.
+  - Bisher wurden bei jedem Start alle Dateien aller Module geladen und erst danach verglichen. Die Meldung "geladen, wirkt nach dem Neustart" kam deshalb erst nach Minuten.
+  - Eine Fassung, die schon geladen ist und auf den Neustart wartet, wird nicht noch einmal geladen.
+
+### ✅ Qualität
+- 568 Tests.
+
 ## v1.0.4
 
 Stable-Release der Testversionen 1.0.3 bis 1.0.4 – „Postfächer und Außenstellen“.
