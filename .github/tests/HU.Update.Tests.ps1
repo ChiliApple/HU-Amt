@@ -371,4 +371,62 @@ Describe 'Update-Knopf: Klick entscheidet nach der letzten Pruefung (K4, ab 1.0.
             Should -Invoke Invoke-UpdateCheck -Times 0 -Exactly
         }
     }
+
+    Context 'Alter der Pruefung: aelter als 10 Minuten wird beim Klick erneuert' {
+        BeforeAll {
+            # Pruefergebnis mit Zeitpunkt; $Since = $null legt das Feld gar nicht an
+            function Set-AgedCheck([string]$State, [string]$Remote, $Since, [switch]$NoSince) {
+                $o = [ordered]@{ State = $State; Remote = $Remote; Error = ''; Key = (Get-HUUpdateCfgKey (Update-UpdateConfig)) }
+                if (-not $NoSince) { $o['Since'] = $Since }
+                $script:UpdateCheck = [pscustomobject]$o
+            }
+        }
+        It 'vor 11 Minuten: jedes Ergebnis gilt nicht mehr (check)' {
+            $old = (Get-Date).AddMinutes(-11)
+            Set-AgedCheck 'ok' '1.0.8' $old; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.9' $old; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.7' $old; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'empty' '' $old; Get-HUUpdateClickAction | Should -Be 'check'
+        }
+        It 'vor 9 Minuten: Entscheidung wie bisher' {
+            $young = (Get-Date).AddMinutes(-9)
+            Set-AgedCheck 'ok' '1.0.8' $young; Get-HUUpdateClickAction | Should -Be 'current'
+            Set-AgedCheck 'ok' '1.0.9' $young; Get-HUUpdateClickAction | Should -Be 'install'
+            Set-AgedCheck 'ok' '1.0.7' $young; Get-HUUpdateClickAction | Should -Be 'newer'
+            Set-AgedCheck 'empty' '' $young; Get-HUUpdateClickAction | Should -Be 'none'
+        }
+        It 'fehlendes, leeres oder unbrauchbares Since gilt als veraltet' {
+            Set-AgedCheck 'ok' '1.0.8' $null -NoSince; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.8' $null; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.8' ([datetime]::MinValue); Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.8' 'heute'; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.8' ((Get-Date).AddHours(1)); Get-HUUpdateClickAction | Should -Be 'check'   # Uhr zurueckgestellt
+        }
+        It 'Klick mit veraltetem "aktuell": zuerst pruefen, keine Meldung; die neue Antwort entscheidet' {
+            Set-AgedCheck 'ok' '1.0.8' ((Get-Date).AddMinutes(-11))
+            Start-HUPull
+            Should -Invoke Invoke-UpdateCheck -Times 1 -Exactly
+            $script:Msgs.Count | Should -Be 0
+            $script:Asked.Count | Should -Be 0
+            $script:UpdateClickPending | Should -BeTrue
+            # inzwischen freigegeben: die neue Pruefung findet 1.0.9
+            Set-TestCheck 'ok' '1.0.9'
+            Complete-HUUpdateClick $script:UpdateCheck.Key
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Msgs.Count | Should -Be 0
+            $script:Asked.Count | Should -Be 1
+            $script:Asked[0] | Should -BeLike '*v1.0.9 laden*'
+            Should -Invoke Start-Process -Times 0 -Exactly
+        }
+        It 'Klick mit veralteter "neuer Version": zuerst pruefen, Rueckfrage erst nach der neuen Antwort' {
+            Set-AgedCheck 'ok' '1.0.9' ((Get-Date).AddMinutes(-11))
+            Start-HUPull
+            Should -Invoke Invoke-UpdateCheck -Times 1 -Exactly
+            $script:Asked.Count | Should -Be 0
+            Set-TestCheck 'ok' '1.0.10'
+            Complete-HUUpdateClick $script:UpdateCheck.Key
+            $script:Asked.Count | Should -Be 1
+            $script:Asked[0] | Should -BeLike '*v1.0.10 laden*'
+        }
+    }
 }
