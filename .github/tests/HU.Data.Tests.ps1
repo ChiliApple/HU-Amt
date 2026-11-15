@@ -771,19 +771,26 @@ Describe 'Grund der Sperre beim Warten und Speichern (Befund K6)' {
     BeforeEach { $script:D = New-TestDir }
     AfterEach { Clear-K6Deny $script:D; Remove-Item -LiteralPath $script:D -Recurse -Force -ErrorAction SilentlyContinue }
 
-    It 'Wurzel nicht erreichbar: unreachable sofort, Speichern und Nummernkreis melden es' {
+    It 'Wurzel nicht erreichbar: unreachable nach etwa 3 s, Speichern und Nummernkreis melden es' {
         if (-not $script:K6Free) { Set-ItResult -Skipped -Because 'kein freier Laufwerksbuchstabe'; return }
         $p = "$($script:K6Free):\HUAmtK6\sub\daten.json"
         $sw = [Diagnostics.Stopwatch]::StartNew()
-        $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 5000
+        $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 10000
         $sw.Stop()
         $l.Ok | Should -BeFalse
         $l.Reason | Should -Be 'unreachable'
+        $sw.ElapsedMilliseconds | Should -BeGreaterOrEqual 2500
+        $sw.ElapsedMilliseconds | Should -BeLessThan 4500
+        $sw.Restart()
+        $l2 = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 1000
+        $sw.Stop()
+        $l2.Ok | Should -BeFalse
+        $l2.Reason | Should -Be 'unreachable'
         $sw.ElapsedMilliseconds | Should -BeLessThan 2500
-        $r = Save-HUDataFile -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 5000 -Build { '{}' }
+        $r = Save-HUDataFile -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 1000 -Build { '{}' }
         $r.Ok | Should -BeFalse
         $r.Message | Should -BeExactly "Der Ordner $($script:K6Free):\HUAmtK6\sub ist nicht erreichbar. Bitte Netzlaufwerk bzw. Freigabe prüfen."
-        { Get-HUNextNumber -Path $p -WaitMs 5000 } | Should -Throw '*nicht erreichbar*'
+        { Get-HUNextNumber -Path $p -WaitMs 1000 } | Should -Throw '*nicht erreichbar*'
     }
     It 'Ordner ohne Schreibrecht: rights sofort, Speichern und Nummernkreis melden es' {
         $why = Set-K6Deny $script:D
@@ -857,7 +864,7 @@ Describe 'Grund der Sperre beim Warten und Speichern (Befund K6)' {
         Mock -ModuleName HU.Data New-Item {
             $global:K6Mk++
             if ($global:K6Mk -le 2) { throw (New-Object System.IO.IOException 'Netzwerkpfad nicht gefunden') }
-            Microsoft.PowerShell.Management\New-Item @PSBoundParameters
+            [void][IO.Directory]::CreateDirectory($Path)
         } -ParameterFilter { $ItemType -eq 'Directory' }
         $p = Join-Path $script:D 'neu\daten.json'
         $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 10000

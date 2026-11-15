@@ -185,8 +185,10 @@ function Get-HUProp($Object, [string]$Name, $Default = '') {
     Sperre einer gemeinsamen Datei holen und bis -WaitMs warten (ein anderer PC speichert nur Millisekunden).
     Ein kurzes "Zugriff verweigert" beim Freigeben gilt als belegt. Legt den Ordner an.
     Rueckgabe: Sperre aus Lock-HUDataFile (Ok, UserName, ComputerName, Since, Reason ...). Freigeben mit Unlock-HUDataFile.
-    K6: Reason 'rights' (kein Schreibrecht) oder 'unreachable' (Ordner bzw. Laufwerk/Freigabe nicht erreichbar) kommt sofort
-    zurueck, ohne bis -WaitMs zu warten. Laesst sich der Ordner nicht anlegen, ebenso (statt einer Ausnahme).
+    K6: Reason 'rights' (kein Schreibrecht) kommt sofort zurueck, Rechte aendern sich nicht in Sekunden. Reason 'unreachable'
+    (Ordner bzw. Laufwerk/Freigabe nicht erreichbar) wird wie 'busy' weiter versucht, aber hoechstens 3000 ms ab Beginn
+    (bzw. -WaitMs, wenn das kleiner ist): ein kurzer Netzaussetzer kann sich erholen. Wird der Ordner erreichbar, gilt wieder
+    die volle Wartezeit -WaitMs ab Beginn. Das Anlegen des Ordners wird in der Schleife erneut versucht.
 #>
 function Wait-HUDataFileLock {
     [CmdletBinding()]
@@ -198,20 +200,29 @@ function Wait-HUDataFileLock {
     )
     Assert-HUDataWriter
     $dir = Split-Path -Parent $Path
-    if ($dir -and -not (Test-Path -LiteralPath $dir)) {
-        try { [void](New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop) }
-        catch {
-            $why = $(if (Test-HUDataAccessDenied $_) { 'rights' } else { 'unreachable' })
-            return [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = $why }
-        }
-    }
-    $until = (Get-Date).AddMilliseconds($WaitMs)
+    $start = Get-Date
+    $until = $start.AddMilliseconds($WaitMs)
+    $unreachUntil = $start.AddMilliseconds([Math]::Min(3000, $WaitMs))
     do {
-        try { $lock = Lock-HUDataFile -Path $Path -UserName $UserName -PcName $PcName }
-        catch { $lock = [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = 'busy' } }
-        if ($lock.Ok -or (Get-Date) -ge $until) { break }
+        $lock = $null
+        if ($dir -and -not (Test-Path -LiteralPath $dir)) {
+            try { [void](New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop) }
+            catch {
+                $why = $(if (Test-HUDataAccessDenied $_) { 'rights' } else { 'unreachable' })
+                $lock = [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = $why }
+            }
+        }
+        if (-not $lock) {
+            try { $lock = Lock-HUDataFile -Path $Path -UserName $UserName -PcName $PcName }
+            catch { $lock = [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = 'busy' } }
+        }
+        if ($lock.Ok) { break }
+        $now = Get-Date
         $rp = $lock.PSObject.Properties['Reason']
-        if ($rp -and ("$($rp.Value)" -eq 'rights' -or "$($rp.Value)" -eq 'unreachable')) { break }
+        $reason = $(if ($rp) { "$($rp.Value)" } else { '' })
+        if ($reason -eq 'rights') { break }
+        if ($reason -eq 'unreachable' -and $now -ge $unreachUntil) { break }
+        if ($now -ge $until) { break }
         Start-Sleep -Milliseconds (Get-Random -Minimum 30 -Maximum 150)
     } while ($true)
     return $lock
