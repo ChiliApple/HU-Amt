@@ -103,6 +103,49 @@ Describe 'Alle Releases signieren und freigeben: was offen ist (Get-HMReleasePla
     }
 }
 
+Describe 'Pull -NoDowngrade: keine Rueckstufung, wenn die App es verlangt (ab 1.0.8)' {
+    BeforeAll {
+        . (Join-Path $script:Root 'Functions\Core-Update.ps1')
+        $script:Tmp = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtVer-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:Tmp -Force)
+    }
+    AfterAll { Remove-Item -LiteralPath $script:Tmp -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'installierte Version aus Config\version.json; fehlt oder kaputt = $null' {
+        [IO.File]::WriteAllText((Join-Path $script:Tmp 'version.json'), '{ "version": "1.0.8", "buildDate": "2026-11-15" }')
+        Get-HMInstalledVersion $script:Tmp | Should -Be ([version]'1.0.8')
+        [IO.File]::WriteAllText((Join-Path $script:Tmp 'version.json'), '{ "version": ')
+        Get-HMInstalledVersion $script:Tmp | Should -BeNullOrEmpty
+        [IO.File]::WriteAllText((Join-Path $script:Tmp 'version.json'), '{ "buildDate": "2026-11-15" }')
+        Get-HMInstalledVersion $script:Tmp | Should -BeNullOrEmpty
+        Remove-Item -LiteralPath (Join-Path $script:Tmp 'version.json') -Force
+        Get-HMInstalledVersion $script:Tmp | Should -BeNullOrEmpty
+    }
+    It 'nicht hoeher = ablehnen; hoeher oder installierte Version unbekannt = installieren' {
+        Test-HMNoUpgrade ([version]'1.0.8') ([version]'1.0.8') | Should -BeTrue
+        Test-HMNoUpgrade ([version]'1.0.7') ([version]'1.0.8') | Should -BeTrue
+        Test-HMNoUpgrade ([version]'1.0.8.0') ([version]'1.0.8') | Should -BeTrue
+        Test-HMNoUpgrade ([version]'1.0.9') ([version]'1.0.8') | Should -BeFalse
+        Test-HMNoUpgrade ([version]'1.0.10') ([version]'1.0.9') | Should -BeFalse
+        Test-HMNoUpgrade ([version]'1.0.9') $null | Should -BeFalse
+    }
+    It 'Pull.ps1: Schalter vorhanden, Ablehnung nach der Auswahl und vor dem Laden, startet die App wieder' {
+        $script:PullText | Should -Match '\[switch\]\$NoDowngrade'
+        $iSel = $script:PullText.IndexOf('# --- 1. Version waehlen')
+        $iChk = $script:PullText.IndexOf('if ($NoDowngrade -and -not $useBranch -and -not $Version)')
+        $iLoad = $script:PullText.IndexOf('# --- 2. Pruefsumme und Signatur')
+        $iChk | Should -BeGreaterThan $iSel
+        $iChk | Should -BeLessThan $iLoad
+        $block = $script:PullText.Substring($iChk, $iLoad - $iChk)
+        $block | Should -Match 'Test-HMNoUpgrade \$rel\.Version'
+        $block | Should -Match 'Start-HMApp \$Target'
+        $block | Should -Not -Match 'Stop-HMPull'
+        $block | Should -Match 'NICHTS veraendert'
+        # derselbe Neustart wie nach einem erfolgreichen Update
+        ([regex]::Matches($script:PullText, 'Start-HMApp \$Target')).Count | Should -Be 2
+    }
+}
+
 Describe 'Update-Knopf: Klick entscheidet nach der letzten Pruefung (K4, ab 1.0.8)' {
     BeforeAll {
         # kuenstlicher Programmordner unter TEMP mit einem Platzhalter-Pull.ps1; Start-Process ist immer gemockt,
@@ -249,6 +292,23 @@ Describe 'Update-Knopf: Klick entscheidet nach der letzten Pruefung (K4, ab 1.0.
             $script:Asked.Count | Should -Be 1
             $script:Asked[0] | Should -BeLike '*Version 1.0.5 laden*'
             Should -Invoke Invoke-UpdateCheck -Times 0 -Exactly
+        }
+        It 'neue Version bestaetigt: Pull bekommt -NoDowngrade, mit -Version nicht' {
+            $script:Answer = $true
+            Set-TestCheck 'ok' '1.0.9'
+            Start-HUPull
+            Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { "$ArgumentList" -match ' -NoDowngrade' -and "$ArgumentList" -notmatch ' -Version ' }
+            Start-HUPull -Version '1.0.5'
+            Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { "$ArgumentList" -match ' -Version 1\.0\.5' -and "$ArgumentList" -notmatch 'NoDowngrade' }
+        }
+        It 'altes Pull.ps1 ohne den Schalter: -NoDowngrade wird nicht uebergeben' {
+            $script:Answer = $true
+            [IO.File]::WriteAllText($script:PullDummy, "param([string]`$Target, [int]`$WaitPid = 0, [string]`$Version = '')`r`nexit 0`r`n")
+            try {
+                Set-TestCheck 'ok' '1.0.9'
+                Start-HUPull
+                Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { "$ArgumentList" -notmatch 'NoDowngrade' }
+            } finally { [IO.File]::WriteAllText($script:PullDummy, "param([string]`$Target, [int]`$WaitPid = 0, [string]`$Version = '', [switch]`$NoDowngrade)`r`nexit 0`r`n") }
         }
         It 'Branch-Modus: unveraendert, Rueckfrage ohne vorherige Pruefung' {
             [IO.File]::WriteAllText($script:UpdJson, '{ "SignerThumbprint": "' + ('A' * 40) + '", "AllowUnsigned": true, "UseBranch": true, "Branch": "dev" }')
