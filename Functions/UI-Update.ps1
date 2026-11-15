@@ -6,8 +6,10 @@
 .DESCRIPTION
     Gleicher Ablauf wie in allen HU-Tools:
       - Start: Pruefung im Hintergrund, bei neuer Version wird der Knopf 'Update' gold - fuer alle Benutzer
-      - Klick: zuerst pruefen, ob jemand anderer die App offen hat (Data\Laufend); dann Pull.ps1 (wartet auf das Ende,
-        laedt + prueft ALLE Dateien, ersetzt erst dann, startet neu)
+      - Klick (ab 1.0.8): ohne gueltige Pruefung dieser Sitzung zuerst pruefen; nur bei neuerer Version weiter, sonst Meldung
+        (aktuell / installierte Version neuer als der Kanal / keine Version / Pruefung nicht moeglich). Dann pruefen, ob jemand
+        anderer die App offen hat (Data\Laufend); dann Pull.ps1 -NoDowngrade (wartet auf das Ende, laedt + prueft ALLE Dateien,
+        ersetzt erst dann, startet neu). Neu installieren oder aeltere Version: Rechtsklick, Andere Version.
       - Rechtsklick: jetzt pruefen, Info; nur Verwalter: andere Version, Kanal, GitHub-Token, Module, signieren, freigeben
     Verwalter: wer in Data\Verwalter.txt steht (ein Windows-Benutzername je Zeile). Fehlt die Datei, nur wer das
     Herausgeber-Zertifikat hat.
