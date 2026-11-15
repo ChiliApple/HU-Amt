@@ -211,6 +211,19 @@ Describe 'Jetzt sichern: Sperre nicht moeglich (ab 1.0.8)' {
         Mock Get-HUAppBackupPassword { return 'Testkennwort-123' }
     }
 
+    It 'Entscheidung ohne Fenster: rights und unreachable sind Fehler, busy und ohne Reason nicht' {
+        $r = Get-HUAbLockFailure (New-FailLock 'rights')
+        $r.IsError | Should -BeTrue
+        $r.Text | Should -Not -BeLike '*Es läuft gerade eine Sicherung*'
+        $r.Text | Should -BeLike 'Die Sicherung kann nicht starten.*Kein Schreibrecht im Ordner*'
+        $r.Info | Should -BeLike 'Kein Schreibrecht im Ordner*'
+        (Get-HUAbLockFailure (New-FailLock 'unreachable')).IsError | Should -BeTrue
+        foreach ($b in (New-FailLock 'busy'), (New-FailLock 'busy' -NoReason)) {
+            $q = Get-HUAbLockFailure $b
+            $q.IsError | Should -BeFalse
+            $q.Text | Should -BeExactly "Es läuft gerade eine Sicherung.`n`nGerade in Bearbeitung von berta (PC-2). Du kannst die Daten nur ansehen."
+        }
+    }
     It 'kein Schreibrecht, Klick: Meldung ohne "Es läuft gerade eine Sicherung"' {
         Mock Lock-HUDataFile { New-FailLock 'rights' }
         Start-HUAppBackupNow
