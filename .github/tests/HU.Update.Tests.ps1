@@ -13,8 +13,10 @@ BeforeAll {
     # eine Funktion aus Pull.ps1 holen, ohne Pull auszufuehren
     $tok = $null; $err = $null
     $ast = [Management.Automation.Language.Parser]::ParseInput($script:PullText, [ref]$tok, [ref]$err)
-    $fn = $ast.FindAll({ $args[0] -is [Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -eq 'Get-HMOpenSessions' }, $true) | Select-Object -First 1
-    . ([scriptblock]::Create($fn.Extent.Text))
+    foreach ($fname in 'Get-HMOpenSessions', 'Get-HMReplaceBlock') {
+        $fn = $ast.FindAll({ $args[0] -is [Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -eq $fname }, $true) | Select-Object -First 1
+        if ($fn) { . ([scriptblock]::Create($fn.Extent.Text)) }   # fehlt sie, scheitert der zugehoerige Test (nicht alle)
+    }
 }
 
 Describe 'Update-Bibliothek' {
@@ -68,6 +70,39 @@ Describe 'Update im gemeinsamen Netzordner' {
         $iLoad = $script:PullText.IndexOf('# --- 1. Version waehlen')
         $iCheck | Should -BeGreaterThan 0
         $iCheck | Should -BeLessThan $iLoad
+    }
+    It 'vor dem Ersetzen: waehrend des Ladens geoeffnet -> Meldung, vorbereitete Dateien entfernt (K10)' {
+        $t1 = Join-Path $script:App 'Main.ps1.pulltmp'; $t2 = Join-Path $script:App 'Functions\X.ps1.pulltmp'
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Functions') -Force)
+        Set-Content -LiteralPath $t1 -Value 'neu'; Set-Content -LiteralPath $t2 -Value 'neu'
+        $staged = New-Object System.Collections.Generic.List[object]
+        $staged.Add(@($t1, (Join-Path $script:App 'Main.ps1'))); $staged.Add(@($t2, (Join-Path $script:App 'Functions\X.ps1')))
+        Set-Content -LiteralPath (Join-Path $script:Run 'alt_PC-9.lock') -Value 'alt|PC-9|2026-01-01T08:00:00|1'   # verwaist, zaehlt nicht
+        $fs = [IO.File]::Open((Join-Path $script:Run 'berta_PC-2.lock'), 'CreateNew', 'ReadWrite', 'Read')
+        try {
+            $b = [Text.Encoding]::UTF8.GetBytes('berta|PC-2|2026-11-15T08:00:00|1'); $fs.Write($b, 0, $b.Length); $fs.Flush()
+            $why = Get-HMReplaceBlock $script:App $staged
+            $why | Should -Match 'berta am PC PC-2'
+            $why | Should -Match 'Es wurde NICHTS veraendert\.$'
+            $why | Should -Not -Match 'alt'
+            Test-Path -LiteralPath $t1 | Should -BeFalse
+            Test-Path -LiteralPath $t2 | Should -BeFalse
+        } finally { $fs.Dispose() }
+    }
+    It 'vor dem Ersetzen: niemand offen -> keine Meldung, vorbereitete Dateien bleiben (K10)' {
+        $t1 = Join-Path $script:App 'Main.ps1.pulltmp'; Set-Content -LiteralPath $t1 -Value 'neu'
+        $staged = New-Object System.Collections.Generic.List[object]; $staged.Add(@($t1, (Join-Path $script:App 'Main.ps1')))
+        Get-HMReplaceBlock $script:App $staged | Should -BeExactly ''
+        Test-Path -LiteralPath $t1 | Should -BeTrue
+    }
+    It 'Pull prueft die Sitzungen unmittelbar vor dem Ersetzen noch einmal (nach dem Laden, vor dem Journal)' {
+        $iFail = $script:PullText.IndexOf('Stop-HMPull "$fail Datei(en) nicht geladen')
+        $iCheck = $script:PullText.IndexOf('$why = Get-HMReplaceBlock $Target $staged')
+        $iJournal = $script:PullText.IndexOf('$journal = Join-Path $cfgDir')
+        $iFail | Should -BeGreaterThan 0
+        $iCheck | Should -BeGreaterThan $iFail
+        $iCheck | Should -BeLessThan $iJournal
+        $script:PullText.Substring($iCheck, $iJournal - $iCheck) | Should -Match 'if \(\$why\) \{ Stop-HMPull \$why \}'
     }
 }
 
