@@ -6,7 +6,8 @@
 .DESCRIPTION
     Gleicher Ablauf wie in allen HU-Tools:
       - Start: Pruefung im Hintergrund, bei neuer Version wird der Knopf 'Update' gold - fuer alle Benutzer
-      - Klick (ab 1.0.8): ohne gueltige Pruefung dieser Sitzung zuerst pruefen; nur bei neuerer Version weiter, sonst Meldung
+      - Klick (ab 1.0.8): ohne gueltige Pruefung dieser Sitzung zuerst pruefen; eine Pruefung, die aelter als
+        $script:UpdateCheckMaxAgeMin (10) Minuten ist, gilt nicht mehr und wird erneuert; nur bei neuerer Version weiter, sonst Meldung
         (aktuell / installierte Version neuer als der Kanal / keine Version / Pruefung nicht moeglich). Dann pruefen, ob jemand
         anderer die App offen hat (Data\Laufend); dann Pull.ps1 -NoDowngrade (wartet auf das Ende, laedt + prueft ALLE Dateien,
         ersetzt erst dann, startet neu). Neu installieren oder aeltere Version: Rechtsklick, Andere Version.
@@ -30,6 +31,9 @@ $script:IsVerwalter = $null   # Zwischenspeicher; nach dem Speichern der Verwalt
 # Letzte Update-Pruefung dieser Sitzung (ab 1.0.8): State none | running | ok | empty (keine Version im Kanal) | failed;
 # Key = Einstellungen, mit denen geprueft wurde (Quelle, Kanal, Signaturpflicht, Branch) - nach einer Aenderung gilt das Ergebnis nicht mehr
 $script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+# Ein Pruefergebnis, das aelter ist, gilt beim Klick nicht mehr (es wird zuerst neu geprueft): ein tagsueber freigegebenes
+# Release soll auch in einer seit dem Morgen offenen App ankommen
+$script:UpdateCheckMaxAgeMin = 10
 $script:UpdateClickPending = $false            # Klick auf Update wartet auf das Ergebnis der Pruefung
 $script:UpdateClickSince = [datetime]::MinValue
 
@@ -156,8 +160,8 @@ function ConvertTo-HUUpdateVersion([string]$Text) {
 }
 # Was ein Klick auf Update tut (ohne Fenster, testbar):
 #   install = neuere Version im Kanal | current = gleich | newer = installierte Version ist neuer als der Kanal
-#   none = keine Version im Kanal | check = keine gueltige Pruefung (keine, laeuft, fehlgeschlagen) - zuerst pruefen
-# State: Zustand der letzten Pruefung (none | running | ok | empty | failed)
+#   none = keine Version im Kanal | check = keine gueltige Pruefung (keine, laeuft, fehlgeschlagen, veraltet) - zuerst pruefen
+# State: Zustand der letzten Pruefung (none | running | ok | empty | failed); das Alter prueft Get-HUUpdateClickAction
 function Get-HUUpdateAction([string]$Installed, [string]$Remote, [string]$State) {
     if ($State -eq 'empty') { return 'none' }
     if ($State -ne 'ok') { return 'check' }
@@ -173,20 +177,31 @@ function Get-HUUpdateAction([string]$Installed, [string]$Remote, [string]$State)
 function Set-HUUpdateCheckState([string]$State, [string]$Remote = '', [string]$Err = '', [string]$Key = '') {
     $script:UpdateCheck = [pscustomobject]@{ State = $State; Remote = $Remote; Error = $Err; Key = $Key; Since = (Get-Date) }
 }
-# Entscheidung fuer den Klick aus der letzten Pruefung; ein Ergebnis zu anderen Einstellungen (z. B. vor dem Kanalwechsel) zaehlt nicht
-function Get-HUUpdateClickAction {
+# Ist ein Pruefergebnis vom Zeitpunkt $Since zum Zeitpunkt $Now noch frisch (hoechstens $script:UpdateCheckMaxAgeMin Minuten)?
+# Fehlender, unlesbarer oder kuenftiger Zeitpunkt (Uhr zurueckgestellt) = nicht frisch. Ohne Fenster, testbar.
+function Test-HUUpdateCheckFresh($Since, [datetime]$Now) {
+    if ($Since -isnot [datetime] -or $Since -eq [datetime]::MinValue) { return $false }
+    $age = ($Now - $Since).TotalMinutes
+    return ($age -ge 0 -and $age -le $script:UpdateCheckMaxAgeMin)
+}
+# Entscheidung fuer den Klick aus der letzten Pruefung. Zaehlt nicht (= zuerst pruefen): ein Ergebnis zu anderen Einstellungen
+# (z. B. vor dem Kanalwechsel) und ein Ergebnis, das aelter als $script:UpdateCheckMaxAgeMin Minuten ist - egal welches,
+# auch "neue Version da", damit die Rueckfrage die Version nennt, die Pull dann wirklich laedt
+function Get-HUUpdateClickAction([datetime]$Now = (Get-Date)) {
     $st = $script:UpdateCheck
     $state = "$($st.State)"
+    $sp = $(if ($st) { $st.PSObject.Properties['Since'] } else { $null })
     if ("$($st.Key)" -ne (Get-HUUpdateCfgKey (Update-UpdateConfig))) { $state = 'none' }
+    elseif (-not (Test-HUUpdateCheckFresh $(if ($sp) { $sp.Value } else { $null }) $Now)) { $state = 'none' }
     return (Get-HUUpdateAction "$($script:Version)" "$($st.Remote)" $state)
 }
-# Klick ohne -Version (nicht im Branch-Modus): mit gueltiger Pruefung sofort entscheiden, sonst zuerst pruefen.
+# Klick ohne -Version (nicht im Branch-Modus): mit gueltiger, frischer Pruefung sofort entscheiden, sonst zuerst pruefen.
 # Waehrend die Pruefung laeuft, startet ein weiterer Klick keinen zweiten Ablauf.
 function Request-HUUpdateClick {
     $now = Get-Date
     if ($script:UpdateClickPending -and ($now - $script:UpdateClickSince).TotalSeconds -lt 90) { Write-HULogInfo 'Update: die Prüfung läuft noch, bitte kurz warten.'; return }
     $script:UpdateClickPending = $false
-    $a = Get-HUUpdateClickAction
+    $a = Get-HUUpdateClickAction $now
     if ($a -ne 'check') { Resolve-HUUpdateClick $a; return }
     $script:UpdateClickPending = $true; $script:UpdateClickSince = $now
     Write-HULogInfo 'Update: zuerst wird geprüft, ob es eine neue Version gibt ...'

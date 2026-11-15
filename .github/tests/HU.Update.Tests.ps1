@@ -402,6 +402,18 @@ Describe 'Update-Knopf: Klick entscheidet nach der letzten Pruefung (K4, ab 1.0.
             Set-AgedCheck 'ok' '1.0.8' 'heute'; Get-HUUpdateClickAction | Should -Be 'check'
             Set-AgedCheck 'ok' '1.0.8' ((Get-Date).AddHours(1)); Get-HUUpdateClickAction | Should -Be 'check'   # Uhr zurueckgestellt
         }
+        It 'Grenze an einer Stelle; Zeitpunkt als Parameter (ohne Warten)' {
+            $script:UpdateCheckMaxAgeMin | Should -Be 10
+            $now = [datetime]'2026-11-15T14:00:00'
+            Test-HUUpdateCheckFresh ([datetime]'2026-11-15T13:50:00') $now | Should -BeTrue    # genau 10 Minuten
+            Test-HUUpdateCheckFresh ([datetime]'2026-11-15T13:49:59') $now | Should -BeFalse
+            Test-HUUpdateCheckFresh ([datetime]'2026-11-15T14:00:00') $now | Should -BeTrue
+            Test-HUUpdateCheckFresh ([datetime]'2026-11-15T14:05:00') $now | Should -BeFalse   # in der Zukunft
+            Test-HUUpdateCheckFresh $null $now | Should -BeFalse
+            Set-AgedCheck 'ok' '1.0.8' ([datetime]'2026-11-15T08:00:00')
+            Get-HUUpdateClickAction ([datetime]'2026-11-15T08:09:00') | Should -Be 'current'
+            Get-HUUpdateClickAction ([datetime]'2026-11-15T08:11:00') | Should -Be 'check'
+        }
         It 'Klick mit veraltetem "aktuell": zuerst pruefen, keine Meldung; die neue Antwort entscheidet' {
             Set-AgedCheck 'ok' '1.0.8' ((Get-Date).AddMinutes(-11))
             Start-HUPull
