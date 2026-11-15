@@ -503,6 +503,20 @@ function Test-HUNumberText([string]$Text) {
 
 <#
 .SYNOPSIS
+    Meldungstext, wenn eine Eingabe wegen mehrerer Punkte ohne Komma keine eindeutige Zahl ist (1.234.567, 12.34.56). Sonst ''.
+.DESCRIPTION
+    Test-HUNumberText lehnt solche Texte schon ab; diese Funktion liefert dazu den EINEN Meldungstext fuer Eingabefenster.
+    ConvertTo-HUDecimal bleibt unveraendert (wirft nicht, Rueckgabe -Default). Mit Komma (1.234.567,89) sind Punkte Tausender
+    und gueltig.
+#>
+function Get-HUNumberTextError([string]$Text) {
+    $t = ("$Text" -replace ('[\s' + $script:HUDataEuro + ']'), '').Trim()
+    if ($t -match ',' -or ([regex]::Matches($t, '\.')).Count -lt 2) { return '' }
+    return ('"' + "$Text".Trim() + '" ist keine eindeutige Zahl. Bitte ohne Tausenderpunkte eingeben (1234567) oder mit Komma für die Nachkommastellen (1.234.567,00).')
+}
+
+<#
+.SYNOPSIS
     Kaufmaennisch runden (0,5 immer weg von null).
 #>
 function Get-HURound([decimal]$Value, [int]$Digits = 2) { return [Math]::Round($Value, $Digits, [MidpointRounding]::AwayFromZero) }
@@ -994,7 +1008,7 @@ Export-ModuleMember -Function Get-HUNowText, ConvertTo-HUTimeText, Get-HUFileSta
     Wait-HUDataFileLock, Write-HUDataFile, Save-HUDataFile,
     New-HUDataId, Test-HUDataId, New-HUShortId, Test-HUShortId, Get-HUNextNumber,
     Get-HUDataRecords,
-    ConvertTo-HUDecimal, Test-HUNumberText, Test-HUAmbiguousNumber, Get-HURound, Format-HUEuro, Format-HUNumber, Format-HUKm,
+    ConvertTo-HUDecimal, Test-HUNumberText, Test-HUAmbiguousNumber, Get-HUNumberTextError, Get-HURound, Format-HUEuro, Format-HUNumber, Format-HUKm,
     ConvertFrom-HUDateText, ConvertTo-HUDateText, ConvertFrom-HUClockText, Format-HUDate, Format-HUTime,
     New-HUHistoryEntry, Add-HUHistoryEntry, ConvertTo-HUHistoryEntry, Compare-HURecordFields, Get-HUFieldChangeText,
     Test-HUAttachment, Add-HUAttachment, Get-HUAttachments, Get-HUAttachmentDisplayName, Remove-HUAttachment,
