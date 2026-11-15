@@ -328,7 +328,7 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="fenster" style="--c: var(--blue)">
-      <div class="cat-head"><span class="chip">🪟 Hauptfenster</span><h3>Hauptfenster und Reiter</h3><span class="count">8 Punkte</span></div>
+      <div class="cat-head"><span class="chip">🪟 Hauptfenster</span><h3>Hauptfenster und Reiter</h3><span class="count">10 Punkte</span></div>
       <div class="cat-body">
         <ul>
           <li>Jedes Modul ein Reiter, Reihenfolge mit der Maus verschieben <span class="new">neu</span></li>
@@ -339,6 +339,8 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
           <li>Erster Start: Desktop-Symbol und Taskleiste</li>
           <li>Farbschema dunkel oder hell je Benutzer, Startbildschirm abschaltbar</li>
           <li>Ergebnisse als Datei in einen festen Übergabeordner, auch für andere Programme</li>
+          <li>Unerwartete Fehler erscheinen als Hinweis unten rechts, für alle Benutzer</li>
+          <li>Auch gesperrte Knöpfe zeigen ihren Tooltip</li>
         </ul>
       </div>
     </article>
@@ -425,10 +427,11 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="update" style="--c: var(--peach)">
-      <div class="cat-head"><span class="chip">🔄 Update</span><h3>Update</h3><span class="count">6 Punkte</span></div>
+      <div class="cat-head"><span class="chip">🔄 Update</span><h3>Update</h3><span class="count">7 Punkte</span></div>
       <div class="cat-body">
         <ul>
           <li>Knopf „Update“ wird gold, ein Klick installiert und startet neu</li>
+          <li>Ohne neue Version meldet der Klick nur "aktuell", Neuinstallation und ältere Version gehen nur per Rechtsklick (Verwalter)</li>
           <li>Jede Datei gegen Prüfsumme und Signatur geprüft, nie halb aktualisiert</li>
           <li>Kanal Stabil oder Test, Vorversion installieren</li>
           <li>Module aktualisieren sich genauso, neue Fassung nach dem Neustart</li>
@@ -466,12 +469,13 @@ kbd { font: 500 .85em/1 var(--f-mono); padding: 2px 6px; border-radius: 5px; bor
     </article>
 
     <article class="cat" id="betrieb" style="--c: var(--teal)">
-      <div class="cat-head"><span class="chip">🏢 Betrieb</span><h3>Freigabe und Verwalter</h3><span class="count">7 Punkte</span></div>
+      <div class="cat-head"><span class="chip">🏢 Betrieb</span><h3>Freigabe und Verwalter</h3><span class="count">8 Punkte</span></div>
       <div class="cat-body">
         <ul>
           <li>Ein Ordner auf der Freigabe für alle Bediensteten</li>
           <li>Datenordner frei wählbar, auch auf einer anderen Freigabe</li>
           <li>Gemeinsame Listen: immer nur eine Person bearbeitet, die anderen lesen</li>
+          <li>Beim Speichern sagt die Meldung, ob jemand bearbeitet, das Schreibrecht fehlt oder die Freigabe nicht erreichbar ist</li>
           <li>Vor jedem Speichern eine Kopie mit Zeitstempel</li>
           <li>Verwalter-Liste: Protokoll, Sicherung und Module nur für Verwalter</li>
           <li>Startet mit PowerShell 7, sonst 5.1 – einstellbar</li>
