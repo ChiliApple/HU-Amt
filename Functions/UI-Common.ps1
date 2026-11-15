@@ -719,9 +719,18 @@ function Show-HUWindowFront($Window = $null) {
 }
 
 # Ordner/Datei im Explorer oeffnen (Browser/Explorer laeuft als angemeldeter Benutzer)
-function Open-HUPath([string]$Path) {
+# Fehlt der Pfad, wird nichts angelegt und nichts geoeffnet, der Benutzer bekommt einen Hinweis (K7).
+# -Create: einen fehlenden ORDNER anlegen und oeffnen (z. B. Protokollordner).
+function Open-HUPath([string]$Path, [switch]$Create) {
     try {
-        if (-not (Test-Path -LiteralPath $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
+        if (-not (Test-Path -LiteralPath $Path)) {
+            if (-not $Create) {
+                Write-HULogWarn "Oeffnen nicht moeglich, Pfad fehlt: $Path"
+                try { Show-HUToast -Title 'Nicht gefunden' -Text "$Path`nDie Datei oder der Ordner ist nicht mehr da." -Icon Warning } catch { }
+                return
+            }
+            New-Item -ItemType Directory -Path $Path -Force | Out-Null
+        }
         Start-Process -FilePath explorer.exe -ArgumentList "`"$Path`""
     } catch { Write-HULogWarn "Oeffnen fehlgeschlagen: $($_.Exception.Message)" }
 }

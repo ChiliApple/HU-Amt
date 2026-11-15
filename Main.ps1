@@ -328,7 +328,7 @@ if ($c['btnTheme']) {
 Register-HUAbMainStatus
 Register-HUHelpHandlers
 Register-HUUpdateHandlers
-$c['btnOpenLogFolder'].Add_Click({ Open-HUPath $script:LogDir })
+$c['btnOpenLogFolder'].Add_Click({ Open-HUPath $script:LogDir -Create })
 # Protokoll unten: Hoehe per Ziehgriff (gemerkt), nie hoeher als das Fenster minus Platz fuer die Reiter
 try { $h = [double](Get-HUStateValue 'logHeight' 170); if ($h -ge 80 -and $h -le 900) { $c['pnlLog'].Height = $h } } catch { }
 $c['thbLog'].Add_DragDelta({
