@@ -249,10 +249,12 @@ try {
 } catch { Show-HUFatal "Oberfläche konnte nicht geladen werden (XAML\MainWindow.xaml):`n$($_.Exception.Message)" }
 $script:Window = $d.Window
 # Fehler in einem Klick-Handler beendet sonst das ganze Programm -> protokollieren und weiterlaufen
+# K3: dazu ein Hinweis unten rechts fuer alle Benutzer (gedrosselt), nicht im Starttest
 $script:Window.Dispatcher.Add_UnhandledException({
         param($s, $e)
         try { Write-HULogError "Unerwarteter Fehler (Programm läuft weiter): $($e.Exception.Message)" } catch { }
         $e.Handled = $true
+        if (-not $script:SmokeTestFile) { try { Show-HUErrorHint "$($e.Exception.Message)" } catch { } }
     })
 $script:Controls = $d.C
 $c = $script:Controls
