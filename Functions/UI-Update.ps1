@@ -25,6 +25,11 @@ $script:UpdateQuiet = $false
 $script:SignCtx = $null; $script:PubCtx = $null; $script:UpdMenuAdmin = @(); $script:UpdMenuSign = @()
 $script:SignTokFile = ''; $script:PubTokFile = ''
 $script:IsVerwalter = $null   # Zwischenspeicher; nach dem Speichern der Verwalter-Liste auf $null setzen
+# Letzte Update-Pruefung dieser Sitzung (ab 1.0.8): State none | running | ok | empty (keine Version im Kanal) | failed;
+# Key = Einstellungen, mit denen geprueft wurde (Quelle, Kanal, Signaturpflicht, Branch) - nach einer Aenderung gilt das Ergebnis nicht mehr
+$script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+$script:UpdateClickPending = $false            # Klick auf Update wartet auf das Ergebnis der Pruefung
+$script:UpdateClickSince = [datetime]::MinValue
 
 function Update-UpdateConfig {
     if (-not (Get-Command Get-HMUpdateConfig -ErrorAction SilentlyContinue)) { return $null }
@@ -134,11 +139,109 @@ function Set-HUUpdateButton([string]$RemoteVer = '', [bool]$Pre = $false) {
     }
 }
 
+# --- Klick auf Update (ab 1.0.8): erst entscheiden, dann laden ----------------------------------------
+# Kennung der Update-Einstellungen, mit denen eine Pruefung lief
+function Get-HUUpdateCfgKey($Cfg) {
+    if (-not $Cfg) { return '' }
+    return "$($Cfg.Owner)/$($Cfg.Repo)|$($Cfg.Channel)|$([bool]$Cfg.RequireSignature)|$([bool]$Cfg.UseBranch)|$($Cfg.Branch)"
+}
+# Versionstext -> [Version] mit vier Stellen (1.0.8 = 1.0.8.0), $null wenn nicht lesbar
+function ConvertTo-HUUpdateVersion([string]$Text) {
+    $t = "$Text".Trim() -replace '^[vV]', ''
+    $v = $null
+    if (-not $t -or -not [Version]::TryParse($t, [ref]$v)) { return $null }
+    return (New-Object Version -ArgumentList $v.Major, $v.Minor, ([Math]::Max($v.Build, 0)), ([Math]::Max($v.Revision, 0)))
+}
+# Was ein Klick auf Update tut (ohne Fenster, testbar):
+#   install = neuere Version im Kanal | current = gleich | newer = installierte Version ist neuer als der Kanal
+#   none = keine Version im Kanal | check = keine gueltige Pruefung (keine, laeuft, fehlgeschlagen) - zuerst pruefen
+# State: Zustand der letzten Pruefung (none | running | ok | empty | failed)
+function Get-HUUpdateAction([string]$Installed, [string]$Remote, [string]$State) {
+    if ($State -eq 'empty') { return 'none' }
+    if ($State -ne 'ok') { return 'check' }
+    $r = ConvertTo-HUUpdateVersion $Remote
+    if (-not $r) { return 'check' }
+    $i = ConvertTo-HUUpdateVersion $Installed
+    if (-not $i) { return 'install' }   # installierte Version unbekannt: wie bisher anbieten (Rueckfrage folgt)
+    $c = $r.CompareTo($i)
+    if ($c -gt 0) { return 'install' }
+    if ($c -eq 0) { return 'current' }
+    return 'newer'
+}
+function Set-HUUpdateCheckState([string]$State, [string]$Remote = '', [string]$Err = '', [string]$Key = '') {
+    $script:UpdateCheck = [pscustomobject]@{ State = $State; Remote = $Remote; Error = $Err; Key = $Key; Since = (Get-Date) }
+}
+# Entscheidung fuer den Klick aus der letzten Pruefung; ein Ergebnis zu anderen Einstellungen (z. B. vor dem Kanalwechsel) zaehlt nicht
+function Get-HUUpdateClickAction {
+    $st = $script:UpdateCheck
+    $state = "$($st.State)"
+    if ("$($st.Key)" -ne (Get-HUUpdateCfgKey (Update-UpdateConfig))) { $state = 'none' }
+    return (Get-HUUpdateAction "$($script:Version)" "$($st.Remote)" $state)
+}
+# Klick ohne -Version (nicht im Branch-Modus): mit gueltiger Pruefung sofort entscheiden, sonst zuerst pruefen.
+# Waehrend die Pruefung laeuft, startet ein weiterer Klick keinen zweiten Ablauf.
+function Request-HUUpdateClick {
+    $now = Get-Date
+    if ($script:UpdateClickPending -and ($now - $script:UpdateClickSince).TotalSeconds -lt 90) { Write-HULogInfo 'Update: die Prüfung läuft noch, bitte kurz warten.'; return }
+    $script:UpdateClickPending = $false
+    $a = Get-HUUpdateClickAction
+    if ($a -ne 'check') { Resolve-HUUpdateClick $a; return }
+    $script:UpdateClickPending = $true; $script:UpdateClickSince = $now
+    Write-HULogInfo 'Update: zuerst wird geprüft, ob es eine neue Version gibt ...'
+    $st = $script:UpdateCheck
+    # eine laufende Pruefung mit denselben Einstellungen abwarten (ihr Ende entscheidet), sonst neu pruefen
+    if ($st.State -eq 'running' -and "$($st.Key)" -eq (Get-HUUpdateCfgKey $script:UpdateCfg) -and ($now - $st.Since).TotalSeconds -lt 90) { return }
+    Invoke-UpdateCheck
+}
+# Ende einer Pruefung: wartet ein Klick, jetzt entscheiden. $Key = Einstellungen dieser Pruefung
+function Complete-HUUpdateClick([string]$Key = '') {
+    if (-not $script:UpdateClickPending) { return }
+    if ($Key -ne (Get-HUUpdateCfgKey (Update-UpdateConfig))) {
+        # Einstellungen inzwischen geaendert: Ergebnis gilt nicht; laeuft keine Pruefung mit den neuen Einstellungen, neu pruefen
+        $st = $script:UpdateCheck
+        if (-not ($st.State -eq 'running' -and "$($st.Key)" -eq (Get-HUUpdateCfgKey $script:UpdateCfg))) { Invoke-UpdateCheck }
+        return
+    }
+    $script:UpdateClickPending = $false   # vor jedem Fenster zuruecksetzen
+    Resolve-HUUpdateClick (Get-HUUpdateClickAction)
+}
+function Resolve-HUUpdateClick([string]$Action) {
+    $cfg = $script:UpdateCfg
+    $chan = "Kanal $(Format-HUChannel $(if ($cfg) { $cfg.Channel } else { 'Stable' }))"
+    $hint = $(if (Test-HUVerwalter) { "`n`nNeu installieren oder eine andere Version: Rechtsklick auf Update, Andere Version / Vorversion installieren ..." } else { '' })
+    $st = $script:UpdateCheck
+    switch ($Action) {
+        'install' { Start-HUPull -Checked }
+        'current' { Show-HUMessage "$($script:AppTitle) ist aktuell: Version $($script:Version) ($chan). Es gibt nichts zu laden.$hint" 'Update' -Icon Info }
+        'newer' { Show-HUMessage "Installiert ist Version $($script:Version), im $chan ist $($st.Remote) die neueste. Es wird nichts geändert.$hint" 'Update' -Icon Info }
+        'none' { Show-HUMessage "Im $chan gibt es noch keine $(if ($cfg -and $cfg.RequireSignature) { 'signierte ' })Version. Es wird nichts geändert." 'Update' -Icon Info }
+        default {
+            $why = "$($st.Error)".Trim().TrimEnd('.')
+            if (-not $why) { $why = $(if ($st.State -eq 'ok') { "Version im Kanal nicht lesbar ($($st.Remote))" } else { 'keine gültige Antwort' }) }
+            Show-HUMessage "Update-Prüfung nicht möglich: $why. Bitte später noch einmal versuchen." 'Update' -Icon Warning
+        }
+    }
+}
+
 # Update-Pruefung im Hintergrund. -Quiet: nur bei neuer Version etwas protokollieren
 function Invoke-UpdateCheck([switch]$Quiet) {
     $cfg = Update-UpdateConfig
-    if (-not $cfg) { Write-HULogWarn 'Update-Pruefung: Functions\Core-Update.ps1 fehlt - Pull.ps1 ausführen'; return }
+    if (-not $cfg) {
+        Write-HULogWarn 'Update-Pruefung: Functions\Core-Update.ps1 fehlt - Pull.ps1 ausführen'
+        Set-HUUpdateCheckState 'failed' '' 'Functions\Core-Update.ps1 fehlt'
+        $script:UpdateClickPending = $false
+        return
+    }
+    $key = Get-HUUpdateCfgKey $cfg
+    # ohne Hintergrund-Aufgaben kaeme nie eine Antwort (Invoke-AsyncCommand kehrt dann ohne OnComplete zurueck)
+    $pool = Get-Variable -Name RunspacePool -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    if (-not $pool) {
+        Set-HUUpdateCheckState 'failed' '' 'Hintergrund-Aufgaben nicht bereit' $key
+        Complete-HUUpdateClick $key
+        return
+    }
     $script:UpdateQuiet = [bool]$Quiet
+    Set-HUUpdateCheckState 'running' '' '' $key
     Invoke-AsyncCommand -ScriptBlock {
         param($lib, $token, $cfg, $ua)
         try {
@@ -166,33 +269,54 @@ function Invoke-UpdateCheck([switch]$Quiet) {
             if ($code -in 401, 403, 404) { return "AUTH:$code|$([bool]$token)" }
             return "ERR:$($_.Exception.Message)"
         }
-    } -ArgumentList @($script:UpdateLib, (Read-GitHubToken), $cfg, "$($script:App.id)") -TimeoutSec 45 -OnComplete {
-        param($result)
-        $r = "$result".Trim()
-        $cfg = $script:UpdateCfg
-        $chan = if ($cfg.UseBranch) { "Branch $($cfg.Branch)" } else { "Kanal $(Format-HUChannel $cfg.Channel)" }
-        if ($r -match '^REL:([^|]+)\|([^|]*)\|(True|False)$') {
-            $remote = $Matches[1].Trim(); $pre = ($Matches[3] -eq 'True')
-            $cmp = 0
-            try { $cmp = ([Version]$remote).CompareTo([Version]$script:Version) } catch { $cmp = 0 }
-            if ($cmp -gt 0) {
-                $script:UpdateAvailable = $true; $script:UpdateRemoteVer = $remote
-                Write-HULogWarn "Neue Version verfügbar: v$remote$(if ($pre) { ' (Test)' }) - installiert v$($script:Version). Goldener Knopf 'Update' oben rechts."
-                Set-HUUpdateButton $remote $pre
+    } -ArgumentList @($script:UpdateLib, (Read-GitHubToken), $cfg, "$($script:App.id)") -State ([pscustomobject]@{ Cfg = $cfg; Key = $key }) -TimeoutSec 45 -OnComplete {
+        param($result, $ctx)
+        # Ergebnis gilt fuer die Einstellungen, mit denen geprueft wurde (nicht fuer inzwischen geaenderte)
+        $ck = $(if ($ctx) { "$($ctx.Key)" } else { '' })
+        try {
+            $r = "$result".Trim()
+            $cfg = $(if ($ctx -and $ctx.Cfg) { $ctx.Cfg } else { $script:UpdateCfg })
+            # nur festhalten, wenn die Einstellungen noch dieselben sind (sonst laeuft bzw. folgt eine neuere Pruefung)
+            $keep = ($ck -eq (Get-HUUpdateCfgKey $script:UpdateCfg))
+            $chan = if ($cfg.UseBranch) { "Branch $($cfg.Branch)" } else { "Kanal $(Format-HUChannel $cfg.Channel)" }
+            if ($r -match '^REL:([^|]+)\|([^|]*)\|(True|False)$') {
+                $remote = $Matches[1].Trim(); $pre = ($Matches[3] -eq 'True')
+                if ($keep) {
+                    if (ConvertTo-HUUpdateVersion $remote) { Set-HUUpdateCheckState 'ok' $remote '' $ck }
+                    else { Set-HUUpdateCheckState 'failed' $remote "Version im Kanal nicht lesbar ($remote)" $ck }
+                }
+                $cmp = 0
+                try { $cmp = ([Version]$remote).CompareTo([Version]$script:Version) } catch { $cmp = 0 }
+                if ($cmp -gt 0) {
+                    $script:UpdateAvailable = $true; $script:UpdateRemoteVer = $remote
+                    Write-HULogWarn "Neue Version verfügbar: v$remote$(if ($pre) { ' (Test)' }) - installiert v$($script:Version). Goldener Knopf 'Update' oben rechts."
+                    Set-HUUpdateButton $remote $pre
+                } else {
+                    $script:UpdateAvailable = $false
+                    if (-not $script:UpdateQuiet) { Write-HULogOK "Version aktuell: v$($script:Version) ($chan$(if ($cfg.RequireSignature) { ', nur signierte Updates' }))" }
+                    Set-HUUpdateButton
+                }
+            } elseif ($r -eq 'NONE') {
+                if ($keep) { Set-HUUpdateCheckState 'empty' '' '' $ck }
+                if (-not $script:UpdateQuiet) { Write-HULogInfo "Update-Prüfung: noch keine $(if ($cfg.RequireSignature) { 'signierte ' })Version im $chan" }
+            } elseif ($r -match '^LIMIT:(\d+)\|(True|False)$') {
+                if ($keep) { Set-HUUpdateCheckState 'failed' '' "GitHub-Abfragelimit erreicht (HTTP $($Matches[1]))" $ck }
+                Write-HULogWarn "Update-Prüfung: GitHub-Abfragelimit erreicht (HTTP $($Matches[1])) - später erneut versuchen."
+            } elseif ($r -match '^AUTH:(\d+)\|(True|False)$') {
+                if ($keep) { Set-HUUpdateCheckState 'failed' '' "$($cfg.Owner)/$($cfg.Repo) nicht erreichbar (HTTP $($Matches[1]))" $ck }
+                Write-HULogWarn "Update-Prüfung: $($cfg.Owner)/$($cfg.Repo) nicht erreichbar (HTTP $($Matches[1]))."
             } else {
-                $script:UpdateAvailable = $false
-                if (-not $script:UpdateQuiet) { Write-HULogOK "Version aktuell: v$($script:Version) ($chan$(if ($cfg.RequireSignature) { ', nur signierte Updates' }))" }
-                Set-HUUpdateButton
+                $why = $r -replace '^(ERR:|FEHLER:)\s*', ''
+                if ($keep) { Set-HUUpdateCheckState 'failed' '' $why $ck }
+                # auch beim stillen Start melden - sonst sieht man nie, warum kein Update angeboten wird
+                Write-HULogWarn "Update-Prüfung fehlgeschlagen: $why"
             }
-        } elseif ($r -eq 'NONE') {
-            if (-not $script:UpdateQuiet) { Write-HULogInfo "Update-Prüfung: noch keine $(if ($cfg.RequireSignature) { 'signierte ' })Version im $chan" }
-        } elseif ($r -match '^LIMIT:(\d+)\|(True|False)$') {
-            Write-HULogWarn "Update-Prüfung: GitHub-Abfragelimit erreicht (HTTP $($Matches[1])) - später erneut versuchen."
-        } elseif ($r -match '^AUTH:(\d+)\|(True|False)$') {
-            Write-HULogWarn "Update-Prüfung: $($cfg.Owner)/$($cfg.Repo) nicht erreichbar (HTTP $($Matches[1]))."
-        } else {
-            # auch beim stillen Start melden - sonst sieht man nie, warum kein Update angeboten wird
-            Write-HULogWarn "Update-Prüfung fehlgeschlagen: $($r -replace '^(ERR:|FEHLER:)\s*', '')"
+        } catch {
+            if ($ck -eq (Get-HUUpdateCfgKey $script:UpdateCfg)) { Set-HUUpdateCheckState 'failed' '' "$($_.Exception.Message)" $ck }
+            Write-HULogWarn "Update-Prüfung: $($_.Exception.Message)"
+        } finally {
+            # wartet ein Klick auf Update, jetzt entscheiden (auch nach einem Fehler, sonst bliebe der Klick haengen)
+            Complete-HUUpdateClick $ck
         }
     }
 }
@@ -204,17 +328,22 @@ function Get-HUOtherSessionsText {
     return (($o | ForEach-Object { "  $($_.UserName) am PC $($_.ComputerName)$(if ($_.Since) { " (seit $($_.Since.ToString('HH:mm')))" })" }) -join "`n")
 }
 
-function Start-HUPull([string]$Version = '') {
+# -Version: genau diese Version (Rechtsklick, Andere Version), ohne Vergleich.
+# Ohne -Version (Klick auf den Knopf, ab 1.0.8): zuerst entscheiden (Request-HUUpdateClick), geladen wird nur eine neuere
+# Version; -Checked = Entscheidung ist gefallen. Branch-Modus und fehlende Update-Bibliothek: wie bisher (Pull repariert).
+function Start-HUPull([string]$Version = '', [switch]$Checked) {
     $pullScript = Join-Path $script:AppRoot 'Pull.ps1'
     if (-not (Test-Path -LiteralPath $pullScript)) { Write-HULogError "Pull.ps1 nicht gefunden: $pullScript"; return }
+    $cfg = Update-UpdateConfig
+    if (-not $Version -and -not $Checked -and $cfg -and -not $cfg.UseBranch) { Request-HUUpdateClick; return }
     $others = Get-HUOtherSessionsText
     if ($others) {
         Show-HUMessage "Das Update geht erst, wenn alle anderen $($script:AppTitle) geschlossen haben.`n`nBitte zuerst schließen:`n$others" -Icon Warning
         return
     }
-    $cfg = Update-UpdateConfig
     $what = if ($Version) { "Version $Version" }
             elseif ($cfg -and $cfg.UseBranch) { "den Entwicklungsstand (Branch $($cfg.Branch), ohne Prüfsumme)" }
+            elseif ($Checked -and "$($script:UpdateCheck.Remote)") { "v$($script:UpdateCheck.Remote)" }
             elseif ($script:UpdateAvailable) { "v$($script:UpdateRemoteVer)" }
             else { "die neueste Version im Kanal $(Format-HUChannel $(if ($cfg) { $cfg.Channel } else { 'Stable' }))" }
     $check = if ($cfg -and $cfg.RequireSignature -and -not $cfg.UseBranch) { 'Prüfsumme und Signatur werden geprüft.' } elseif ($cfg -and $cfg.UseBranch) { 'OHNE Prüfung.' } else { 'Prüfsumme wird geprüft.' }
