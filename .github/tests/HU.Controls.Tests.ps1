@@ -604,3 +604,31 @@ Describe 'Oeffnen ohne Anlegen (Befund K7)' {
         Should -Invoke Show-HUToast -Times 0 -Exactly
     }
 }
+
+Describe 'Fehlerhinweis fuer alle Benutzer, gedrosselt (Befund K3)' {
+    BeforeEach { $script:HUErrorHintLog = $null }
+    It 'derselbe Text hoechstens einmal je 60 Sekunden' {
+        $t0 = [datetime]'2026-11-15T10:00:00'
+        Test-HUErrorHintDue 'Fehler A' $t0 | Should -BeTrue
+        Test-HUErrorHintDue 'Fehler A' $t0.AddSeconds(10) | Should -BeFalse
+        Test-HUErrorHintDue 'Fehler A' $t0.AddSeconds(59) | Should -BeFalse
+        Test-HUErrorHintDue 'Fehler A' $t0.AddSeconds(61) | Should -BeTrue
+    }
+    It 'insgesamt hoechstens 3 Hinweise je 60 Sekunden' {
+        $t0 = [datetime]'2026-11-15T10:00:00'
+        Test-HUErrorHintDue 'Fehler A' $t0 | Should -BeTrue
+        Test-HUErrorHintDue 'Fehler B' $t0.AddSeconds(1) | Should -BeTrue
+        Test-HUErrorHintDue 'Fehler C' $t0.AddSeconds(2) | Should -BeTrue
+        Test-HUErrorHintDue 'Fehler D' $t0.AddSeconds(30) | Should -BeFalse
+        Test-HUErrorHintDue 'Fehler D' $t0.AddSeconds(61) | Should -BeTrue
+    }
+    It 'Hinweis unten rechts mit Symbol Fehler, Text gekuerzt, zweites Mal nicht' {
+        Mock Show-HUToast { }
+        $msg = 'x' * 500
+        Show-HUErrorHint $msg
+        Show-HUErrorHint $msg
+        Should -Invoke Show-HUToast -Times 1 -Exactly -ParameterFilter {
+            $Icon -eq 'Error' -and $Title -eq 'Das hat nicht geklappt' -and $Text -like '*Bitte noch einmal versuchen. Bleibt es dabei, an den Verwalter wenden.' -and $Text.Length -lt 400
+        }
+    }
+}
