@@ -239,8 +239,10 @@ function Write-HUDataFile {
 .SYNOPSIS
     Gemeinsame Datei speichern: Sperre (bis -WaitMs warten), Stand pruefen, Text bauen, Kopie, atomar schreiben.
 .DESCRIPTION
-    -Build liefert den Inhalt: Text (wird so geschrieben), ein Objekt (wird JSON mit -Depth) oder $null (= nichts zu tun,
-    Rueckgabe Ok mit Skipped). Wirft -Build, wird nichts geschrieben und der Text ist die Meldung.
+    -Build liefert genau EIN Ergebnis: Text (wird so geschrieben), ein Objekt (wird JSON mit -Depth, ein Array nur bewusst als ein
+    Wert mit ,@(...)) oder $null bzw. nichts (= nichts zu tun, Rueckgabe Ok mit Skipped). Gibt -Build mehrere Werte aus (z. B. eine
+    nicht verworfene Rueckgabe plus Text), wird nichts geschrieben und Ok ist $false. Wirft -Build, wird nichts geschrieben
+    und der Text ist die Meldung.
     -Build laeuft unter der Sperre: dort neu lesen und aendern, dann ist kein Stand verloren.
     -Stamp: erwarteter Stand aus Get-HUFileStamp; '' = Datei darf noch nicht existieren; $null = nicht pruefen.
     Neue Datei: ohne Ueberschreiben. Vorhandene: Kopie nach _Kopien\ (ausser -NoBackup, -Keep Kopien), dann ersetzen.
@@ -270,7 +272,9 @@ function Save-HUDataFile {
     }
     try {
         if ($null -ne $Stamp -and (Get-HUFileStamp $Path) -ne "$Stamp") { return (New-HUDataResult $false $Changed $Stamp) }
-        $out = & $Build
+        $res = @(& $Build)
+        if ($res.Count -gt 1) { return (New-HUDataResult $false 'Speichern abgebrochen: Der Inhalt war nicht eindeutig (mehrere Ergebnisse). Es wurde nichts geändert.' $Stamp) }
+        $out = $(if ($res.Count -eq 1) { $res[0] } else { $null })
         if ($null -eq $out) { return (New-HUDataResult $true '' (Get-HUFileStamp $Path) $true) }
         $text = $(if ($out -is [string]) { $out } else { ConvertTo-Json -InputObject $out -Depth $Depth })
         $exists = Test-Path -LiteralPath $Path
