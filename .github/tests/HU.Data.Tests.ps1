@@ -835,6 +835,36 @@ Describe 'Grund der Sperre beim Warten und Speichern (Befund K6)' {
         $l.Reason | Should -Be 'busy'
         $sw.ElapsedMilliseconds | Should -BeGreaterOrEqual 350
     }
+    It 'kurzer Netzaussetzer: erst unreachable, dann erreichbar liefert Ok (Lock-HUDataFile per Mock)' {
+        $global:K6Calls = 0
+        Mock -ModuleName HU.Data Lock-HUDataFile {
+            $global:K6Calls++
+            if ($global:K6Calls -le 2) {
+                return [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = 'unreachable' }
+            }
+            return [pscustomobject]@{ Ok = $true; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = $UserName; ComputerName = $PcName; Since = (Get-Date); Reason = 'ok' }
+        }
+        $p = Join-Path $script:D 'daten.json'
+        $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 10000
+        $n = $global:K6Calls
+        Remove-Variable -Name K6Calls -Scope Global -ErrorAction SilentlyContinue
+        $l.Ok | Should -BeTrue
+        $l.Reason | Should -Be 'ok'
+        $n | Should -Be 3
+    }
+    It 'Ordner anlegen scheitert kurz mit nicht erreichbar, dann geht es: Ok (New-Item per Mock)' {
+        $global:K6Mk = 0
+        Mock -ModuleName HU.Data New-Item {
+            $global:K6Mk++
+            if ($global:K6Mk -le 2) { throw (New-Object System.IO.IOException 'Netzwerkpfad nicht gefunden') }
+            Microsoft.PowerShell.Management\New-Item @PSBoundParameters
+        } -ParameterFilter { $ItemType -eq 'Directory' }
+        $p = Join-Path $script:D 'neu\daten.json'
+        $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 10000
+        $n = $global:K6Mk
+        Remove-Variable -Name K6Mk -Scope Global -ErrorAction SilentlyContinue
+        try { $l.Ok | Should -BeTrue; $l.Reason | Should -Be 'ok'; $n | Should -Be 3 } finally { if ($l.Ok) { Unlock-HUDataFile $l } }
+    }
     It 'frei: Ok mit Reason ok' {
         $l = Wait-HUDataFileLock -Path (Join-Path $script:D 'sub\daten.json') -UserName 'u1' -PcName 'pc1'
         try { $l.Ok | Should -BeTrue; $l.Reason | Should -Be 'ok' } finally { Unlock-HUDataFile $l }
