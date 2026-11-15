@@ -141,6 +141,27 @@ function Test-HMManifestSignature([byte[]]$Manifest, [byte[]]$Signature, [string
         return ''
     } catch { return "Signatur ungueltig: $($_.Exception.Message)" }
 }
+# Installierte Version (Config\version.json im Programmordner) oder $null, wenn nicht lesbar
+function Get-HMInstalledVersion([string]$ConfigDir) {
+    try {
+        $f = Join-Path $ConfigDir 'version.json'
+        if (-not (Test-Path -LiteralPath $f)) { return $null }
+        $j = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | ConvertFrom-Json
+        if (-not $j -or -not $j.PSObject.Properties['version']) { return $null }
+        return (ConvertTo-HMVersion "$($j.version)")
+    } catch { return $null }
+}
+# Schutz vor Rueckstufung (Pull -NoDowngrade, verlangt vom Update-Knopf der App):
+# $true = das Release ist nicht neuer als die installierte Version. Installierte Version unbekannt: $false (wie bisher installieren)
+function Test-HMNoUpgrade($ReleaseVersion, $InstalledVersion) {
+    if (-not $ReleaseVersion -or -not $InstalledVersion) { return $false }
+    try {
+        $a = [Version]"$ReleaseVersion"; $b = [Version]"$InstalledVersion"
+        $a = New-Object Version -ArgumentList $a.Major, $a.Minor, ([Math]::Max($a.Build, 0)), ([Math]::Max($a.Revision, 0))
+        $b = New-Object Version -ArgumentList $b.Major, $b.Minor, ([Math]::Max($b.Build, 0)), ([Math]::Max($b.Revision, 0))
+        return ($a.CompareTo($b) -le 0)
+    } catch { return $false }
+}
 #endregion HMUpdateLib
 
 # ============================================================================

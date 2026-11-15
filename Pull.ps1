@@ -24,6 +24,9 @@
         Abschalten nur bewusst mit Config\update.json "AllowUnsigned": true (Einstellungen > Update).
 
     -WaitPid <PID>: wird vom Update-Knopf im Tool uebergeben. Pull wartet, bis das Tool beendet ist (max. 60 s).
+    -NoDowngrade: wird vom Update-Knopf (ohne -Version) uebergeben. Ist das gewaehlte Release nicht neuer als die installierte
+      Version (Config\version.json), aendert Pull nichts und startet das Tool wieder. Ohne den Schalter (von Hand: Erstinstallation,
+      Reparatur) wie bisher. Gilt nicht mit -Version und nicht im Branch-Modus.
 
     Gemeinsamer Netzordner: Das Update ersetzt nichts, solange jemand anderer die App offen hat (Data\Laufend\*.lock
     laesst sich nicht loeschen). Dann kommt "Bitte zuerst schliessen: ...".
@@ -51,7 +54,8 @@ param(
     [string]$Branch,
     [ValidateSet('', 'Stable', 'Test')][string]$Channel = '',
     [string]$Version = '',
-    [switch]$NonInteractive
+    [switch]$NonInteractive,
+    [switch]$NoDowngrade
 )
 $ErrorActionPreference = 'Stop'
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
@@ -189,12 +193,51 @@ function Test-HMManifestSignature([byte[]]$Manifest, [byte[]]$Signature, [string
         return ''
     } catch { return "Signatur ungueltig: $($_.Exception.Message)" }
 }
+# Installierte Version (Config\version.json im Programmordner) oder $null, wenn nicht lesbar
+function Get-HMInstalledVersion([string]$ConfigDir) {
+    try {
+        $f = Join-Path $ConfigDir 'version.json'
+        if (-not (Test-Path -LiteralPath $f)) { return $null }
+        $j = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | ConvertFrom-Json
+        if (-not $j -or -not $j.PSObject.Properties['version']) { return $null }
+        return (ConvertTo-HMVersion "$($j.version)")
+    } catch { return $null }
+}
+# Schutz vor Rueckstufung (Pull -NoDowngrade, verlangt vom Update-Knopf der App):
+# $true = das Release ist nicht neuer als die installierte Version. Installierte Version unbekannt: $false (wie bisher installieren)
+function Test-HMNoUpgrade($ReleaseVersion, $InstalledVersion) {
+    if (-not $ReleaseVersion -or -not $InstalledVersion) { return $false }
+    try {
+        $a = [Version]"$ReleaseVersion"; $b = [Version]"$InstalledVersion"
+        $a = New-Object Version -ArgumentList $a.Major, $a.Minor, ([Math]::Max($a.Build, 0)), ([Math]::Max($a.Revision, 0))
+        $b = New-Object Version -ArgumentList $b.Major, $b.Minor, ([Math]::Max($b.Build, 0)), ([Math]::Max($b.Revision, 0))
+        return ($a.CompareTo($b) -le 0)
+    } catch { return $false }
+}
 #endregion HMUpdateLib
 
 function Stop-HMPull([string]$Msg) {
     Write-Host "[FEHLER] $Msg" -ForegroundColor Red
     if (-not $NonInteractive) { Read-Host 'Enter zum Beenden' | Out-Null }
     exit 1
+}
+
+# HU-Amt starten (nach dem Update und nach der Ablehnung durch -NoDowngrade)
+function Start-HMApp([string]$Dir) {
+    Write-Host 'Starte HU-Amt...' -ForegroundColor Yellow
+    Start-Sleep -Seconds 1
+    $exe = Join-Path $Dir 'HU-Amt.exe'
+    if (Test-Path $exe) { Start-Process -FilePath $exe -WorkingDirectory $Dir }
+    else {
+        # ohne Starter: gleiche Regel wie HU-Amt.exe - PowerShell 7, wenn installiert (Config\powershell-host.txt: auto | 5 | 7)
+        $mode = 'auto'; $hf = Join-Path $Dir 'Config\powershell-host.txt'
+        try { if (Test-Path -LiteralPath $hf) { $mode = ([IO.File]::ReadAllText($hf)).Trim().ToLowerInvariant() } } catch { }
+        $pw = ''
+        if ($mode -ne '5') { foreach ($p in @($(if ($env:ProgramW6432) { Join-Path $env:ProgramW6432 'PowerShell\7\pwsh.exe' }), (Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe'))) { if ($p -and (Test-Path -LiteralPath $p)) { $pw = $p; break } } }
+        $main = "`"$(Join-Path $Dir 'Main.ps1')`""
+        if ($pw) { Start-Process -FilePath $pw -ArgumentList '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $main -WorkingDirectory $Dir }
+        else { Start-Process powershell.exe -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $main -WorkingDirectory $Dir }
+    }
 }
 
 # Liegt Pull.ps1 allein in einem Ordner, wird dorthin installiert (z. B. ein neuer Ordner auf der Netzfreigabe).
@@ -371,6 +414,21 @@ if ($newCred) {
 }
 if ($useBranch) { Write-Host "Version:    Entwicklungsstand Branch '$Branch' ($($ref.Substring(0, [Math]::Min(12, $ref.Length))))" -ForegroundColor Yellow }
 else { Write-Host "Version:    $($rel.Tag)  ($(if ($rel.Prerelease) { 'Test' } else { 'Stabil' }), $($rel.Date))" -ForegroundColor Gray }
+
+# --- Schutz vor Rueckstufung: nur auf Verlangen der App (Update-Knopf, -NoDowngrade), nicht mit -Version, nicht im Branch-Modus.
+#     Ist das Release nicht neuer als die installierte Version, wird nichts geladen und nichts veraendert; HU-Amt startet wieder.
+#     Installierte Version nicht lesbar: wie bisher installieren.
+if ($NoDowngrade -and -not $useBranch -and -not $Version) {
+    $instVer = Get-HMInstalledVersion $cfgDir
+    if (Test-HMNoUpgrade $rel.Version $instVer) {
+        Write-Host ''
+        Write-Host "[INFO] Keine neuere Version: installiert ist $instVer, im Kanal $(if ($Channel -eq 'Test') { 'Test' } else { 'Stabil' }) ist $($rel.Version) die neueste. Es wurde NICHTS veraendert." -ForegroundColor Yellow
+        if ($NoStart) { exit 0 }
+        if (-not $NonInteractive) { Start-Sleep -Seconds 3 }
+        Start-HMApp $Target
+        exit 0
+    }
+}
 
 # --- 2. Pruefsumme und Signatur
 if (-not $useBranch) {
@@ -563,20 +621,7 @@ if ($isFirstInstall -and $repl -eq 0) {
 Write-Host "`n=== Pull fertig === $ok Dateien ($verified)$(if ($repl) { " | $repl NICHT ersetzt" })" -ForegroundColor Cyan
 if ($NoStart) { if ($repl) { exit 1 } else { exit 0 } }
 if ($repl -eq 0) {
-    Write-Host 'Starte HU-Amt...' -ForegroundColor Yellow
-    Start-Sleep -Seconds 1
-    $exe = Join-Path $Target 'HU-Amt.exe'
-    if (Test-Path $exe) { Start-Process -FilePath $exe -WorkingDirectory $Target }
-    else {
-        # ohne Starter: gleiche Regel wie HU-Amt.exe - PowerShell 7, wenn installiert (Config\powershell-host.txt: auto | 5 | 7)
-        $mode = 'auto'; $hf = Join-Path $Target 'Config\powershell-host.txt'
-        try { if (Test-Path -LiteralPath $hf) { $mode = ([IO.File]::ReadAllText($hf)).Trim().ToLowerInvariant() } } catch { }
-        $pw = ''
-        if ($mode -ne '5') { foreach ($p in @($(if ($env:ProgramW6432) { Join-Path $env:ProgramW6432 'PowerShell\7\pwsh.exe' }), (Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe'))) { if ($p -and (Test-Path -LiteralPath $p)) { $pw = $p; break } } }
-        $main = "`"$(Join-Path $Target 'Main.ps1')`""
-        if ($pw) { Start-Process -FilePath $pw -ArgumentList '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $main -WorkingDirectory $Target }
-        else { Start-Process powershell.exe -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $main -WorkingDirectory $Target }
-    }
+    Start-HMApp $Target
     exit 0
 }
 Stop-HMPull "Einzelne Dateien konnten nicht ersetzt werden (gesperrt?) - HU-Amt wird NICHT automatisch gestartet. Manuell: cd '$Target'; .\Pull.ps1"

@@ -328,6 +328,10 @@ function Get-HUOtherSessionsText {
     return (($o | ForEach-Object { "  $($_.UserName) am PC $($_.ComputerName)$(if ($_.Since) { " (seit $($_.Since.ToString('HH:mm')))" })" }) -join "`n")
 }
 
+# Kennt dieses Pull.ps1 den Schalter -NoDowngrade?
+function Test-HUPullNoDowngrade([string]$Path) {
+    try { return ([IO.File]::ReadAllText($Path, [Text.Encoding]::UTF8) -match '\[switch\]\$NoDowngrade\b') } catch { return $false }
+}
 # -Version: genau diese Version (Rechtsklick, Andere Version), ohne Vergleich.
 # Ohne -Version (Klick auf den Knopf, ab 1.0.8): zuerst entscheiden (Request-HUUpdateClick), geladen wird nur eine neuere
 # Version; -Checked = Entscheidung ist gefallen. Branch-Modus und fehlende Update-Bibliothek: wie bisher (Pull repariert).
@@ -352,6 +356,9 @@ function Start-HUPull([string]$Version = '', [switch]$Checked) {
         $exe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
         $argLine = "-NoProfile -ExecutionPolicy Bypass -File `"$pullScript`" -Target `"$($script:AppRoot)`" -WaitPid $PID"
         if ($Version) { $argLine += " -Version $Version" }
+        # Klick ohne -Version: Pull lehnt eine gleiche oder aeltere Version ab (zweite Sicherung, ab 1.0.8).
+        # Nur, wenn dieses Pull.ps1 den Schalter kennt (ein aelteres wuerde ihn ohnehin nur uebergehen)
+        elseif ($cfg -and -not $cfg.UseBranch -and (Test-HUPullNoDowngrade $pullScript)) { $argLine += ' -NoDowngrade' }
         Start-Process -FilePath $exe -ArgumentList $argLine -WorkingDirectory $script:AppRoot | Out-Null
         Write-HULogOK "Update gestartet - $($script:AppTitle) wird beendet und neu gestartet."
         $script:Window.Close()
