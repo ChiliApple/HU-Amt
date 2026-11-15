@@ -138,6 +138,23 @@ Describe 'Alle Releases signieren und freigeben: was offen ist (Get-HMReleasePla
     }
 }
 
+Describe 'Update-Knopf: ein Tooltip (KD1, ab 1.0.8)' {
+    It 'MainWindow.xaml: btnUpdate hat den Tooltip mit Zeilenumbruch' {
+        [xml]$x = [IO.File]::ReadAllText((Join-Path $script:Root 'XAML\MainWindow.xaml'), [Text.Encoding]::UTF8)
+        $ns = New-Object Xml.XmlNamespaceManager $x.NameTable
+        $ns.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+        $btn = $x.SelectSingleNode("//*[@x:Name='btnUpdate']", $ns)
+        $btn | Should -Not -BeNullOrEmpty
+        $want = "Update: l$([char]0xE4)dt eine neue Version und installiert sie (Pr$([char]0xFC)fsumme und Signatur). Gold = neue Version da. Ohne neue Version meldet der Knopf nur, dass alles aktuell ist.`nRechtsklick: jetzt pr$([char]0xFC)fen, Info. F$([char]0xFC)r Verwalter: andere Version, Kanal, Module."
+        $btn.GetAttribute('ToolTip') | Should -BeExactly $want
+    }
+    It 'UI-Update.ps1 setzt keinen zweiten Tooltip an btnUpdate' {
+        $t = [IO.File]::ReadAllText((Join-Path $script:Root 'Functions\UI-Update.ps1'), [Text.Encoding]::UTF8)
+        $t | Should -Not -Match '\$b\.ToolTip\s*='
+        $t | Should -Not -Match "btnUpdate'\]\.ToolTip"
+    }
+}
+
 Describe 'Pull -NoDowngrade: keine Rueckstufung, wenn die App es verlangt (ab 1.0.8)' {
     BeforeAll {
         . (Join-Path $script:Root 'Functions\Core-Update.ps1')
