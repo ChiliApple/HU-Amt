@@ -572,3 +572,35 @@ Describe 'JSON schreiben mit eindeutiger Temp-Datei (Pruefung 086, KERN-B10)' {
         ([IO.File]::ReadAllText($f) | ConvertFrom-Json).A | Should -Be 3
     }
 }
+
+Describe 'Oeffnen ohne Anlegen (Befund K7)' {
+    BeforeEach {
+        $script:K7 = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtK7-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:K7)
+        Mock Start-Process { }
+        Mock Show-HUToast { }
+    }
+    AfterEach { Remove-Item -LiteralPath $script:K7 -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'fehlende Datei: nichts anlegen, nichts oeffnen, Hinweis "Nicht gefunden"' {
+        $p = Join-Path $script:K7 'Belege\Beleg.pdf'
+        Open-HUPath $p
+        Test-Path -LiteralPath $p | Should -BeFalse
+        Test-Path -LiteralPath (Join-Path $script:K7 'Belege') | Should -BeFalse
+        Should -Invoke Start-Process -Times 0 -Exactly
+        Should -Invoke Show-HUToast -Times 1 -Exactly -ParameterFilter { $Title -eq 'Nicht gefunden' -and $Icon -eq 'Warning' -and $Text -like "*$p*" -and $Text -like '*nicht mehr da*' }
+    }
+    It 'mit -Create wird ein fehlender Ordner angelegt und geoeffnet' {
+        $p = Join-Path $script:K7 'Logs'
+        Open-HUPath $p -Create
+        Test-Path -LiteralPath $p -PathType Container | Should -BeTrue
+        Should -Invoke Start-Process -Times 1 -Exactly
+        Should -Invoke Show-HUToast -Times 0 -Exactly
+    }
+    It 'vorhandener Pfad wird geoeffnet' {
+        $f = Join-Path $script:K7 'da.txt'
+        [IO.File]::WriteAllText($f, 'x')
+        Open-HUPath $f
+        Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { $FilePath -eq 'explorer.exe' }
+        Should -Invoke Show-HUToast -Times 0 -Exactly
+    }
+}
