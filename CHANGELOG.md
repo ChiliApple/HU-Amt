@@ -6,6 +6,7 @@
 - **Klick auf Update ohne neue Version:** Der Knopf meldet nur noch, dass HU-Amt aktuell ist, und ändert nichts.
   - Ist die installierte Version neuer als die im Kanal, steht das in der Meldung.
   - Gab es noch keine gültige Prüfung, prüft HU-Amt zuerst.
+  - Eine Prüfung, die älter als 10 Minuten ist, wird beim Klick erneuert. So kommt auch ein Update an, das freigegeben wurde, während HU-Amt schon offen war.
   - Der Tooltip am Knopf erklärt, was ein Klick tut.
 - **Neu installieren oder ältere Version:** Das geht nur noch über Rechtsklick auf Update, "Andere Version / Vorversion installieren ..." (nur Verwalter).
 - **Zwei Sicherungen im Update selbst:** Direkt vor dem Ersetzen prüft das Update noch einmal, ob inzwischen jemand HU-Amt geöffnet hat. Ein Klick auf den Knopf lädt außerdem keine ältere Version mehr.
@@ -39,7 +40,7 @@
 - **Neue Modulversionen nötig:** Das Wiederöffnen einer Outlook-Aufgabe und die Zahlenmeldung wirken erst, wenn das Modul sie nutzt (Reisen und Buchungen in ihren nächsten Versionen).
 
 ### ✅ Qualität
-- 642 Tests.
+- 668 Tests.
 
 ## v1.0.7
 

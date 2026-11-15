@@ -277,7 +277,7 @@ $err = Get-HUNumberTextError $c.txtBetrag.Text
 if ($err) { Show-HUMessage $err 'Betrag' -Icon Warning; $c.txtBetrag.Focus() | Out-Null; return }
 ```
 
-- **Tooltip auf gesperrten Knöpfen:** Die Stile `DarkButton` und `ToolButton` in `XAML\Theme.xaml` zeigen den Tooltip auch bei `IsEnabled = $false` (`ToolTipService.ShowOnDisabled`). Ein eigener Setter im Modul ist nicht mehr nötig. Den Grund für die Sperre in den Tooltip schreiben, z. B. "Gesperrt, weil ...". Das gilt in allen Fenstern und Reitern, die diese Stile nutzen. Knöpfe mit eigenem Stil setzen es selbst.
+- **Tooltip auf gesperrten Knöpfen:** Die Stile `DarkButton` und `ToolButton` in `XAML\Theme.xaml` zeigen den Tooltip auch bei `IsEnabled = $false` (`ToolTipService.ShowOnDisabled`). Ein eigener Setter im Modul ist nicht mehr nötig. Den Grund für die Sperre in den Tooltip schreiben, z. B. "Gesperrt, weil ...". Das gilt in allen Fenstern und Reitern, die diese Stile nutzen. Stile mit `BasedOn` auf `DarkButton` oder `ToolButton` erben die Einstellung. Nur eigene Stile ohne `BasedOn` auf `DarkButton` oder `ToolButton` müssen `ToolTipService.ShowOnDisabled` selbst setzen.
 
 ### Vorlagen für Modul-Repos
 
