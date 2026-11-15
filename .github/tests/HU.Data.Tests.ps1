@@ -736,3 +736,107 @@ Describe 'Zahl mit mehreren Punkten (Befund K8, Meldungstext)' {
         }
     }
 }
+
+Describe 'Grund der Sperre beim Warten und Speichern (Befund K6)' {
+    BeforeAll {
+        $script:K6Me = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+        function Get-K6Dacl([string]$Path) {
+            $i = Get-Item -LiteralPath $Path -Force
+            $sec = [System.Security.AccessControl.AccessControlSections]::Access
+            if ($PSVersionTable.PSVersion.Major -ge 6) { return [System.IO.FileSystemAclExtensions]::GetAccessControl($i, $sec) }
+            return $i.GetAccessControl($sec)
+        }
+        function Set-K6Dacl([string]$Path, $Acl) {
+            $i = Get-Item -LiteralPath $Path -Force
+            if ($PSVersionTable.PSVersion.Major -ge 6) { [System.IO.FileSystemAclExtensions]::SetAccessControl($i, $Acl) } else { $i.SetAccessControl($Acl) }
+        }
+        function Get-K6DenyRule {
+            return (New-Object System.Security.AccessControl.FileSystemAccessRule($script:K6Me, 'CreateFiles, AppendData', [System.Security.AccessControl.InheritanceFlags]::None, [System.Security.AccessControl.PropagationFlags]::None, 'Deny'))
+        }
+        function Test-K6DenyWorks([string]$Dir) {
+            $p = Join-Path $Dir ('.k6probe-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+            try { [IO.File]::WriteAllText($p, 'x'); Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue; return $false } catch { return $true }
+        }
+        # Verweigerung am Testordner setzen, Rueckgabe: $null = gesetzt und wirksam, sonst Grund zum Ueberspringen
+        function Set-K6Deny([string]$Dir) {
+            try { $acl = Get-K6Dacl $Dir; $acl.AddAccessRule((Get-K6DenyRule)); Set-K6Dacl $Dir $acl } catch { return "ACL nicht setzbar: $($_.Exception.Message)" }
+            if (-not (Test-K6DenyWorks $Dir)) { return 'Verweigerung wirkt nicht (Rechte ueber Privileg)' }
+            return $null
+        }
+        function Clear-K6Deny([string]$Dir) {
+            try { $acl = Get-K6Dacl $Dir; [void]$acl.RemoveAccessRule((Get-K6DenyRule)); Set-K6Dacl $Dir $acl } catch { }
+        }
+        $script:K6Free = @([char[]]([int][char]'Z'..[int][char]'H') | Where-Object { -not [IO.Directory]::Exists("$($_):\") -and -not (Get-PSDrive -Name "$_" -ErrorAction SilentlyContinue) } | Select-Object -First 1)
+    }
+    BeforeEach { $script:D = New-TestDir }
+    AfterEach { Clear-K6Deny $script:D; Remove-Item -LiteralPath $script:D -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'Wurzel nicht erreichbar: unreachable sofort, Speichern und Nummernkreis melden es' {
+        if (-not $script:K6Free) { Set-ItResult -Skipped -Because 'kein freier Laufwerksbuchstabe'; return }
+        $p = "$($script:K6Free):\HUAmtK6\sub\daten.json"
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 5000
+        $sw.Stop()
+        $l.Ok | Should -BeFalse
+        $l.Reason | Should -Be 'unreachable'
+        $sw.ElapsedMilliseconds | Should -BeLessThan 2500
+        $r = Save-HUDataFile -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 5000 -Build { '{}' }
+        $r.Ok | Should -BeFalse
+        $r.Message | Should -BeExactly "Der Ordner $($script:K6Free):\HUAmtK6\sub ist nicht erreichbar. Bitte Netzlaufwerk bzw. Freigabe prüfen."
+        { Get-HUNextNumber -Path $p -WaitMs 5000 } | Should -Throw '*nicht erreichbar*'
+    }
+    It 'Ordner ohne Schreibrecht: rights sofort, Speichern und Nummernkreis melden es' {
+        $why = Set-K6Deny $script:D
+        if ($why) { Set-ItResult -Skipped -Because $why; return }
+        $p = Join-Path $script:D 'daten.json'
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 5000
+        $sw.Stop()
+        $l.Ok | Should -BeFalse
+        $l.Reason | Should -Be 'rights'
+        $sw.ElapsedMilliseconds | Should -BeLessThan 2500
+        $r = Save-HUDataFile -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 5000 -Build { '{}' }
+        $r.Ok | Should -BeFalse
+        $r.Message | Should -BeExactly "Kein Schreibrecht im Ordner $($script:D). Bitte an den Verwalter wenden."
+        { Get-HUNextNumber -Path $p -WaitMs 5000 } | Should -Throw '*Kein Schreibrecht*'
+    }
+    It 'Unterordner fehlt und darf nicht angelegt werden: rights sofort statt Ausnahme' {
+        $why = Set-K6Deny $script:D
+        if ($why) { Set-ItResult -Skipped -Because $why; return }
+        $p = Join-Path $script:D 'neu\daten.json'
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 5000
+        $sw.Stop()
+        $l.Ok | Should -BeFalse
+        $l.Reason | Should -Be 'rights'
+        $sw.ElapsedMilliseconds | Should -BeLessThan 2500
+    }
+    It 'von anderem Halter gesperrt: busy, wartet bis zum Zeitlimit, Text wie bisher' {
+        $p = Join-Path $script:D 'daten.json'
+        $other = Lock-HUDataFile -Path $p -UserName 'maria' -PcName 'PC-12'
+        try {
+            $sw = [Diagnostics.Stopwatch]::StartNew()
+            $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 400
+            $sw.Stop()
+            $l.Ok | Should -BeFalse
+            $l.Reason | Should -Be 'busy'
+            $sw.ElapsedMilliseconds | Should -BeGreaterOrEqual 350
+            $r = Save-HUDataFile -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 200 -Build { '{}' }
+            $r.Message | Should -BeExactly "Gerade in Bearbeitung von maria (PC-12) seit $($other.Since.ToString('dd.MM. HH:mm')). Du kannst die Daten nur ansehen."
+        } finally { Unlock-HUDataFile $other }
+    }
+    It 'einmal Zugriff verweigert in beschreibbarem Ordner: busy, wartet wie bisher' {
+        Mock -ModuleName HU.Paths New-HUHeldFile { throw (New-Object System.UnauthorizedAccessException 'Zugriff verweigert') }
+        $p = Join-Path $script:D 'daten.json'
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $l = Wait-HUDataFileLock -Path $p -UserName 'u1' -PcName 'pc1' -WaitMs 400
+        $sw.Stop()
+        $l.Ok | Should -BeFalse
+        $l.Reason | Should -Be 'busy'
+        $sw.ElapsedMilliseconds | Should -BeGreaterOrEqual 350
+    }
+    It 'frei: Ok mit Reason ok' {
+        $l = Wait-HUDataFileLock -Path (Join-Path $script:D 'sub\daten.json') -UserName 'u1' -PcName 'pc1'
+        try { $l.Ok | Should -BeTrue; $l.Reason | Should -Be 'ok' } finally { Unlock-HUDataFile $l }
+    }
+}
