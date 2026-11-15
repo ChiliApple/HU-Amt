@@ -240,6 +240,27 @@ function Resolve-HUUpdateClick([string]$Action) {
     }
 }
 
+# Antwort der Hintergrund-Pruefung -> Zustand fuer Set-HUUpdateCheckState (ohne Netz, ohne Fenster, testbar).
+# Kind: REL | NONE | LIMIT | AUTH | ERR (alles Unlesbare); State: ok | empty | failed; Remote, Pre, Code (HTTP), Error
+function ConvertFrom-HUUpdateAnswer([string]$Answer, $Cfg) {
+    $r = "$Answer".Trim()
+    $o = [pscustomobject]@{ Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Error = '' }
+    if ($r -match '^REL:([^|]+)\|([^|]*)\|(True|False)$') {
+        $o.Kind = 'REL'; $o.Remote = $Matches[1].Trim(); $o.Pre = ($Matches[3] -eq 'True')
+        if (ConvertTo-HUUpdateVersion $o.Remote) { $o.State = 'ok' }
+        else { $o.Error = "Version im Kanal nicht lesbar ($($o.Remote))" }
+    } elseif ($r -eq 'NONE') {
+        $o.Kind = 'NONE'; $o.State = 'empty'
+    } elseif ($r -match '^LIMIT:(\d+)\|(True|False)$') {
+        $o.Kind = 'LIMIT'; $o.Code = $Matches[1]; $o.Error = "GitHub-Abfragelimit erreicht (HTTP $($o.Code))"
+    } elseif ($r -match '^AUTH:(\d+)\|(True|False)$') {
+        $o.Kind = 'AUTH'; $o.Code = $Matches[1]; $o.Error = "$($Cfg.Owner)/$($Cfg.Repo) nicht erreichbar (HTTP $($o.Code))"
+    } else {
+        $o.Error = $r -replace '^(ERR:|FEHLER:)\s*', ''
+    }
+    return $o
+}
+
 # Update-Pruefung im Hintergrund. -Quiet: nur bei neuer Version etwas protokollieren
 function Invoke-UpdateCheck([switch]$Quiet) {
     $cfg = Update-UpdateConfig
@@ -296,12 +317,10 @@ function Invoke-UpdateCheck([switch]$Quiet) {
             # nur festhalten, wenn die Einstellungen noch dieselben sind (sonst laeuft bzw. folgt eine neuere Pruefung)
             $keep = ($ck -eq (Get-HUUpdateCfgKey $script:UpdateCfg))
             $chan = if ($cfg.UseBranch) { "Branch $($cfg.Branch)" } else { "Kanal $(Format-HUChannel $cfg.Channel)" }
-            if ($r -match '^REL:([^|]+)\|([^|]*)\|(True|False)$') {
-                $remote = $Matches[1].Trim(); $pre = ($Matches[3] -eq 'True')
-                if ($keep) {
-                    if (ConvertTo-HUUpdateVersion $remote) { Set-HUUpdateCheckState 'ok' $remote '' $ck }
-                    else { Set-HUUpdateCheckState 'failed' $remote "Version im Kanal nicht lesbar ($remote)" $ck }
-                }
+            $a = ConvertFrom-HUUpdateAnswer $r $cfg
+            if ($keep) { Set-HUUpdateCheckState $a.State $a.Remote $a.Error $ck }
+            if ($a.Kind -eq 'REL') {
+                $remote = $a.Remote; $pre = $a.Pre
                 $cmp = 0
                 try { $cmp = ([Version]$remote).CompareTo([Version]$script:Version) } catch { $cmp = 0 }
                 if ($cmp -gt 0) {
@@ -313,20 +332,15 @@ function Invoke-UpdateCheck([switch]$Quiet) {
                     if (-not $script:UpdateQuiet) { Write-HULogOK "Version aktuell: v$($script:Version) ($chan$(if ($cfg.RequireSignature) { ', nur signierte Updates' }))" }
                     Set-HUUpdateButton
                 }
-            } elseif ($r -eq 'NONE') {
-                if ($keep) { Set-HUUpdateCheckState 'empty' '' '' $ck }
+            } elseif ($a.Kind -eq 'NONE') {
                 if (-not $script:UpdateQuiet) { Write-HULogInfo "Update-Prüfung: noch keine $(if ($cfg.RequireSignature) { 'signierte ' })Version im $chan" }
-            } elseif ($r -match '^LIMIT:(\d+)\|(True|False)$') {
-                if ($keep) { Set-HUUpdateCheckState 'failed' '' "GitHub-Abfragelimit erreicht (HTTP $($Matches[1]))" $ck }
-                Write-HULogWarn "Update-Prüfung: GitHub-Abfragelimit erreicht (HTTP $($Matches[1])) - später erneut versuchen."
-            } elseif ($r -match '^AUTH:(\d+)\|(True|False)$') {
-                if ($keep) { Set-HUUpdateCheckState 'failed' '' "$($cfg.Owner)/$($cfg.Repo) nicht erreichbar (HTTP $($Matches[1]))" $ck }
-                Write-HULogWarn "Update-Prüfung: $($cfg.Owner)/$($cfg.Repo) nicht erreichbar (HTTP $($Matches[1]))."
+            } elseif ($a.Kind -eq 'LIMIT') {
+                Write-HULogWarn "Update-Prüfung: GitHub-Abfragelimit erreicht (HTTP $($a.Code)) - später erneut versuchen."
+            } elseif ($a.Kind -eq 'AUTH') {
+                Write-HULogWarn "Update-Prüfung: $($cfg.Owner)/$($cfg.Repo) nicht erreichbar (HTTP $($a.Code))."
             } else {
-                $why = $r -replace '^(ERR:|FEHLER:)\s*', ''
-                if ($keep) { Set-HUUpdateCheckState 'failed' '' $why $ck }
                 # auch beim stillen Start melden - sonst sieht man nie, warum kein Update angeboten wird
-                Write-HULogWarn "Update-Prüfung fehlgeschlagen: $why"
+                Write-HULogWarn "Update-Prüfung fehlgeschlagen: $($a.Error)"
             }
         } catch {
             if ($ck -eq (Get-HUUpdateCfgKey $script:UpdateCfg)) { Set-HUUpdateCheckState 'failed' '' "$($_.Exception.Message)" $ck }

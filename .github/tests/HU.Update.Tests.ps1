@@ -442,3 +442,111 @@ Describe 'Update-Knopf: Klick entscheidet nach der letzten Pruefung (K4, ab 1.0.
         }
     }
 }
+
+Describe 'Update-Pruefung: Antwort auswerten (ab 1.0.8)' {
+    BeforeAll {
+        # kein Netz: Invoke-AsyncCommand ist ein Platzhalter, der nur OnComplete festhaelt; die Antwort setzt der Test
+        $script:AppRoot = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtAnt-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AppRoot 'Config') -Force)
+        [IO.File]::WriteAllText((Join-Path $script:AppRoot 'Config\update.json'), '{ "SignerThumbprint": "' + ('A' * 40) + '" }')
+        $script:App = [pscustomobject]@{ id = 'HU-Amt'; title = 'HU-Amt'; signer = ('A' * 40); repo = [pscustomobject]@{ owner = 'x'; name = 'y' } }
+        $script:AppTitle = 'HU-Amt'; $script:Version = '1.0.8'
+        $script:DataRoot = $script:AppRoot; $script:UserRoot = $script:AppRoot; $script:UserName = 'anna'
+        $script:Log = New-Object System.Collections.Generic.List[string]
+        $script:Msgs = New-Object System.Collections.Generic.List[string]
+        function Write-HULogInfo { param($m) $script:Log.Add("INFO|$m") }
+        function Write-HULogWarn { param($m) $script:Log.Add("WARN|$m") }
+        function Write-HULogOK { param($m) $script:Log.Add("OK|$m") }
+        function Write-HULogError { param($m) $script:Log.Add("ERROR|$m") }
+        function Read-HUJsonFile([string]$Path) { if (Test-Path -LiteralPath $Path) { return ([IO.File]::ReadAllText($Path) | ConvertFrom-Json) } return $null }
+        function Show-HUMessage { param([string]$Text, [string]$Title, [string]$Icon = 'Info', $Owner = $null) $script:Msgs.Add("$Icon|$Text") }
+        function Confirm-HU { param([string]$Text, [string]$Title, [switch]$Warning, $Owner = $null) return $false }
+        function Invoke-AsyncCommand { param([scriptblock]$ScriptBlock, $ArgumentList, $State, $TimeoutSec, [scriptblock]$OnComplete) $script:Captured = @{ OnComplete = $OnComplete; State = $State } }
+        . (Join-Path $script:Root 'Functions\Core-Update.ps1')
+        . (Join-Path $script:Root 'Functions\UI-Update.ps1')
+        $script:RunspacePool = 'Platzhalter'
+        $script:Cfg = Update-UpdateConfig
+        $script:Repo = "$($script:Cfg.Owner)/$($script:Cfg.Repo)"
+        # Pruefung starten und die Antwort so zurueckgeben, wie Invoke-AsyncCommand es nach dem Hintergrund-Lauf tut
+        function Invoke-Answer([string]$Answer, [switch]$Quiet) {
+            $script:Captured = $null
+            Invoke-UpdateCheck -Quiet:$Quiet
+            $script:UpdateCheck.State | Should -Be 'running'
+            & $script:Captured.OnComplete $Answer $script:Captured.State
+        }
+    }
+    AfterAll { Remove-Item -LiteralPath $script:AppRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    BeforeEach {
+        $script:Log.Clear(); $script:Msgs.Clear(); $script:IsVerwalter = $false; $script:UpdateClickPending = $false
+        $script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+        Mock Set-HUUpdateButton { }
+    }
+
+    Context 'Antworttext zu Zustand (ConvertFrom-HUUpdateAnswer, ohne Netz und Fenster)' {
+        It '<Answer> ergibt <Kind>, <State>' -TestCases @(
+            @{ Answer = 'REL:1.0.9|v1.0.9|False'; Kind = 'REL'; State = 'ok'; Remote = '1.0.9'; Pre = $false; Code = ''; Err = '' }
+            @{ Answer = 'REL:1.0.9|v1.0.9|True'; Kind = 'REL'; State = 'ok'; Remote = '1.0.9'; Pre = $true; Code = ''; Err = '' }
+            @{ Answer = 'REL:kaputt|x|True'; Kind = 'REL'; State = 'failed'; Remote = 'kaputt'; Pre = $true; Code = ''; Err = 'Version im Kanal nicht lesbar (kaputt)' }
+            @{ Answer = 'NONE'; Kind = 'NONE'; State = 'empty'; Remote = ''; Pre = $false; Code = ''; Err = '' }
+            @{ Answer = 'LIMIT:403|False'; Kind = 'LIMIT'; State = 'failed'; Remote = ''; Pre = $false; Code = '403'; Err = 'GitHub-Abfragelimit erreicht (HTTP 403)' }
+            @{ Answer = 'AUTH:404|True'; Kind = 'AUTH'; State = 'failed'; Remote = ''; Pre = $false; Code = '404'; Err = 'o/r nicht erreichbar (HTTP 404)' }
+            @{ Answer = 'ERR:Zeitüberschreitung'; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = 'Zeitüberschreitung' }
+            @{ Answer = 'FEHLER: Timeout - keine Antwort'; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = 'Timeout - keine Antwort' }
+            @{ Answer = 'Quatsch'; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = 'Quatsch' }
+            @{ Answer = 'REL:1.0.9'; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = 'REL:1.0.9' }
+            @{ Answer = ''; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = '' }
+        ) {
+            param($Answer, $Kind, $State, $Remote, $Pre, $Code, $Err)
+            $a = ConvertFrom-HUUpdateAnswer $Answer ([pscustomobject]@{ Owner = 'o'; Repo = 'r' })
+            $a.Kind | Should -BeExactly $Kind
+            $a.State | Should -BeExactly $State
+            $a.Remote | Should -BeExactly $Remote
+            $a.Pre | Should -Be $Pre
+            "$($a.Code)" | Should -BeExactly $Code
+            $a.Error | Should -BeExactly $Err
+        }
+    }
+
+    Context 'Ganzer Ablauf von Invoke-UpdateCheck bis zum Zustand' {
+        It 'neue Version: Zustand ok, Protokoll und goldener Knopf' {
+            Invoke-Answer 'REL:1.0.9|v1.0.9|True'
+            $script:UpdateCheck.State | Should -Be 'ok'
+            $script:UpdateCheck.Remote | Should -Be '1.0.9'
+            $script:Log | Should -Contain "WARN|Neue Version verfügbar: v1.0.9 (Test) - installiert v1.0.8. Goldener Knopf 'Update' oben rechts."
+            Should -Invoke Set-HUUpdateButton -Times 1 -Exactly -ParameterFilter { $RemoteVer -eq '1.0.9' -and $Pre }
+        }
+        It 'gleiche Version: Zustand ok, "Version aktuell" (still beim Start nicht)' {
+            Invoke-Answer 'REL:1.0.8|v1.0.8|False'
+            $script:UpdateCheck.State | Should -Be 'ok'
+            @($script:Log | Where-Object { $_ -like 'OK|Version aktuell: v1.0.8 (Kanal Stabil*' }).Count | Should -Be 1
+            $script:Log.Clear()
+            Invoke-Answer 'REL:1.0.8|v1.0.8|False' -Quiet
+            $script:Log.Count | Should -Be 0
+        }
+        It 'unlesbare Version, keine Version, Limit, kein Zugriff, Fehler: Zustand und Protokollzeile' {
+            Invoke-Answer 'REL:kaputt|x|False'
+            $script:UpdateCheck.State | Should -Be 'failed'; $script:UpdateCheck.Error | Should -Be 'Version im Kanal nicht lesbar (kaputt)'
+            Invoke-Answer 'NONE'
+            $script:UpdateCheck.State | Should -Be 'empty'
+            $script:Log[$script:Log.Count - 1] | Should -BeLike 'INFO|Update-Prüfung: noch keine *Version im Kanal Stabil'
+            Invoke-Answer 'LIMIT:429|False'
+            $script:UpdateCheck.Error | Should -Be 'GitHub-Abfragelimit erreicht (HTTP 429)'
+            $script:Log[$script:Log.Count - 1] | Should -BeExactly 'WARN|Update-Prüfung: GitHub-Abfragelimit erreicht (HTTP 429) - später erneut versuchen.'
+            Invoke-Answer 'AUTH:401|False'
+            $script:UpdateCheck.Error | Should -Be "$($script:Repo) nicht erreichbar (HTTP 401)"
+            $script:Log[$script:Log.Count - 1] | Should -BeExactly "WARN|Update-Prüfung: $($script:Repo) nicht erreichbar (HTTP 401)."
+            Invoke-Answer 'ERR:Netz weg' -Quiet
+            $script:UpdateCheck.State | Should -Be 'failed'; $script:UpdateCheck.Error | Should -Be 'Netz weg'
+            $script:Log[$script:Log.Count - 1] | Should -BeExactly 'WARN|Update-Prüfung fehlgeschlagen: Netz weg'
+            Invoke-Answer ''
+            $script:UpdateCheck.State | Should -Be 'failed'
+        }
+        It 'wartender Klick wird am Ende entschieden (auch ohne neue Version)' {
+            $script:UpdateClickPending = $true; $script:UpdateClickSince = Get-Date
+            Invoke-Answer 'NONE'
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Msgs.Count | Should -Be 1
+            $script:Msgs[0] | Should -BeLike 'Info|Im Kanal Stabil gibt es noch keine*'
+        }
+    }
+}
