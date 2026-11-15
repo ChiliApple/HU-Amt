@@ -514,6 +514,13 @@ Describe 'Betragsfeld mit zweideutiger Eingabe (Entscheidung zu 1.500)' {
         Read-HUNumberInput 'abc' | Should -BeNullOrEmpty
         $script:Asked.Count | Should -Be 0
     }
+    It 'Bestand K8: mehrere Punkte ohne Komma liefern $null, ohne Rueckfrage und ohne Meldung des Kerns' {
+        function Read-HUChoice { param([string]$Title, [string]$Prompt, [string[]]$Choices, $Owner, [string[]]$ToolTips, [int]$DefaultIndex = -1) $script:Asked.Add($Prompt); 0 }
+        Read-HUNumberInput '1.234.567' | Should -BeNullOrEmpty
+        Read-HUNumberInput '12.34.56' | Should -BeNullOrEmpty
+        Read-HUNumberInput '1.234.567,89' | Should -Be ([decimal]1234567.89)
+        $script:Asked.Count | Should -Be 0
+    }
     It 'mit Format-HUNumberInput danach ist das Feld eindeutig (keine zweite Rueckfrage)' {
         Test-HUAmbiguousNumber (Format-HUNumberInput ([decimal]1500)) | Should -BeFalse
     }

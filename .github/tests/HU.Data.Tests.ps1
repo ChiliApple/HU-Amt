@@ -691,3 +691,18 @@ Describe 'Zweideutige Zahl 1.500 (Entscheidung zu ConvertTo-HUDecimal)' {
         ConvertTo-HUDecimal '1.500,00' | Should -Be ([decimal]1500)
     }
 }
+
+Describe 'Zahl mit mehreren Punkten (Befund K8, Bestand)' {
+    It 'ConvertTo-HUDecimal, Test-HUNumberText und Test-HUAmbiguousNumber fuer <In>' -TestCases @(
+        @{ In = '1.234.567'; Dec = 0; Text = $false; Amb = $false }
+        @{ In = '1.234.567,89'; Dec = [decimal]1234567.89; Text = $true; Amb = $false }
+        @{ In = '12.34.56'; Dec = 0; Text = $false; Amb = $false }
+        @{ In = '1.234'; Dec = [decimal]1.234; Text = $true; Amb = $true }
+        @{ In = '1.500'; Dec = [decimal]1.5; Text = $true; Amb = $true }
+    ) {
+        param($In, $Dec, $Text, $Amb)
+        ConvertTo-HUDecimal $In | Should -Be $Dec
+        Test-HUNumberText $In | Should -Be $Text
+        Test-HUAmbiguousNumber $In | Should -Be $Amb
+    }
+}
