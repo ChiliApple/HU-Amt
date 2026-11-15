@@ -771,8 +771,7 @@ function Show-HUAbout {
 
 function Register-HUUpdateHandlers {
     $b = $script:Controls['btnUpdate']
-    $b.Add_Click({ Start-HUPull })
-    $b.ToolTip = "Neue Version laden und installieren (Prüfsumme und Signatur). Gold = neue Version da.`nRechtsklick: jetzt prüfen, Info"
+    $b.Add_Click({ Start-HUPull })   # Tooltip steht in XAML\MainWindow.xaml
     $cm = New-Object System.Windows.Controls.ContextMenu
     $add = { param($h, $sb) $mi = New-Object System.Windows.Controls.MenuItem; $mi.Header = $h; $mi.Add_Click($sb); [void]$cm.Items.Add($mi); $mi }
     [void](& $add 'Jetzt nach Updates suchen' { Invoke-UpdateCheck; if (Test-HUVerwalter) { try { Start-HUAddonUpdate -Loud } catch { } } })
