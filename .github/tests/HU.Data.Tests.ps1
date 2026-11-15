@@ -706,3 +706,33 @@ Describe 'Zahl mit mehreren Punkten (Befund K8, Bestand)' {
         Test-HUAmbiguousNumber $In | Should -Be $Amb
     }
 }
+
+Describe 'Zahl mit mehreren Punkten (Befund K8, Meldungstext)' {
+    It 'Get-HUNumberTextError: Meldung fuer <In>' -TestCases @(
+        @{ In = '1.234.567'; Msg = $true }
+        @{ In = ' 12.34.56 '; Msg = $true }
+        @{ In = "1.234.567 $([char]0x20AC)"; Msg = $true }
+        @{ In = '1.234.567,89'; Msg = $false }
+        @{ In = '1.234'; Msg = $false }
+        @{ In = '1.500'; Msg = $false }
+        @{ In = '1234567'; Msg = $false }
+        @{ In = '12,5'; Msg = $false }
+        @{ In = 'abc'; Msg = $false }
+        @{ In = ''; Msg = $false }
+    ) {
+        param($In, $Msg)
+        $e = Get-HUNumberTextError $In
+        if ($Msg) {
+            $e | Should -Match 'keine eindeutige Zahl'
+            $e | Should -Match 'Tausenderpunkte'
+            $e | Should -Match ([regex]::Escape($In.Trim()))
+        } else { $e | Should -Be '' }
+    }
+    It 'exportiert und lehnt genau die Texte ab, die Test-HUNumberText schon ablehnt' {
+        Get-Command Get-HUNumberTextError -Module HU.Data | Should -Not -BeNullOrEmpty
+        foreach ($t in '1.234.567', '12.34.56', '1.2.3.4') {
+            Test-HUNumberText $t | Should -BeFalse
+            Get-HUNumberTextError $t | Should -Not -Be ''
+        }
+    }
+}
