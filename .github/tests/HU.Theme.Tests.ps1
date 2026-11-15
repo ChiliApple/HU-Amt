@@ -96,3 +96,27 @@ Describe 'Farbschema' {
         $a | Should -BeExactly $b
     }
 }
+
+Describe 'Knopf-Stile zeigen den Tooltip auch gesperrt' {
+    AfterEach { Set-HUTheme 'Dunkel' }
+
+    BeforeAll {
+    # Theme wie in der App einsetzen (Platzhalter in Window.Resources), Knoepfe mit dem Stil laden
+    function Get-TestButtons([string]$Schema) {
+        Set-HUTheme $Schema
+        $x = '<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"><Window.Resources><!--HU:THEME--></Window.Resources><StackPanel><Button x:Name="a" Style="{StaticResource DarkButton}" IsEnabled="False" ToolTip="Grund"/><Button x:Name="b" Style="{StaticResource ToolButton}" IsEnabled="False" ToolTip="Grund"/></StackPanel></Window>'
+        $x = ConvertTo-HUThemeXaml $x.Replace('<!--HU:THEME-->', $script:ThemeInner)
+        $w = [System.Windows.Markup.XamlReader]::Parse($x)
+        return @($w.FindName('a'), $w.FindName('b'))
+    }
+    }
+
+    It 'DarkButton und ToolButton: ShowOnDisabled ist <Schema> gesetzt' -ForEach @(@{ Schema = 'Dunkel' }, @{ Schema = 'Hell' }) {
+        $btn = Get-TestButtons $Schema
+        $btn.Count | Should -Be 2
+        foreach ($b in $btn) {
+            $b.IsEnabled | Should -BeFalse
+            [System.Windows.Controls.ToolTipService]::GetShowOnDisabled($b) | Should -BeTrue -Because "$Schema $($b.Name)"
+        }
+    }
+}
