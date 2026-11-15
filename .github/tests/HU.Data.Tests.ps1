@@ -153,6 +153,34 @@ Describe 'Sperre und Speichern' {
         $r.Ok | Should -BeTrue
         (Read-HUJson $script:P).Data.n | Should -Be 6
     }
+    It '-Build mit mehreren Ergebnissen: nichts geschrieben, klare Meldung, Stand unveraendert' {
+        $r = Save-HUDataFile -Path $script:P -Stamp '' -Build { 'versehentlich'; '{"v":1}' }
+        $r.Ok | Should -BeFalse
+        $r.Message | Should -Match 'nicht eindeutig'
+        $r.Message | Should -Match 'nichts ge'
+        $r.Stamp | Should -Be ''
+        Test-Path $script:P | Should -BeFalse
+        Test-Path "$script:P.lock" | Should -BeFalse
+        [void](Save-HUDataFile -Path $script:P -Build { '{"v":1}' })
+        $before = [IO.File]::ReadAllText($script:P)
+        $r2 = Save-HUDataFile -Path $script:P -Build { [void]1; 7; [ordered]@{ v = 2 } }
+        $r2.Ok | Should -BeFalse
+        [IO.File]::ReadAllText($script:P) | Should -Be $before
+    }
+    It '-Build mit genau einem Ergebnis: String, Objekt, ein Array als ein Wert; keines oder $null = Skipped' {
+        (Save-HUDataFile -Path $script:P -Build { '{"v":1}' }).Ok | Should -BeTrue
+        (Read-HUJson $script:P).Data.v | Should -Be 1
+        (Save-HUDataFile -Path $script:P -Build { [ordered]@{ v = 2 } }).Ok | Should -BeTrue
+        (Read-HUJson $script:P).Data.v | Should -Be 2
+        $r = Save-HUDataFile -Path $script:P -Build { , @(1, 2) }
+        $r.Ok | Should -BeTrue
+        @((Read-HUJson $script:P).Data).Count | Should -Be 2
+        foreach ($b in @({ $null }, { }, { [void]1 })) {
+            $s = Save-HUDataFile -Path $script:P -Build $b
+            $s.Ok | Should -BeTrue; $s.Skipped | Should -BeTrue
+        }
+        @((Read-HUJson $script:P).Data).Count | Should -Be 2
+    }
     It 'fremde Sperre: wartet -WaitMs, dann Meldung mit Name' {
         [void](New-Item -ItemType Directory -Path (Split-Path $script:P) -Force)
         $other = Lock-HUDataFile -Path $script:P -UserName 'maria' -PcName 'PC-12'
