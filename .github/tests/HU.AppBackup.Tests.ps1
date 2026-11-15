@@ -172,3 +172,79 @@ Describe 'Support: UNC-Pfade (Pruefung 086, KERN-U3)' {
         ConvertTo-HURedacted '\\srv-probe\apps\HU-Amt\Main.ps1' (Get-HURedactMap) | Should -Be '<Programmordner>\Main.ps1'
     }
 }
+
+Describe 'Jetzt sichern: Sperre nicht moeglich (ab 1.0.8)' {
+    BeforeAll {
+        Import-Module (Join-Path $script:Root 'Core\HU.Paths.psm1') -Force -DisableNameChecking
+        $script:Base = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtAbL-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        $script:AppRoot = Join-Path $script:Base 'App'
+        $script:DataRoot = Join-Path $script:Base 'Daten'
+        $script:UserRoot = Join-Path $script:DataRoot 'Benutzer\anna'
+        $script:Paths = $null; $script:UserName = 'anna'; $script:Version = '1.0.8'; $script:Window = $null
+        foreach ($d in $script:AppRoot, $script:UserRoot) { [void](New-Item -ItemType Directory -Path $d -Force) }
+        $out = (Join-Path $script:Base 'Sicherung').Replace('\', '\\')   # JSON
+        [IO.File]::WriteAllText((Join-Path $script:DataRoot 'sicherung.json'), "{ ""Folder"": ""$out"", ""Mode"": ""taeglich"", ""Keep"": 5 }")
+        $script:Msgs = New-Object System.Collections.Generic.List[string]
+        $script:Toasts = New-Object System.Collections.Generic.List[string]
+        $script:Log = New-Object System.Collections.Generic.List[string]
+        function Read-HUJsonFile([string]$Path) { if (Test-Path -LiteralPath $Path) { return ([IO.File]::ReadAllText($Path) | ConvertFrom-Json) } return $null }
+        function Show-HUMessage { param([string]$Text, [string]$Title, [string]$Icon = 'Info', $Owner = $null) $script:Msgs.Add("$Icon|$Text") }
+        function Show-HUToast { param([string]$Title, [string]$Text, [string]$Icon = 'Info', [scriptblock]$OnClick) $script:Toasts.Add("$Icon|$Title|$Text") }
+        function Write-HULogInfo { param($m) $script:Log.Add("INFO|$m") }
+        function Write-HULogWarn { param($m) $script:Log.Add("WARN|$m") }
+        function Write-HULogOK { param($m) $script:Log.Add("OK|$m") }
+        function Write-HULogError { param($m) $script:Log.Add("ERROR|$m") }
+        function Test-HUJobRunning { param($Name) return $false }
+        function Test-HUVerwalter { return $true }
+        . (Join-Path $script:Root 'Functions\UI-AppBackup.ps1')
+        $script:Dir = $script:DataRoot
+        function New-FailLock([string]$Reason, [switch]$NoReason) {
+            $o = [ordered]@{ Ok = $false; Path = (Join-Path $script:DataRoot 'sicherung.json'); LockPath = ''; Stream = $null; UserName = ''; ComputerName = ''; Since = $null }
+            if ($Reason -eq 'busy') { $o.UserName = 'berta'; $o.ComputerName = 'PC-2' }
+            if (-not $NoReason) { $o['Reason'] = $Reason }
+            return [pscustomobject]$o
+        }
+    }
+    AfterAll { Remove-Item -LiteralPath $script:Base -Recurse -Force -ErrorAction SilentlyContinue }
+    BeforeEach {
+        $script:Msgs.Clear(); $script:Toasts.Clear(); $script:Log.Clear(); $script:AbLock = $null; $script:AbDlg = $null
+        Mock Get-HUAppBackupPassword { return 'Testkennwort-123' }
+    }
+
+    It 'kein Schreibrecht, Klick: Meldung ohne "Es läuft gerade eine Sicherung"' {
+        Mock Lock-HUDataFile { New-FailLock 'rights' }
+        Start-HUAppBackupNow
+        $script:Msgs.Count | Should -Be 1
+        $script:Msgs[0] | Should -Not -BeLike '*Es läuft gerade eine Sicherung*'
+        $script:Msgs[0] | Should -BeExactly "Warning|Die Sicherung kann nicht starten.`n`nKein Schreibrecht im Ordner $($script:Dir). Bitte an den Verwalter wenden."
+        $script:AbLock | Should -BeNullOrEmpty
+    }
+    It 'kein Schreibrecht, automatisch: Protokoll und Hinweis wie bei einer fehlgeschlagenen Sicherung' {
+        Mock Lock-HUDataFile { New-FailLock 'rights' }
+        Start-HUAppBackupNow -Auto
+        $script:Msgs.Count | Should -Be 0
+        $script:Log | Should -Contain "WARN|App-Sicherung (automatisch): Kein Schreibrecht im Ordner $($script:Dir). Bitte an den Verwalter wenden."
+        $script:Toasts.Count | Should -Be 1
+        $script:Toasts[0] | Should -BeLike "Error|App-Sicherung fehlgeschlagen|Kein Schreibrecht im Ordner*Klick: Einstellungen > Sicherung"
+    }
+    It 'Ordner nicht erreichbar, automatisch: ebenso ein Fehler' {
+        Mock Lock-HUDataFile { New-FailLock 'unreachable' }
+        Start-HUAppBackupNow -Auto
+        @($script:Log | Where-Object { $_ -like 'WARN|App-Sicherung (automatisch): Der Ordner * ist nicht erreichbar.*' }).Count | Should -Be 1
+        $script:Toasts.Count | Should -Be 1
+    }
+    It 'ein anderer sichert gerade (busy und ohne Reason): Text wie bisher, automatisch still' {
+        foreach ($nr in $false, $true) {
+            $script:Msgs.Clear(); $script:Toasts.Clear(); $script:Log.Clear()
+            $script:NoR = $nr
+            Mock Lock-HUDataFile { New-FailLock 'busy' -NoReason:$script:NoR }
+            Start-HUAppBackupNow
+            $script:Msgs.Count | Should -Be 1
+            $script:Msgs[0] | Should -BeExactly "Info|Es läuft gerade eine Sicherung.`n`nGerade in Bearbeitung von berta (PC-2). Du kannst die Daten nur ansehen."
+            Start-HUAppBackupNow -Auto
+            $script:Msgs.Count | Should -Be 1
+            $script:Toasts.Count | Should -Be 0
+            @($script:Log | Where-Object { $_ -like 'WARN*' -or $_ -like 'ERROR*' }).Count | Should -Be 0
+        }
+    }
+}
