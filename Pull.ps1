@@ -349,6 +349,15 @@ function Get-HMOpenSessions([string]$Root) {
     }
     return $out
 }
+# Unmittelbar vor dem Ersetzen noch einmal (ab 1.0.8): hat jemand HU-Amt waehrend des Ladens geoeffnet?
+# Dann die vorbereiteten Dateien (*.pulltmp) entfernen. Rueckgabe: Meldung oder '' (niemand offen).
+# Gleiche Pruefung wie vor dem Laden: der eigene Start aus der App (-WaitPid) ist da schon beendet, seine Sperre frei.
+function Get-HMReplaceBlock([string]$Root, $Staged) {
+    $o = @(Get-HMOpenSessions $Root)
+    if (-not $o.Count) { return '' }
+    foreach ($s in $Staged) { Remove-Item -LiteralPath $s[0] -Force -ErrorAction SilentlyContinue }
+    return "HU-Amt wurde waehrend des Ladens geoeffnet - bitte zuerst schliessen: $($o -join ', '). Es wurde NICHTS veraendert."
+}
 $open = @(Get-HMOpenSessions $Target)
 if ($open.Count) { Stop-HMPull "HU-Amt ist noch geoeffnet - bitte zuerst schliessen: $($open -join ', '). Es wurde NICHTS veraendert." }
 
@@ -524,6 +533,9 @@ if ($fail) {
     foreach ($s in $staged) { Remove-Item -LiteralPath $s[0] -Force -ErrorAction SilentlyContinue }
     Stop-HMPull "$fail Datei(en) nicht geladen oder Pruefsumme falsch - es wurde NICHTS veraendert, HU-Amt bleibt auf der bisherigen Version."
 }
+# niemand darf HU-Amt inzwischen geoeffnet haben (das Laden dauert; die erste Pruefung war davor)
+$why = Get-HMReplaceBlock $Target $staged
+if ($why) { Stop-HMPull $why }
 
 # --- 5. ersetzen - mit Ruecksicherung: jede bisherige Datei wird erst zu *.pullold umbenannt;
 #        scheitert ein Schritt, wird alles zurueckgestellt (nie halb aktualisiert).
