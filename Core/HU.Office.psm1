@@ -490,6 +490,8 @@ function Set-HUOutlookAppointment {
 <#
 .SYNOPSIS
     Aufgabe anlegen oder dieselbe aendern (Schluessel). Rueckgabe: EntryId, StoreId, Created.
+    Wird eine vorhandene Aufgabe wiederverwendet und ist sie erledigt, wird sie wieder geoeffnet (Complete = $false setzt
+    Status und Fortschritt zurueck). Neu angelegte Aufgaben bleiben unveraendert.
     -Folder leer = eigene Aufgaben. -ReminderTime leer = keine Erinnerung.
 #>
 function Set-HUOutlookTask {
@@ -508,6 +510,7 @@ function Set-HUOutlookTask {
                 $it = Find-HUOutlookItem -Session $s -FolderObject $fo -Key $Key -EntryId $EntryId
                 $created = $false
                 if (-not $it) { $items = $fo.Items; $it = $items.Add($script:HUOfItemType.Task); $created = $true }
+                elseif ($it.Complete) { $it.Complete = $false }
                 $it.Subject = $Subject
                 if ($StartDate) { $it.StartDate = ([datetime]$StartDate).Date }
                 $it.DueDate = $DueDate.Date
