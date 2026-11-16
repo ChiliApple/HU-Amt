@@ -13,8 +13,10 @@ BeforeAll {
     # eine Funktion aus Pull.ps1 holen, ohne Pull auszufuehren
     $tok = $null; $err = $null
     $ast = [Management.Automation.Language.Parser]::ParseInput($script:PullText, [ref]$tok, [ref]$err)
-    $fn = $ast.FindAll({ $args[0] -is [Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -eq 'Get-HMOpenSessions' }, $true) | Select-Object -First 1
-    . ([scriptblock]::Create($fn.Extent.Text))
+    foreach ($fname in 'Get-HMOpenSessions', 'Get-HMReplaceBlock') {
+        $fn = $ast.FindAll({ $args[0] -is [Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -eq $fname }, $true) | Select-Object -First 1
+        if ($fn) { . ([scriptblock]::Create($fn.Extent.Text)) }   # fehlt sie, scheitert der zugehoerige Test (nicht alle)
+    }
 }
 
 Describe 'Update-Bibliothek' {
@@ -69,6 +71,39 @@ Describe 'Update im gemeinsamen Netzordner' {
         $iCheck | Should -BeGreaterThan 0
         $iCheck | Should -BeLessThan $iLoad
     }
+    It 'vor dem Ersetzen: waehrend des Ladens geoeffnet -> Meldung, vorbereitete Dateien entfernt (K10)' {
+        $t1 = Join-Path $script:App 'Main.ps1.pulltmp'; $t2 = Join-Path $script:App 'Functions\X.ps1.pulltmp'
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:App 'Functions') -Force)
+        Set-Content -LiteralPath $t1 -Value 'neu'; Set-Content -LiteralPath $t2 -Value 'neu'
+        $staged = New-Object System.Collections.Generic.List[object]
+        $staged.Add(@($t1, (Join-Path $script:App 'Main.ps1'))); $staged.Add(@($t2, (Join-Path $script:App 'Functions\X.ps1')))
+        Set-Content -LiteralPath (Join-Path $script:Run 'alt_PC-9.lock') -Value 'alt|PC-9|2026-01-01T08:00:00|1'   # verwaist, zaehlt nicht
+        $fs = [IO.File]::Open((Join-Path $script:Run 'berta_PC-2.lock'), 'CreateNew', 'ReadWrite', 'Read')
+        try {
+            $b = [Text.Encoding]::UTF8.GetBytes('berta|PC-2|2026-11-15T08:00:00|1'); $fs.Write($b, 0, $b.Length); $fs.Flush()
+            $why = Get-HMReplaceBlock $script:App $staged
+            $why | Should -Match 'berta am PC PC-2'
+            $why | Should -Match 'Es wurde NICHTS veraendert\.$'
+            $why | Should -Not -Match 'alt'
+            Test-Path -LiteralPath $t1 | Should -BeFalse
+            Test-Path -LiteralPath $t2 | Should -BeFalse
+        } finally { $fs.Dispose() }
+    }
+    It 'vor dem Ersetzen: niemand offen -> keine Meldung, vorbereitete Dateien bleiben (K10)' {
+        $t1 = Join-Path $script:App 'Main.ps1.pulltmp'; Set-Content -LiteralPath $t1 -Value 'neu'
+        $staged = New-Object System.Collections.Generic.List[object]; $staged.Add(@($t1, (Join-Path $script:App 'Main.ps1')))
+        Get-HMReplaceBlock $script:App $staged | Should -BeExactly ''
+        Test-Path -LiteralPath $t1 | Should -BeTrue
+    }
+    It 'Pull prueft die Sitzungen unmittelbar vor dem Ersetzen noch einmal (nach dem Laden, vor dem Journal)' {
+        $iFail = $script:PullText.IndexOf('Stop-HMPull "$fail Datei(en) nicht geladen')
+        $iCheck = $script:PullText.IndexOf('$why = Get-HMReplaceBlock $Target $staged')
+        $iJournal = $script:PullText.IndexOf('$journal = Join-Path $cfgDir')
+        $iFail | Should -BeGreaterThan 0
+        $iCheck | Should -BeGreaterThan $iFail
+        $iCheck | Should -BeLessThan $iJournal
+        $script:PullText.Substring($iCheck, $iJournal - $iCheck) | Should -Match 'if \(\$why\) \{ Stop-HMPull \$why \}'
+    }
 }
 
 Describe 'Alle Releases signieren und freigeben: was offen ist (Get-HMReleasePlan, ab 1.0.5)' {
@@ -100,5 +135,653 @@ Describe 'Alle Releases signieren und freigeben: was offen ist (Get-HMReleasePla
     It 'ohne freigegebenes Release: neuestes Vorab-Release ist der Kandidat' {
         (Get-HMReleasePlan @((New-R 'v0.1.0' $true $true $false))).Publish | Should -Be 'v0.1.0'
         (Get-HMReleasePlan @()).Publish | Should -Be ''
+    }
+}
+
+Describe 'Update-Knopf: ein Tooltip (KD1, ab 1.0.8)' {
+    It 'MainWindow.xaml: btnUpdate hat den Tooltip mit Zeilenumbruch' {
+        [xml]$x = [IO.File]::ReadAllText((Join-Path $script:Root 'XAML\MainWindow.xaml'), [Text.Encoding]::UTF8)
+        $ns = New-Object Xml.XmlNamespaceManager $x.NameTable
+        $ns.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+        $btn = $x.SelectSingleNode("//*[@x:Name='btnUpdate']", $ns)
+        $btn | Should -Not -BeNullOrEmpty
+        $want = "Update: l$([char]0xE4)dt eine neue Version und installiert sie (Pr$([char]0xFC)fsumme und Signatur). Gold = neue Version da. Ohne neue Version meldet der Knopf nur, dass alles aktuell ist.`nRechtsklick: jetzt pr$([char]0xFC)fen, Info. F$([char]0xFC)r Verwalter: andere Version, Kanal, Module."
+        $btn.GetAttribute('ToolTip') | Should -BeExactly $want
+    }
+    It 'UI-Update.ps1 setzt keinen zweiten Tooltip an btnUpdate' {
+        $t = [IO.File]::ReadAllText((Join-Path $script:Root 'Functions\UI-Update.ps1'), [Text.Encoding]::UTF8)
+        $t | Should -Not -Match '\$b\.ToolTip\s*='
+        $t | Should -Not -Match "btnUpdate'\]\.ToolTip"
+    }
+}
+
+Describe 'Pull -NoDowngrade: keine Rueckstufung, wenn die App es verlangt (ab 1.0.8)' {
+    BeforeAll {
+        . (Join-Path $script:Root 'Functions\Core-Update.ps1')
+        $script:Tmp = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtVer-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:Tmp -Force)
+    }
+    AfterAll { Remove-Item -LiteralPath $script:Tmp -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'installierte Version aus Config\version.json; fehlt oder kaputt = $null' {
+        [IO.File]::WriteAllText((Join-Path $script:Tmp 'version.json'), '{ "version": "1.0.8", "buildDate": "2026-11-15" }')
+        Get-HMInstalledVersion $script:Tmp | Should -Be ([version]'1.0.8')
+        [IO.File]::WriteAllText((Join-Path $script:Tmp 'version.json'), '{ "version": ')
+        Get-HMInstalledVersion $script:Tmp | Should -BeNullOrEmpty
+        [IO.File]::WriteAllText((Join-Path $script:Tmp 'version.json'), '{ "buildDate": "2026-11-15" }')
+        Get-HMInstalledVersion $script:Tmp | Should -BeNullOrEmpty
+        Remove-Item -LiteralPath (Join-Path $script:Tmp 'version.json') -Force
+        Get-HMInstalledVersion $script:Tmp | Should -BeNullOrEmpty
+    }
+    It 'nicht hoeher = ablehnen; hoeher oder installierte Version unbekannt = installieren' {
+        Test-HMNoUpgrade ([version]'1.0.8') ([version]'1.0.8') | Should -BeTrue
+        Test-HMNoUpgrade ([version]'1.0.7') ([version]'1.0.8') | Should -BeTrue
+        Test-HMNoUpgrade ([version]'1.0.8.0') ([version]'1.0.8') | Should -BeTrue
+        Test-HMNoUpgrade ([version]'1.0.9') ([version]'1.0.8') | Should -BeFalse
+        Test-HMNoUpgrade ([version]'1.0.10') ([version]'1.0.9') | Should -BeFalse
+        Test-HMNoUpgrade ([version]'1.0.9') $null | Should -BeFalse
+    }
+    It 'Pull.ps1: Schalter vorhanden, Ablehnung nach der Auswahl und vor dem Laden, startet die App wieder' {
+        $script:PullText | Should -Match '\[switch\]\$NoDowngrade'
+        $iSel = $script:PullText.IndexOf('# --- 1. Version waehlen')
+        $iChk = $script:PullText.IndexOf('if ($NoDowngrade -and -not $useBranch -and -not $Version)')
+        $iLoad = $script:PullText.IndexOf('# --- 2. Pruefsumme und Signatur')
+        $iChk | Should -BeGreaterThan $iSel
+        $iChk | Should -BeLessThan $iLoad
+        $block = $script:PullText.Substring($iChk, $iLoad - $iChk)
+        $block | Should -Match 'Test-HMNoUpgrade \$rel\.Version'
+        $block | Should -Match 'Start-HMApp \$Target'
+        $block | Should -Not -Match 'Stop-HMPull'
+        $block | Should -Match 'NICHTS veraendert'
+        # derselbe Neustart wie nach einem erfolgreichen Update
+        ([regex]::Matches($script:PullText, 'Start-HMApp \$Target')).Count | Should -Be 2
+    }
+}
+
+Describe 'Update-Knopf: Klick entscheidet nach der letzten Pruefung (K4, ab 1.0.8)' {
+    BeforeAll {
+        # kuenstlicher Programmordner unter TEMP mit einem Platzhalter-Pull.ps1; Start-Process ist immer gemockt,
+        # es wird nie ein echtes Pull.ps1 gestartet
+        $script:AppRoot = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtUpd-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AppRoot 'Config') -Force)
+        $script:UpdJson = Join-Path $script:AppRoot 'Config\update.json'
+        $script:UpdJsonStd = '{ "SignerThumbprint": "' + ('A' * 40) + '" }'
+        [IO.File]::WriteAllText($script:UpdJson, $script:UpdJsonStd)
+        $script:PullDummy = Join-Path $script:AppRoot 'Pull.ps1'
+        [IO.File]::WriteAllText($script:PullDummy, "param([string]`$Target, [int]`$WaitPid = 0, [string]`$Version = '', [switch]`$NoDowngrade)`r`nexit 0`r`n")
+        $script:App = [pscustomobject]@{ id = 'HU-Amt'; title = 'HU-Amt'; signer = ('A' * 40); repo = [pscustomobject]@{ owner = 'x'; name = 'y' } }
+        $script:AppTitle = 'HU-Amt'; $script:Version = '1.0.8'
+        $script:DataRoot = $script:AppRoot; $script:UserRoot = $script:AppRoot; $script:UserName = 'anna'
+        $script:Msgs = New-Object System.Collections.Generic.List[string]
+        $script:Asked = New-Object System.Collections.Generic.List[string]
+        $script:Answer = $false
+        function Write-HULogInfo { param($m) }
+        function Write-HULogWarn { param($m) }
+        function Write-HULogOK { param($m) }
+        function Write-HULogError { param($m) }
+        function Read-HUJsonFile([string]$Path) { if (Test-Path -LiteralPath $Path) { return ([IO.File]::ReadAllText($Path) | ConvertFrom-Json) } return $null }
+        function Show-HUMessage { param([string]$Text, [string]$Title, [string]$Icon = 'Info', $Owner = $null) $script:Msgs.Add("$Icon|$Text") }
+        function Confirm-HU { param([string]$Text, [string]$Title, [switch]$Warning, $Owner = $null) $script:Asked.Add($Text); return $script:Answer }
+        . (Join-Path $script:Root 'Functions\Core-Update.ps1')
+        . (Join-Path $script:Root 'Functions\UI-Update.ps1')
+        # Ergebnis einer Pruefung so setzen, wie Invoke-UpdateCheck es nach der Antwort von GitHub tut
+        function Set-TestCheck([string]$State, [string]$Remote = '', [string]$Err = '') {
+            $script:UpdateCheck = [pscustomobject]@{ State = $State; Remote = $Remote; Error = $Err; Key = (Get-HUUpdateCfgKey (Update-UpdateConfig)); Since = (Get-Date) }
+        }
+    }
+    AfterAll { Remove-Item -LiteralPath $script:AppRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    BeforeEach {
+        $script:Msgs.Clear(); $script:Asked.Clear(); $script:Answer = $false
+        $script:IsVerwalter = $false
+        $script:UpdateClickPending = $false
+        $script:Window = [pscustomobject]@{ Closed = 0 } | Add-Member -MemberType ScriptMethod -Name Close -Value { $this.Closed++ } -PassThru
+        [IO.File]::WriteAllText($script:UpdJson, $script:UpdJsonStd)
+        Mock Start-Process { }
+        Mock Invoke-UpdateCheck { }
+    }
+
+    Context 'Entscheidung ohne Fenster (Get-HUUpdateAction)' {
+        It 'hoeher = install, gleich = current, niedriger = newer (Zahlen, nicht Text)' {
+            Get-HUUpdateAction '1.0.8' '1.0.9' 'ok' | Should -Be 'install'
+            Get-HUUpdateAction '1.0.8' '1.0.10' 'ok' | Should -Be 'install'
+            Get-HUUpdateAction '1.0.8' '1.0.8' 'ok' | Should -Be 'current'
+            Get-HUUpdateAction '1.0.8' 'v1.0.8.0' 'ok' | Should -Be 'current'
+            Get-HUUpdateAction '1.0.8' '1.0.7' 'ok' | Should -Be 'newer'
+            Get-HUUpdateAction '1.0.10' '1.0.9' 'ok' | Should -Be 'newer'
+        }
+        It 'keine Pruefung, Pruefung laeuft oder fehlgeschlagen = check' {
+            foreach ($s in 'none', 'running', 'failed', '') { Get-HUUpdateAction '1.0.8' '1.0.9' $s | Should -Be 'check' }
+        }
+        It 'keine Version im Kanal = none' {
+            Get-HUUpdateAction '1.0.8' '' 'empty' | Should -Be 'none'
+        }
+        It 'Antwort ohne lesbare Version = check; installierte Version unlesbar = install (wie bisher)' {
+            Get-HUUpdateAction '1.0.8' 'kaputt' 'ok' | Should -Be 'check'
+            Get-HUUpdateAction '' '1.0.9' 'ok' | Should -Be 'install'
+        }
+    }
+
+    Context 'Klick auf den Knopf (Start-HUPull ohne -Version)' {
+        It 'ohne Pruefung in dieser Sitzung: es wird zuerst geprueft, nichts gefragt und nichts installiert' {
+            $script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+            Start-HUPull
+            $script:Asked.Count | Should -Be 0
+            Should -Invoke Invoke-UpdateCheck -Times 1 -Exactly
+            Should -Invoke Start-Process -Times 0 -Exactly
+        }
+        It 'zweiter Klick waehrend der Pruefung startet keinen zweiten Ablauf' {
+            $script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+            Start-HUPull; Start-HUPull
+            Should -Invoke Invoke-UpdateCheck -Times 1 -Exactly
+            $script:Asked.Count | Should -Be 0
+        }
+        It 'gleiche Version: nur Meldung "ist aktuell", nichts installiert' {
+            Set-TestCheck 'ok' '1.0.8'
+            Start-HUPull
+            $script:Asked.Count | Should -Be 0
+            $script:Msgs.Count | Should -Be 1
+            $script:Msgs[0] | Should -BeExactly 'Info|HU-Amt ist aktuell: Version 1.0.8 (Kanal Stabil). Es gibt nichts zu laden.'
+            Should -Invoke Start-Process -Times 0 -Exactly
+            Should -Invoke Invoke-UpdateCheck -Times 0 -Exactly
+        }
+        It 'Verwalter bekommen den Hinweis auf den Rechtsklick' {
+            $script:IsVerwalter = $true
+            Set-TestCheck 'ok' '1.0.8'
+            Start-HUPull
+            $script:Msgs[0] | Should -BeLike '*Neu installieren oder eine andere Version: Rechtsklick auf Update, Andere Version / Vorversion installieren ...'
+        }
+        It 'installierte Version neuer als der Kanal: Meldung, keine Rueckstufung' {
+            Set-TestCheck 'ok' '1.0.7'
+            Start-HUPull
+            $script:Asked.Count | Should -Be 0
+            $script:Msgs[0] | Should -BeExactly 'Info|Installiert ist Version 1.0.8, im Kanal Stabil ist 1.0.7 die neueste. Es wird nichts geändert.'
+            Should -Invoke Start-Process -Times 0 -Exactly
+        }
+        It 'keine Version im Kanal: Meldung, nichts installiert' {
+            Set-TestCheck 'empty'
+            Start-HUPull
+            $script:Asked.Count | Should -Be 0
+            $script:Msgs[0] | Should -BeLike 'Info|Im Kanal Stabil gibt es noch keine*Version. Es wird nichts geändert.'
+            Should -Invoke Start-Process -Times 0 -Exactly
+        }
+        It 'neue Version: Rueckfrage wie bisher (abgelehnt = nichts gestartet)' {
+            Set-TestCheck 'ok' '1.0.9'
+            Start-HUPull
+            $script:Asked.Count | Should -Be 1
+            $script:Asked[0] | Should -BeLike '*v1.0.9 laden*'
+            Should -Invoke Start-Process -Times 0 -Exactly
+        }
+        It 'fehlgeschlagene Pruefung: Prueft beim Klick zuerst; scheitert sie, klare Meldung und nichts installiert' {
+            Set-TestCheck 'failed' '' 'GitHub-Abfragelimit erreicht (HTTP 403)'
+            Start-HUPull
+            Should -Invoke Invoke-UpdateCheck -Times 1 -Exactly
+            $script:UpdateClickPending | Should -BeTrue
+            # Antwort kommt: wieder fehlgeschlagen
+            Set-TestCheck 'failed' '' 'GitHub-Abfragelimit erreicht (HTTP 403)'
+            Complete-HUUpdateClick $script:UpdateCheck.Key
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Asked.Count | Should -Be 0
+            $script:Msgs[0] | Should -BeExactly 'Warning|Update-Prüfung nicht möglich: GitHub-Abfragelimit erreicht (HTTP 403). Bitte später noch einmal versuchen.'
+            Should -Invoke Start-Process -Times 0 -Exactly
+        }
+        It 'Pruefung nach dem Klick findet eine neue Version: Rueckfrage' {
+            $script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+            Start-HUPull
+            Set-TestCheck 'ok' '1.0.9'
+            Complete-HUUpdateClick $script:UpdateCheck.Key
+            $script:Asked.Count | Should -Be 1
+        }
+        It 'Ergebnis von vor dem Kanalwechsel zaehlt nicht: es wird neu geprueft' {
+            Set-TestCheck 'ok' '1.0.9'   # gilt fuer Kanal Stabil
+            [IO.File]::WriteAllText($script:UpdJson, '{ "SignerThumbprint": "' + ('A' * 40) + '", "Channel": "Test" }')
+            Start-HUPull
+            $script:Asked.Count | Should -Be 0
+            Should -Invoke Invoke-UpdateCheck -Times 1 -Exactly
+        }
+        It 'Rechtsklick-Weg (Start-HUPull -Version): ohne Vergleich, Rueckfrage wie bisher' {
+            $script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+            Start-HUPull -Version '1.0.5'
+            $script:Asked.Count | Should -Be 1
+            $script:Asked[0] | Should -BeLike '*Version 1.0.5 laden*'
+            Should -Invoke Invoke-UpdateCheck -Times 0 -Exactly
+        }
+        It 'neue Version bestaetigt: Pull bekommt -NoDowngrade, mit -Version nicht' {
+            $script:Answer = $true
+            Set-TestCheck 'ok' '1.0.9'
+            Start-HUPull
+            Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { "$ArgumentList" -match ' -NoDowngrade' -and "$ArgumentList" -notmatch ' -Version ' }
+            Start-HUPull -Version '1.0.5'
+            Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { "$ArgumentList" -match ' -Version 1\.0\.5' -and "$ArgumentList" -notmatch 'NoDowngrade' }
+        }
+        It 'altes Pull.ps1 ohne den Schalter: -NoDowngrade wird nicht uebergeben' {
+            $script:Answer = $true
+            [IO.File]::WriteAllText($script:PullDummy, "param([string]`$Target, [int]`$WaitPid = 0, [string]`$Version = '')`r`nexit 0`r`n")
+            try {
+                Set-TestCheck 'ok' '1.0.9'
+                Start-HUPull
+                Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { "$ArgumentList" -notmatch 'NoDowngrade' }
+            } finally { [IO.File]::WriteAllText($script:PullDummy, "param([string]`$Target, [int]`$WaitPid = 0, [string]`$Version = '', [switch]`$NoDowngrade)`r`nexit 0`r`n") }
+        }
+        It 'Branch-Modus: unveraendert, Rueckfrage ohne vorherige Pruefung' {
+            [IO.File]::WriteAllText($script:UpdJson, '{ "SignerThumbprint": "' + ('A' * 40) + '", "AllowUnsigned": true, "UseBranch": true, "Branch": "dev" }')
+            $script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+            Start-HUPull
+            $script:Asked.Count | Should -Be 1
+            $script:Asked[0] | Should -BeLike '*Branch dev*'
+            Should -Invoke Invoke-UpdateCheck -Times 0 -Exactly
+        }
+    }
+
+    Context 'Alter der Pruefung: aelter als 10 Minuten wird beim Klick erneuert' {
+        BeforeAll {
+            # Pruefergebnis mit Zeitpunkt; $Since = $null legt das Feld gar nicht an
+            function Set-AgedCheck([string]$State, [string]$Remote, $Since, [switch]$NoSince) {
+                $o = [ordered]@{ State = $State; Remote = $Remote; Error = ''; Key = (Get-HUUpdateCfgKey (Update-UpdateConfig)) }
+                if (-not $NoSince) { $o['Since'] = $Since }
+                $script:UpdateCheck = [pscustomobject]$o
+            }
+        }
+        It 'vor 11 Minuten: jedes Ergebnis gilt nicht mehr (check)' {
+            $old = (Get-Date).AddMinutes(-11)
+            Set-AgedCheck 'ok' '1.0.8' $old; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.9' $old; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.7' $old; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'empty' '' $old; Get-HUUpdateClickAction | Should -Be 'check'
+        }
+        It 'vor 9 Minuten: Entscheidung wie bisher' {
+            $young = (Get-Date).AddMinutes(-9)
+            Set-AgedCheck 'ok' '1.0.8' $young; Get-HUUpdateClickAction | Should -Be 'current'
+            Set-AgedCheck 'ok' '1.0.9' $young; Get-HUUpdateClickAction | Should -Be 'install'
+            Set-AgedCheck 'ok' '1.0.7' $young; Get-HUUpdateClickAction | Should -Be 'newer'
+            Set-AgedCheck 'empty' '' $young; Get-HUUpdateClickAction | Should -Be 'none'
+        }
+        It 'fehlendes, leeres oder unbrauchbares Since gilt als veraltet' {
+            Set-AgedCheck 'ok' '1.0.8' $null -NoSince; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.8' $null; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.8' ([datetime]::MinValue); Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.8' 'heute'; Get-HUUpdateClickAction | Should -Be 'check'
+            Set-AgedCheck 'ok' '1.0.8' ((Get-Date).AddHours(1)); Get-HUUpdateClickAction | Should -Be 'check'   # Uhr zurueckgestellt
+        }
+        It 'Grenze an einer Stelle; Zeitpunkt als Parameter (ohne Warten)' {
+            $script:UpdateCheckMaxAgeMin | Should -Be 10
+            $now = [datetime]'2026-11-15T14:00:00'
+            Test-HUUpdateCheckFresh ([datetime]'2026-11-15T13:50:00') $now | Should -BeTrue    # genau 10 Minuten
+            Test-HUUpdateCheckFresh ([datetime]'2026-11-15T13:49:59') $now | Should -BeFalse
+            Test-HUUpdateCheckFresh ([datetime]'2026-11-15T14:00:00') $now | Should -BeTrue
+            Test-HUUpdateCheckFresh ([datetime]'2026-11-15T14:05:00') $now | Should -BeFalse   # in der Zukunft
+            Test-HUUpdateCheckFresh $null $now | Should -BeFalse
+            Set-AgedCheck 'ok' '1.0.8' ([datetime]'2026-11-15T08:00:00')
+            Get-HUUpdateClickAction ([datetime]'2026-11-15T08:09:00') | Should -Be 'current'
+            Get-HUUpdateClickAction ([datetime]'2026-11-15T08:11:00') | Should -Be 'check'
+        }
+        It 'Klick mit veraltetem "aktuell": zuerst pruefen, keine Meldung; die neue Antwort entscheidet' {
+            Set-AgedCheck 'ok' '1.0.8' ((Get-Date).AddMinutes(-11))
+            Start-HUPull
+            Should -Invoke Invoke-UpdateCheck -Times 1 -Exactly
+            $script:Msgs.Count | Should -Be 0
+            $script:Asked.Count | Should -Be 0
+            $script:UpdateClickPending | Should -BeTrue
+            # inzwischen freigegeben: die neue Pruefung findet 1.0.9
+            Set-TestCheck 'ok' '1.0.9'
+            Complete-HUUpdateClick $script:UpdateCheck.Key
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Msgs.Count | Should -Be 0
+            $script:Asked.Count | Should -Be 1
+            $script:Asked[0] | Should -BeLike '*v1.0.9 laden*'
+            Should -Invoke Start-Process -Times 0 -Exactly
+        }
+        It 'Klick mit veralteter "neuer Version": zuerst pruefen, Rueckfrage erst nach der neuen Antwort' {
+            Set-AgedCheck 'ok' '1.0.9' ((Get-Date).AddMinutes(-11))
+            Start-HUPull
+            Should -Invoke Invoke-UpdateCheck -Times 1 -Exactly
+            $script:Asked.Count | Should -Be 0
+            Set-TestCheck 'ok' '1.0.10'
+            Complete-HUUpdateClick $script:UpdateCheck.Key
+            $script:Asked.Count | Should -Be 1
+            $script:Asked[0] | Should -BeLike '*v1.0.10 laden*'
+        }
+    }
+}
+
+Describe 'Update-Pruefung: Antwort auswerten (ab 1.0.8)' {
+    BeforeAll {
+        # kein Netz: Invoke-AsyncCommand ist ein Platzhalter, der nur OnComplete festhaelt; die Antwort setzt der Test
+        $script:AppRoot = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtAnt-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AppRoot 'Config') -Force)
+        [IO.File]::WriteAllText((Join-Path $script:AppRoot 'Config\update.json'), '{ "SignerThumbprint": "' + ('A' * 40) + '" }')
+        $script:App = [pscustomobject]@{ id = 'HU-Amt'; title = 'HU-Amt'; signer = ('A' * 40); repo = [pscustomobject]@{ owner = 'x'; name = 'y' } }
+        $script:AppTitle = 'HU-Amt'; $script:Version = '1.0.8'
+        $script:DataRoot = $script:AppRoot; $script:UserRoot = $script:AppRoot; $script:UserName = 'anna'
+        $script:Log = New-Object System.Collections.Generic.List[string]
+        $script:Msgs = New-Object System.Collections.Generic.List[string]
+        function Write-HULogInfo { param($m) $script:Log.Add("INFO|$m") }
+        function Write-HULogWarn { param($m) $script:Log.Add("WARN|$m") }
+        function Write-HULogOK { param($m) $script:Log.Add("OK|$m") }
+        function Write-HULogError { param($m) $script:Log.Add("ERROR|$m") }
+        function Read-HUJsonFile([string]$Path) { if (Test-Path -LiteralPath $Path) { return ([IO.File]::ReadAllText($Path) | ConvertFrom-Json) } return $null }
+        function Show-HUMessage { param([string]$Text, [string]$Title, [string]$Icon = 'Info', $Owner = $null) $script:Msgs.Add("$Icon|$Text") }
+        function Confirm-HU { param([string]$Text, [string]$Title, [switch]$Warning, $Owner = $null) return $false }
+        function Invoke-AsyncCommand { param([scriptblock]$ScriptBlock, $ArgumentList, $State, $TimeoutSec, [scriptblock]$OnComplete) $script:Captured = @{ OnComplete = $OnComplete; State = $State; ScriptBlock = $ScriptBlock; ArgumentList = $ArgumentList } }
+        . (Join-Path $script:Root 'Functions\Core-Update.ps1')
+        . (Join-Path $script:Root 'Functions\UI-Update.ps1')
+        $script:RunspacePool = 'Platzhalter'
+        $script:Cfg = Update-UpdateConfig
+        $script:Repo = "$($script:Cfg.Owner)/$($script:Cfg.Repo)"
+        # Pruefung starten und die Antwort so zurueckgeben, wie Invoke-AsyncCommand es nach dem Hintergrund-Lauf tut
+        function Invoke-Answer([string]$Answer, [switch]$Quiet) {
+            $script:Captured = $null
+            Invoke-UpdateCheck -Quiet:$Quiet
+            $script:UpdateCheck.State | Should -Be 'running'
+            & $script:Captured.OnComplete $Answer $script:Captured.State
+        }
+    }
+    AfterAll { Remove-Item -LiteralPath $script:AppRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    BeforeEach {
+        $script:Log.Clear(); $script:Msgs.Clear(); $script:IsVerwalter = $false; $script:UpdateClickPending = $false
+        $script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+        Mock Set-HUUpdateButton { }
+    }
+
+    Context 'Antworttext zu Zustand (ConvertFrom-HUUpdateAnswer, ohne Netz und Fenster)' {
+        It '<Answer> ergibt <Kind>, <State>' -TestCases @(
+            @{ Answer = 'REL:1.0.9|v1.0.9|False'; Kind = 'REL'; State = 'ok'; Remote = '1.0.9'; Pre = $false; Code = ''; Err = '' }
+            @{ Answer = 'REL:1.0.9|v1.0.9|True'; Kind = 'REL'; State = 'ok'; Remote = '1.0.9'; Pre = $true; Code = ''; Err = '' }
+            @{ Answer = 'REL:kaputt|x|True'; Kind = 'REL'; State = 'failed'; Remote = 'kaputt'; Pre = $true; Code = ''; Err = 'Version im Kanal nicht lesbar (kaputt)' }
+            @{ Answer = 'NONE'; Kind = 'NONE'; State = 'empty'; Remote = ''; Pre = $false; Code = ''; Err = '' }
+            @{ Answer = 'LIMIT:403|False'; Kind = 'LIMIT'; State = 'failed'; Remote = ''; Pre = $false; Code = '403'; Err = 'GitHub-Abfragelimit erreicht (HTTP 403)' }
+            @{ Answer = 'AUTH:404|True'; Kind = 'AUTH'; State = 'failed'; Remote = ''; Pre = $false; Code = '404'; Err = 'o/r nicht erreichbar (HTTP 404)' }
+            @{ Answer = 'ERR:Zeitüberschreitung'; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = 'Zeitüberschreitung' }
+            @{ Answer = 'FEHLER: Timeout - keine Antwort'; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = 'Timeout - keine Antwort' }
+            @{ Answer = 'Quatsch'; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = 'Quatsch' }
+            @{ Answer = 'REL:1.0.9'; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = 'REL:1.0.9' }
+            @{ Answer = ''; Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Err = '' }
+        ) {
+            param($Answer, $Kind, $State, $Remote, $Pre, $Code, $Err)
+            $a = ConvertFrom-HUUpdateAnswer $Answer ([pscustomobject]@{ Owner = 'o'; Repo = 'r' })
+            $a.Kind | Should -BeExactly $Kind
+            $a.State | Should -BeExactly $State
+            $a.Remote | Should -BeExactly $Remote
+            $a.Pre | Should -Be $Pre
+            "$($a.Code)" | Should -BeExactly $Code
+            $a.Error | Should -BeExactly $Err
+        }
+    }
+
+    Context 'Ganzer Ablauf von Invoke-UpdateCheck bis zum Zustand' {
+        It 'neue Version: Zustand ok, Protokoll und goldener Knopf' {
+            Invoke-Answer 'REL:1.0.9|v1.0.9|True'
+            $script:UpdateCheck.State | Should -Be 'ok'
+            $script:UpdateCheck.Remote | Should -Be '1.0.9'
+            $script:Log | Should -Contain "WARN|Neue Version verfügbar: v1.0.9 (Test) - installiert v1.0.8. Goldener Knopf 'Update' oben rechts."
+            Should -Invoke Set-HUUpdateButton -Times 1 -Exactly -ParameterFilter { $RemoteVer -eq '1.0.9' -and $Pre }
+        }
+        It 'gleiche Version: Zustand ok, "Version aktuell" (still beim Start nicht)' {
+            Invoke-Answer 'REL:1.0.8|v1.0.8|False'
+            $script:UpdateCheck.State | Should -Be 'ok'
+            @($script:Log | Where-Object { $_ -like 'OK|Version aktuell: v1.0.8 (Kanal Stabil*' }).Count | Should -Be 1
+            $script:Log.Clear()
+            Invoke-Answer 'REL:1.0.8|v1.0.8|False' -Quiet
+            $script:Log.Count | Should -Be 0
+        }
+        It 'unlesbare Version, keine Version, Limit, kein Zugriff, Fehler: Zustand und Protokollzeile' {
+            Invoke-Answer 'REL:kaputt|x|False'
+            $script:UpdateCheck.State | Should -Be 'failed'; $script:UpdateCheck.Error | Should -Be 'Version im Kanal nicht lesbar (kaputt)'
+            Invoke-Answer 'NONE'
+            $script:UpdateCheck.State | Should -Be 'empty'
+            $script:Log[$script:Log.Count - 1] | Should -BeLike 'INFO|Update-Prüfung: noch keine *Version im Kanal Stabil'
+            Invoke-Answer 'LIMIT:429|False'
+            $script:UpdateCheck.Error | Should -Be 'GitHub-Abfragelimit erreicht (HTTP 429)'
+            $script:Log[$script:Log.Count - 1] | Should -BeExactly 'WARN|Update-Prüfung: GitHub-Abfragelimit erreicht (HTTP 429) - später erneut versuchen.'
+            Invoke-Answer 'AUTH:401|False'
+            $script:UpdateCheck.Error | Should -Be "$($script:Repo) nicht erreichbar (HTTP 401)"
+            $script:Log[$script:Log.Count - 1] | Should -BeExactly "WARN|Update-Prüfung: $($script:Repo) nicht erreichbar (HTTP 401)."
+            Invoke-Answer 'ERR:Netz weg' -Quiet
+            $script:UpdateCheck.State | Should -Be 'failed'; $script:UpdateCheck.Error | Should -Be 'Netz weg'
+            $script:Log[$script:Log.Count - 1] | Should -BeExactly 'WARN|Update-Prüfung fehlgeschlagen: Netz weg'
+            Invoke-Answer ''
+            $script:UpdateCheck.State | Should -Be 'failed'
+        }
+        It 'wartender Klick wird am Ende entschieden (auch ohne neue Version)' {
+            $script:UpdateClickPending = $true; $script:UpdateClickSince = Get-Date
+            Invoke-Answer 'NONE'
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Msgs.Count | Should -Be 1
+            $script:Msgs[0] | Should -BeLike 'Info|Im Kanal Stabil gibt es noch keine*'
+        }
+    }
+
+    Context 'Gespeicherter Token abgelehnt (HTTP 401): einmal ohne Token, wie Pull.ps1' {
+        BeforeAll {
+            # HTTP-Fehler nachgebildet: eine Ausnahme mit Response.StatusCode, gelesen wie im Code ([int]$_.Exception.Response.StatusCode).
+            # Echte WebException (5.1) bzw. HttpResponseException (7) lassen sich ohne Netz nicht mit Antwort bauen.
+            function New-TestHttpError([int]$Code) {
+                $e = New-Object System.Exception "HTTP $Code"
+                $e | Add-Member -NotePropertyName Response -NotePropertyValue ([pscustomobject]@{ StatusCode = $Code; Headers = @{} })
+                return $e
+            }
+            # Status der Ausnahme, die $Do wirft; -1 = keine Ausnahme
+            function Get-TestThrownCode([scriptblock]$Do) {
+                try { & $Do } catch { return [int]$_.Exception.Response.StatusCode }
+                return -1
+            }
+            # Warnung zum abgelehnten Token: nur Verwalter sehen den Menuepunkt GitHub-Token, andere melden es dem Verwalter
+            $script:Warn401Admin = 'WARN|Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. Token unter Rechtsklick auf Update, GitHub-Token erneuern oder löschen.'
+            $script:Warn401User = 'WARN|Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. Bitte dem Verwalter melden.'
+            # Zusatz im Fehlertext, wenn der Token abgelehnt wurde und auch der Versuch ohne Token scheiterte
+            $script:Tok401 = 'Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401)'
+            # Platzhalter fuer die Update-Bibliothek im Hintergrund: kein Netz, jeder Abruf wird in einer Datei festgehalten
+            # Mode: ok = mit Token 401, ohne Token Antwort | ohne404 = mit Token 401, ohne Token 404 | mit403 = mit Token 403
+            function New-TestStubLib([string]$Mode) {
+                $script:StubLog = Join-Path $script:AppRoot ('stub-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.log')
+                $p = Join-Path $script:AppRoot 'stub-lib.ps1'
+                $t = @'
+$stubLog = '__LOG__'; $stubMode = '__MODE__'
+function New-StubHttpError([int]$Code) {
+    $e = New-Object System.Exception "HTTP $Code"
+    $e | Add-Member -NotePropertyName Response -NotePropertyValue ([pscustomobject]@{ StatusCode = $Code; Headers = @{} })
+    return $e
+}
+function Test-StubAnswer([string]$Token) {
+    if ($Token) { if ($stubMode -eq 'mit403') { throw (New-StubHttpError 403) }; throw (New-StubHttpError 401) }
+    if ($stubMode -eq 'ohne404') { throw (New-StubHttpError 404) }
+}
+function Get-HMReleases([string]$Owner, [string]$Repo, [string]$Token) {
+    Add-Content -LiteralPath $stubLog -Value "REL|$Token" -Encoding UTF8
+    Test-StubAnswer $Token
+    return @([pscustomobject]@{ Version = [version]'1.0.9'; Tag = 'v1.0.9'; Prerelease = $false; Date = '2026-11-16'; Notes = ''; ManifestUrl = 'm'; SignatureUrl = 's' })
+}
+function Select-HMRelease($Releases, [string]$Channel, [switch]$SignedOnly) { return @($Releases)[0] }
+function Invoke-WebRequest {
+    [CmdletBinding()]
+    param([Parameter(Position = 0)][string]$Uri, [hashtable]$Headers, [switch]$UseBasicParsing, [int]$TimeoutSec)
+    $tk = "$($Headers['Authorization'])" -replace '^token ', ''
+    Add-Content -LiteralPath $stubLog -Value "WEB|$tk" -Encoding UTF8
+    Test-StubAnswer $tk
+    return [pscustomobject]@{ Content = '{"version":"1.0.9"}' }
+}
+'@
+                [IO.File]::WriteAllText($p, $t.Replace('__LOG__', $script:StubLog).Replace('__MODE__', $Mode), (New-Object Text.UTF8Encoding $true))
+                return $p
+            }
+            function Get-TestStubCalls { if (Test-Path -LiteralPath $script:StubLog) { return @(Get-Content -LiteralPath $script:StubLog -Encoding UTF8) } return @() }
+            # den festgehaltenen Hintergrund-Block so ausfuehren wie Invoke-AsyncCommand: eigener Runspace, Text des Blocks, Argumente
+            function Invoke-TestBackground([object[]]$ArgList) {
+                $ps = [PowerShell]::Create()
+                try {
+                    [void]$ps.AddScript($script:Captured.ScriptBlock.ToString())
+                    foreach ($a in $ArgList) { [void]$ps.AddArgument($a) }
+                    return (($ps.Invoke() | Out-String).Trim())
+                } finally { $ps.Dispose() }
+            }
+        }
+        BeforeEach { $script:UpdateNoTokenWarned = $false }
+
+        It 'Abruf: 401 mit Token, ohne Token klappt es: Ergebnis, Kennzeichen ohne Token, genau zwei Aufrufe' {
+            $calls = New-Object System.Collections.Generic.List[string]
+            $r = Invoke-HUWithTokenFallback -Token 'alt' -Fetch { param($t) $calls.Add("$t"); if ($t) { throw (New-TestHttpError 401) }; 'daten' }
+            $r.Result | Should -BeExactly 'daten'
+            $r.NoToken | Should -BeTrue
+            $calls.Count | Should -Be 2
+            $calls[0] | Should -BeExactly 'alt'
+            $calls[1] | Should -BeExactly ''
+        }
+        It 'Abruf: 401 ohne Token: kein zweiter Versuch, der Fehler geht mit Status weiter' {
+            $calls = New-Object System.Collections.Generic.List[string]
+            Get-TestThrownCode { Invoke-HUWithTokenFallback -Token '' -Fetch { param($t) $calls.Add("$t"); throw (New-TestHttpError 401) } } | Should -Be 401
+            $calls.Count | Should -Be 1
+        }
+        It 'Abruf: 404 und 403 mit Token: kein zweiter Versuch, der Fehler geht mit Status weiter' {
+            foreach ($c in 404, 403) {
+                $calls = New-Object System.Collections.Generic.List[string]
+                Get-TestThrownCode { Invoke-HUWithTokenFallback -Token 'alt' -Fetch { param($t) $calls.Add("$t"); throw (New-TestHttpError $c) } } | Should -Be $c
+                $calls.Count | Should -Be 1
+            }
+        }
+        It 'Abruf: klappt beim ersten Mal: ein Aufruf, Kennzeichen nicht gesetzt' {
+            $calls = New-Object System.Collections.Generic.List[string]
+            $r = Invoke-HUWithTokenFallback -Token 'alt' -Fetch { param($t) $calls.Add("$t"); @('a', 'b') }
+            @($r.Result) | Should -Be @('a', 'b')
+            $r.NoToken | Should -BeFalse
+            $calls.Count | Should -Be 1
+            $calls[0] | Should -BeExactly 'alt'
+        }
+        It 'Abruf: auch der zweite Versuch scheitert: dessen Fehler geht weiter (404, nicht 401)' {
+            $calls = New-Object System.Collections.Generic.List[string]
+            Get-TestThrownCode { Invoke-HUWithTokenFallback -Token 'alt' -Fetch { param($t) $calls.Add("$t"); if ($t) { throw (New-TestHttpError 401) }; throw (New-TestHttpError 404) } } | Should -Be 404
+            $calls.Count | Should -Be 2
+            $calls[1] | Should -BeExactly ''
+        }
+        It 'Antwort mit Kennzeichen NOTOKEN; ergibt denselben Zustand, neues Feld NoToken' {
+            $c = [pscustomobject]@{ Owner = 'o'; Repo = 'r' }
+            $a = ConvertFrom-HUUpdateAnswer 'NOTOKEN;REL:1.0.9|v1.0.9|False' $c
+            $a.Kind | Should -BeExactly 'REL'; $a.State | Should -BeExactly 'ok'; $a.Remote | Should -BeExactly '1.0.9'; $a.Pre | Should -BeFalse; $a.Error | Should -BeExactly ''
+            $a.NoToken | Should -BeTrue
+            $a = ConvertFrom-HUUpdateAnswer 'NOTOKEN;NONE' $c
+            $a.Kind | Should -BeExactly 'NONE'; $a.State | Should -BeExactly 'empty'; $a.NoToken | Should -BeTrue
+            $a = ConvertFrom-HUUpdateAnswer 'REL:1.0.9|v1.0.9|False' $c
+            $a.NoToken | Should -BeFalse
+            (ConvertFrom-HUUpdateAnswer 'AUTH:404|False' $c).NoToken | Should -BeFalse
+        }
+        It 'Ablauf: Antwort mit Kennzeichen ist ok, die Warnung zum abgelehnten Token kommt einmal je Sitzung (auch beim stillen Start)' {
+            Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False' -Quiet
+            $script:UpdateCheck.State | Should -Be 'ok'
+            $script:UpdateCheck.Remote | Should -Be '1.0.8'
+            Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False'
+            @($script:Log | Where-Object { $_ -ceq $script:Warn401User }).Count | Should -Be 1
+            # ohne Kennzeichen keine Warnung
+            $script:UpdateNoTokenWarned = $false; $script:Log.Clear()
+            Invoke-Answer 'REL:1.0.8|v1.0.8|False'
+            @($script:Log | Where-Object { $_ -like '*GitHub-Token wird abgelehnt*' }).Count | Should -Be 0
+        }
+        It 'Kennzeichen vor <Answer>: abgetrennt, NoToken gesetzt, Fehlertext nennt den abgelehnten Token' -TestCases @(
+            @{ Answer = 'NOTOKEN;AUTH:404|False'; Kind = 'AUTH'; Code = '404'; Err = 'o/r nicht erreichbar (HTTP 404)' }
+            @{ Answer = 'NOTOKEN;LIMIT:403|False'; Kind = 'LIMIT'; Code = '403'; Err = 'GitHub-Abfragelimit erreicht (HTTP 403)' }
+            @{ Answer = 'NOTOKEN;ERR:Netz weg'; Kind = 'ERR'; Code = ''; Err = 'Netz weg' }
+            @{ Answer = 'NOTOKEN;ERR:Zeitüberschreitung.'; Kind = 'ERR'; Code = ''; Err = 'Zeitüberschreitung' }
+            @{ Answer = 'NOTOKEN;REL:kaputt|x|False'; Kind = 'REL'; Code = ''; Err = 'Version im Kanal nicht lesbar (kaputt)' }
+            @{ Answer = 'NOTOKEN;NOTOKEN;AUTH:401|False'; Kind = 'AUTH'; Code = '401'; Err = 'o/r nicht erreichbar (HTTP 401)' }
+        ) {
+            param($Answer, $Kind, $Code, $Err)
+            $a = ConvertFrom-HUUpdateAnswer $Answer ([pscustomobject]@{ Owner = 'o'; Repo = 'r' })
+            $a.Kind | Should -BeExactly $Kind
+            $a.State | Should -BeExactly 'failed'
+            "$($a.Code)" | Should -BeExactly $Code
+            $a.NoToken | Should -BeTrue
+            $a.Error | Should -BeExactly "$Err. $($script:Tok401)"
+            $a.Error | Should -Not -Match 'NOTOKEN'
+        }
+        It 'Kennzeichen ohne Rest: Fehlertext nur der Zusatz; ohne Kennzeichen kein Zusatz' {
+            $c = [pscustomobject]@{ Owner = 'o'; Repo = 'r' }
+            $a = ConvertFrom-HUUpdateAnswer 'NOTOKEN;' $c
+            $a.Kind | Should -BeExactly 'ERR'; $a.NoToken | Should -BeTrue; $a.Error | Should -BeExactly $script:Tok401
+            foreach ($x in 'AUTH:404|False', 'LIMIT:403|False', 'ERR:Netz weg') {
+                $a = ConvertFrom-HUUpdateAnswer $x $c
+                $a.NoToken | Should -BeFalse
+                $a.Error | Should -Not -Match 'abgelehnt'
+            }
+        }
+        It 'Ablauf: gescheiterte Antwort mit Kennzeichen: Zustand failed, Klick-Meldung nennt den abgelehnten Token, Warnung einmal' {
+            $script:UpdateClickPending = $true; $script:UpdateClickSince = Get-Date
+            Invoke-Answer 'NOTOKEN;AUTH:404|False'
+            $script:UpdateCheck.State | Should -Be 'failed'
+            $script:UpdateCheck.Error | Should -BeExactly "$($script:Repo) nicht erreichbar (HTTP 404). $($script:Tok401)"
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Msgs.Count | Should -Be 1
+            $script:Msgs[0] | Should -BeExactly "Warning|Update-Prüfung nicht möglich: $($script:Repo) nicht erreichbar (HTTP 404). $($script:Tok401). Bitte später noch einmal versuchen."
+            $script:Log | Should -Contain "WARN|Update-Prüfung: $($script:Repo) nicht erreichbar (HTTP 404)."
+            # zweite gescheiterte Pruefung: keine zweite Warnung
+            Invoke-Answer 'NOTOKEN;LIMIT:403|False'
+            $script:UpdateCheck.Error | Should -BeExactly "GitHub-Abfragelimit erreicht (HTTP 403). $($script:Tok401)"
+            @($script:Log | Where-Object { $_ -ceq $script:Warn401User }).Count | Should -Be 1
+            @($script:Log | Where-Object { $_ -like '*NOTOKEN*' }).Count | Should -Be 0
+            @($script:Msgs | Where-Object { $_ -like '*NOTOKEN*' }).Count | Should -Be 0
+        }
+        It 'Warntext: Verwalter <Verwalter> bekommt den passenden Hinweis' -TestCases @(
+            @{ Verwalter = $true; Answer = 'NOTOKEN;REL:1.0.8|v1.0.8|False' }
+            @{ Verwalter = $false; Answer = 'NOTOKEN;REL:1.0.8|v1.0.8|False' }
+            @{ Verwalter = $true; Answer = 'NOTOKEN;AUTH:404|False' }
+            @{ Verwalter = $false; Answer = 'NOTOKEN;AUTH:404|False' }
+        ) {
+            param($Verwalter, $Answer)
+            if ($Verwalter) { Mock Test-HUVerwalter { $true } } else { Mock Test-HUVerwalter { $false } }
+            Invoke-Answer $Answer
+            $want = $(if ($Verwalter) { $script:Warn401Admin } else { $script:Warn401User })
+            $other = $(if ($Verwalter) { $script:Warn401User } else { $script:Warn401Admin })
+            @($script:Log | Where-Object { $_ -ceq $want }).Count | Should -Be 1
+            @($script:Log | Where-Object { $_ -ceq $other }).Count | Should -Be 0
+        }
+        It 'Warntext: scheitert die Verwalter-Abfrage, Text fuer Nicht-Verwalter, die Pruefung bleibt gueltig' {
+            Mock Test-HUVerwalter { throw 'Verwalter-Liste nicht lesbar' }
+            Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False'
+            $script:UpdateCheck.State | Should -Be 'ok'
+            @($script:Log | Where-Object { $_ -ceq $script:Warn401User }).Count | Should -Be 1
+        }
+        It 'Ablauf: wartender Klick wird mit Kennzeichen normal entschieden' {
+            $script:UpdateClickPending = $true; $script:UpdateClickSince = Get-Date
+            Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False'
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Msgs.Count | Should -Be 1
+            $script:Msgs[0] | Should -BeExactly 'Info|HU-Amt ist aktuell: Version 1.0.8 (Kanal Stabil). Es gibt nichts zu laden.'
+        }
+        It 'echter Hintergrund-Block (Release): 401 mit Token, ohne Token gefunden = NOTOKEN;REL; ohne Token 404 = NOTOKEN;AUTH:404|False; 403 ohne Kennzeichen' {
+            Invoke-UpdateCheck
+            $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
+            $al[0] = New-TestStubLib 'ok'
+            Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;REL:1.0.9|v1.0.9|False'
+            Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
+            $al[0] = New-TestStubLib 'ohne404'
+            Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;AUTH:404|False'
+            Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
+            $al[0] = New-TestStubLib 'mit403'
+            Invoke-TestBackground $al | Should -BeExactly 'AUTH:403|True'
+            Get-TestStubCalls | Should -Be @('REL|alt')
+        }
+        It 'echter Hintergrund-Block (Branch): 401 mit Token, zweiter Abruf ohne Authorization = NOTOKEN;REL; ohne Token 404 = NOTOKEN;AUTH:404|False' {
+            Invoke-UpdateCheck
+            $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
+            $al[2] = [pscustomobject]@{ Owner = 'o'; Repo = 'r'; Channel = 'Stable'; RequireSignature = $false; UseBranch = $true; Branch = 'dev' }
+            $al[0] = New-TestStubLib 'ok'
+            Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;REL:1.0.9|Branch dev|False'
+            Get-TestStubCalls | Should -Be @('WEB|alt', 'WEB|')
+            $al[0] = New-TestStubLib 'ohne404'
+            Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;AUTH:404|False'
+            Get-TestStubCalls | Should -Be @('WEB|alt', 'WEB|')
+            $al[0] = New-TestStubLib 'mit403'
+            Invoke-TestBackground $al | Should -BeExactly 'AUTH:403|True'
+        }
+        It 'echter Hintergrund-Block (Andere Version): Versionsliste wird nach 401 ohne Token gelesen, 401 dann 404 nennt den abgelehnten Token' {
+            Show-HUVersionPicker
+            $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
+            $al[0] = New-TestStubLib 'ok'
+            $r = Invoke-TestBackground $al
+            $r | Should -BeLike 'LIST:*'
+            $r | Should -BeLike '*"Version":"1.0.9"*'
+            Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
+            $al[0] = New-TestStubLib 'ohne404'
+            Invoke-TestBackground $al | Should -BeExactly "ERR:Repo nicht erreichbar (HTTP 404). $($script:Tok401)."
+            $al[0] = New-TestStubLib 'mit403'
+            Invoke-TestBackground $al | Should -BeExactly 'ERR:Repo nicht erreichbar (HTTP 403)'
+            Get-TestStubCalls | Should -Be @('REL|alt')
+        }
     }
 }

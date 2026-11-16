@@ -405,3 +405,96 @@ Describe 'Rechte der Verwalter-Liste (Entscheidung Verwalter.txt)' {
         (Test-HUVerwalterAcl -DataRoot (Join-Path $script:Ad 'gibt-es-nicht')).Status | Should -Be 'NichtPruefbar'
     }
 }
+
+Describe 'Grund der Sperre: in Bearbeitung, kein Schreibrecht, nicht erreichbar (Befund K6)' {
+    BeforeAll {
+        $script:K6Me = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+        function Get-K6Dacl([string]$Path) {
+            $i = Get-Item -LiteralPath $Path -Force
+            $sec = [System.Security.AccessControl.AccessControlSections]::Access
+            if ($PSVersionTable.PSVersion.Major -ge 6) { return [System.IO.FileSystemAclExtensions]::GetAccessControl($i, $sec) }
+            return $i.GetAccessControl($sec)
+        }
+        function Set-K6Dacl([string]$Path, $Acl) {
+            $i = Get-Item -LiteralPath $Path -Force
+            if ($PSVersionTable.PSVersion.Major -ge 6) { [System.IO.FileSystemAclExtensions]::SetAccessControl($i, $Acl) } else { $i.SetAccessControl($Acl) }
+        }
+        # Nur am eigenen Testordner: dem aktuellen Benutzer das Anlegen von Dateien und Ordnern verweigern
+        function Get-K6DenyRule {
+            return (New-Object System.Security.AccessControl.FileSystemAccessRule($script:K6Me, 'CreateFiles, AppendData', [System.Security.AccessControl.InheritanceFlags]::None, [System.Security.AccessControl.PropagationFlags]::None, 'Deny'))
+        }
+        # Wirkt die Verweigerung? Sonst (z. B. Rechte ueber ein Privileg) wird der Test uebersprungen
+        function Test-K6DenyWorks([string]$Dir) {
+            $p = Join-Path $Dir ('.k6probe-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+            try { [IO.File]::WriteAllText($p, 'x'); Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue; return $false } catch { return $true }
+        }
+        $script:K6Free = @([char[]]([int][char]'Z'..[int][char]'H') | Where-Object { -not [IO.Directory]::Exists("$($_):\") -and -not (Get-PSDrive -Name "$_" -ErrorAction SilentlyContinue) } | Select-Object -First 1)
+    }
+    BeforeEach {
+        $script:K6 = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtK6-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:K6)
+        $script:K6File = Join-Path $script:K6 'liste.json'
+    }
+    AfterEach { Remove-Item -LiteralPath $script:K6 -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'frei: Ok mit Reason ok' {
+        $l = Lock-HUDataFile -Path $script:K6File -UserName 'anna' -PcName 'PC-1'
+        try { $l.Ok | Should -BeTrue; $l.Reason | Should -Be 'ok' } finally { Unlock-HUDataFile $l }
+    }
+    It 'von anderem Halter gesperrt: busy, Text zeichengleich wie bisher' {
+        $a = Lock-HUDataFile -Path $script:K6File -UserName 'anna' -PcName 'PC-1'
+        try {
+            $b = Lock-HUDataFile -Path $script:K6File -UserName 'bernd' -PcName 'PC-2'
+            $b.Ok | Should -BeFalse
+            $b.Reason | Should -Be 'busy'
+            $b.UserName | Should -Be 'anna'
+            Get-HULockInfoText $b | Should -BeExactly "Gerade in Bearbeitung von anna (PC-1) seit $($b.Since.ToString('dd.MM. HH:mm')). Du kannst die Daten nur ansehen."
+        } finally { Unlock-HUDataFile $a }
+    }
+    It 'Ergebnis ohne Feld Reason (aeltere Aufrufer): bisheriger Text zeichengleich' {
+        $o = [pscustomobject]@{ Ok = $false; Path = $script:K6File; LockPath = "$($script:K6File).lock"; Stream = $null; UserName = 'maria'; ComputerName = 'PC-12'; Since = [datetime]'2026-11-15T10:15:00' }
+        Get-HULockInfoText $o | Should -BeExactly 'Gerade in Bearbeitung von maria (PC-12) seit 15.11. 10:15. Du kannst die Daten nur ansehen.'
+        $e = [pscustomobject]@{ Ok = $false; Path = $script:K6File; LockPath = ''; Stream = $null; UserName = ''; ComputerName = ''; Since = $null }
+        Get-HULockInfoText $e | Should -BeExactly 'Gerade in Bearbeitung von jemand anderem. Du kannst die Daten nur ansehen.'
+    }
+    It 'Texte fuer kein Schreibrecht und nicht erreichbar nennen den Ordner' {
+        $r = [pscustomobject]@{ Ok = $false; Path = 'X:\Daten\liste.json'; LockPath = 'X:\Daten\liste.json.lock'; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = 'rights' }
+        Get-HULockInfoText $r | Should -BeExactly 'Kein Schreibrecht im Ordner X:\Daten. Bitte an den Verwalter wenden.'
+        $u = [pscustomobject]@{ Ok = $false; Path = 'X:\Daten\liste.json'; LockPath = 'X:\Daten\liste.json.lock'; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = 'unreachable' }
+        Get-HULockInfoText $u | Should -BeExactly 'Der Ordner X:\Daten ist nicht erreichbar. Bitte Netzlaufwerk bzw. Freigabe prüfen.'
+    }
+    It 'Laufwerk gibt es nicht: unreachable' {
+        if (-not $script:K6Free) { Set-ItResult -Skipped -Because 'kein freier Laufwerksbuchstabe'; return }
+        $l = Lock-HUDataFile -Path "$($script:K6Free):\HUAmtK6\liste.json" -UserName 'anna' -PcName 'PC-1'
+        $l.Ok | Should -BeFalse
+        $l.Reason | Should -Be 'unreachable'
+        $l.UserName | Should -Be ''
+    }
+    It 'Ordner ohne Schreibrecht, keine Sperrdatei: rights' {
+        $rule = Get-K6DenyRule
+        try {
+            try { $acl = Get-K6Dacl $script:K6; $acl.AddAccessRule($rule); Set-K6Dacl $script:K6 $acl } catch { Set-ItResult -Skipped -Because "ACL nicht setzbar: $($_.Exception.Message)"; return }
+            if (-not (Test-K6DenyWorks $script:K6)) { Set-ItResult -Skipped -Because 'Verweigerung wirkt nicht (Rechte ueber Privileg)'; return }
+            $l = Lock-HUDataFile -Path $script:K6File -UserName 'anna' -PcName 'PC-1'
+            $l.Ok | Should -BeFalse
+            $l.Reason | Should -Be 'rights'
+        } finally {
+            try { $acl = Get-K6Dacl $script:K6; [void]$acl.RemoveAccessRule($rule); Set-K6Dacl $script:K6 $acl } catch { }
+        }
+    }
+    It 'einmal Zugriff verweigert in beschreibbarem Ordner: busy, nicht rights' {
+        Mock -ModuleName HU.Paths New-HUHeldFile { throw (New-Object System.UnauthorizedAccessException 'Zugriff verweigert') }
+        $l = Lock-HUDataFile -Path $script:K6File -UserName 'anna' -PcName 'PC-1'
+        $l.Ok | Should -BeFalse
+        $l.Reason | Should -Be 'busy'
+        @(Get-ChildItem -LiteralPath $script:K6 -Force).Count | Should -Be 0
+    }
+    It 'vorhandene Sperrdatei, die sich nicht loeschen laesst: busy' {
+        Set-Content -LiteralPath "$($script:K6File).lock" -Value 'maria|PC-12|2026-11-15T10:15:00|1'
+        Mock -ModuleName HU.Paths Remove-HUStaleLock { $false }
+        $l = Lock-HUDataFile -Path $script:K6File -UserName 'anna' -PcName 'PC-1'
+        $l.Ok | Should -BeFalse
+        $l.Reason | Should -Be 'busy'
+        $l.UserName | Should -Be 'maria'
+    }
+}

@@ -151,6 +151,42 @@ Describe 'Termin und Aufgabe setzen' {
         $it.ReminderTime | Should -Be ([datetime]'2027-03-24 08:00')
         $it.Body | Should -Be 'Notiz'
     }
+    It 'Aufgabe: vorhandene, erledigte Aufgabe bleibt ohne -Reopen erledigt (Inhalt wird trotzdem aktualisiert)' {
+        [void](Set-HUOutlookTask -Session $script:Sess -Key 'Buchung:9' -Subject 'Vormerkung' -DueDate ([datetime]'2027-03-31'))
+        $it = $script:Folder.Items.List[0]
+        $it | Add-Member NoteProperty Complete $true
+        $r = Set-HUOutlookTask -Session $script:Sess -Key 'Buchung:9' -Subject 'Vormerkung neu' -DueDate ([datetime]'2027-04-02')
+        $r.Created | Should -BeFalse
+        $script:Folder.Items.List.Count | Should -Be 1
+        $it.Subject | Should -Be 'Vormerkung neu'
+        $it.Complete | Should -BeTrue
+    }
+    It 'Aufgabe: vorhandene, erledigte Aufgabe wird mit -Reopen wieder geoeffnet' {
+        [void](Set-HUOutlookTask -Session $script:Sess -Key 'Fristen:11' -Subject 'Frist' -DueDate ([datetime]'2027-03-31'))
+        $it = $script:Folder.Items.List[0]
+        $it | Add-Member NoteProperty Complete $true
+        $r = Set-HUOutlookTask -Session $script:Sess -Key 'Fristen:11' -Subject 'Frist neu' -DueDate ([datetime]'2027-04-02') -Reopen
+        $r.Created | Should -BeFalse
+        $script:Folder.Items.List.Count | Should -Be 1
+        $it.Subject | Should -Be 'Frist neu'
+        $it.Complete | Should -BeFalse
+    }
+    It 'Aufgabe: offene vorhandene Aufgabe bleibt offen, neu angelegte wird nicht angefasst' {
+        $r1 = Set-HUOutlookTask -Session $script:Sess -Key 'Buchung:10' -Subject 'A' -DueDate ([datetime]'2027-03-31')
+        $r1.Created | Should -BeTrue
+        $it = $script:Folder.Items.List[0]
+        $it.PSObject.Properties.Name | Should -Not -Contain 'Complete'
+        $it | Add-Member NoteProperty Complete $false
+        [void](Set-HUOutlookTask -Session $script:Sess -Key 'Buchung:10' -Subject 'B' -DueDate ([datetime]'2027-03-31'))
+        $it.Complete | Should -BeFalse
+        [void](Set-HUOutlookTask -Session $script:Sess -Key 'Buchung:10' -Subject 'C' -DueDate ([datetime]'2027-03-31') -Reopen)
+        $it.Complete | Should -BeFalse
+    }
+    It 'Aufgabe: neu angelegte Aufgabe wird auch mit -Reopen nicht angefasst' {
+        $r = Set-HUOutlookTask -Session $script:Sess -Key 'Fristen:12' -Subject 'Neu' -DueDate ([datetime]'2027-03-31') -Reopen
+        $r.Created | Should -BeTrue
+        $script:Folder.Items.List[0].PSObject.Properties.Name | Should -Not -Contain 'Complete'
+    }
 }
 
 Describe 'Outlook starten mit Wiederholung' {

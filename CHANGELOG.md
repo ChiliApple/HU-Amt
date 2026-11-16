@@ -1,5 +1,48 @@
 ﻿# Changelog
 
+## v1.0.8
+
+### 🔄 Update
+- **Klick auf Update ohne neue Version:** Der Knopf meldet nur noch, dass HU-Amt aktuell ist, und ändert nichts.
+  - Ist die installierte Version neuer als die im Kanal, steht das in der Meldung.
+  - Gab es noch keine gültige Prüfung, prüft HU-Amt zuerst.
+  - Eine Prüfung, die älter als 10 Minuten ist, wird beim Klick erneuert. So kommt auch ein Update an, das freigegeben wurde, während HU-Amt schon offen war.
+  - Der Tooltip am Knopf erklärt, was ein Klick tut.
+  - Ein abgelehnter gespeicherter GitHub-Token blockiert die Prüfung nicht mehr: Bei einem öffentlichen Repo wird ohne Token geprüft. Das gilt auch für "Andere Version / Vorversion installieren ...". Bei der Update-Prüfung weist das Protokoll einmal darauf hin. Klappt es auch ohne Token nicht, nennt die Meldung den abgelehnten Token als Grund.
+- **Neu installieren oder ältere Version:** Das geht nur noch über Rechtsklick auf Update, "Andere Version / Vorversion installieren ..." (nur Verwalter).
+- **Zwei Sicherungen im Update selbst:** Direkt vor dem Ersetzen prüft das Update noch einmal, ob inzwischen jemand HU-Amt geöffnet hat. Ein Klick auf den Knopf lädt außerdem keine ältere Version mehr.
+
+### 🎨 Oberfläche
+- **Fehler sichtbar:** Geht nach einem Klick etwas Unerwartetes schief, erscheint unten rechts der Hinweis "Das hat nicht geklappt", für alle Benutzer.
+  - Derselbe Text kommt höchstens einmal je Minute, damit der Bildschirm nicht überläuft.
+  - Die Einzelheiten stehen wie bisher im Protokoll.
+- **Tooltip auch auf gesperrten Knöpfen:** In allen Fenstern und Reitern erscheint der Tooltip jetzt auch, wenn ein Knopf gerade gesperrt ist.
+- **Fehlende Datei oder fehlender Ordner:** Beim Öffnen meldet HU-Amt "Nicht gefunden" und legt nichts mehr an.
+
+### 💾 Daten auf der Freigabe
+- **Klare Meldung beim Speichern:** Die Meldung sagt, warum eine gemeinsame Liste gerade nicht gespeichert werden kann.
+  - "In Bearbeitung von ...": ein anderer bearbeitet sie.
+  - "Kein Schreibrecht im Ordner ...": an den Verwalter wenden. HU-Amt wartet dann nicht.
+  - "Der Ordner ... ist nicht erreichbar": Netzlaufwerk bzw. Freigabe prüfen. HU-Amt versucht es bis zu 3 Sekunden weiter, falls das Netz nur kurz weg war.
+- **Unklarer Inhalt wird nicht gespeichert:** Liefert ein Modul beim Speichern kein eindeutiges Ergebnis, wird nichts geschrieben und eine Meldung erscheint.
+
+### 📨 Outlook und Word
+- **Erledigte Aufgaben bleiben erledigt:** Ein Modul kann jetzt ausdrücklich verlangen, dass eine in Outlook abgehakte Aufgabe wieder geöffnet wird, z. B. bei einer Frist, die wieder offen ist. Ohne diese Anweisung bleibt sie abgehakt.
+
+### 🧩 Module
+- **Meldung für Zahlen wie 1.234.567:** HU-Amt liefert den Text für Eingaben mit mehreren Punkten und ohne Komma. Statt einer allgemeinen Ablehnung oder einer stillen 0 sagt das Modul dann, wie die Zahl einzugeben ist.
+
+### ⚠️ Nach dem Update
+- **Die beiden Sicherungen im Update wirken später:** Die erneute Prüfung vor dem Ersetzen und die Ablehnung einer älteren Version laufen im Programm, das das Update ausführt. Sie gelten ab dem ersten Update, das aus 1.0.8 gestartet wird.
+  - Das Verhalten des Knopfes selbst (Meldung "aktuell", Tooltip) gilt sofort.
+
+### 🚧 Grenzen
+- **Fehler, die HU-Amt selbst abfängt:** Sie stehen weiter nur im Protokoll und erscheinen nicht als Hinweis.
+- **Neue Modulversionen nötig:** Das Wiederöffnen einer Outlook-Aufgabe und die Zahlenmeldung wirken erst, wenn das Modul sie nutzt (Reisen und Buchungen in ihren nächsten Versionen).
+
+### ✅ Qualität
+- 692 Tests.
+
 ## v1.0.7
 
 Stable-Release der Testversion 1.0.7 – „Module in Sekunden“.

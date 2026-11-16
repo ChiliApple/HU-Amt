@@ -103,7 +103,7 @@ Module bauen keine eigenen COM-Aufrufe, sondern nutzen den Kern (`Core\HU.Office
   - Lehnt Outlook beim kalten Start oder kurz nach dem Beenden Aufrufe ab (`RPC_E_CALL_REJECTED` u. a.), wiederholt `Open-HUOutlook` bis `-TimeoutSeconds` (Standard 30). Ab Kern 0.1.8.
 - `Select-HUOutlookFolder -Type Calendar|Tasks`: Ordner im Outlook-Dialog wählen (ab 0.1.10 kommt der Dialog nach vorne), auch einen gemeinsamen Kalender. Rückgabe `Name`, `Path`, `EntryId`, `StoreId`, `Type` oder `$null` bei Abbruch. Diese Angabe speichert das Modul in seinen Einstellungen und gibt sie als `-Folder` weiter. Leer = Standardordner des Benutzers.
 - `Set-HUOutlookAppointment -Folder -Key [-EntryId] -Subject -Start [-End] [-AllDay] [-Location] [-Body] [-ReminderMinutes] [-BusyStatus] [-Categories]`: anlegen oder denselben Termin ändern. Rückgabe `EntryId`, `StoreId`, `Created`.
-- `Set-HUOutlookTask -Folder -Key [-EntryId] -Subject -DueDate [-StartDate] [-ReminderTime] [-Body] [-Categories]`: dasselbe für Aufgaben.
+- `Set-HUOutlookTask -Folder -Key [-EntryId] -Subject -DueDate [-StartDate] [-ReminderTime] [-Body] [-Categories] [-Reopen]`: dasselbe für Aufgaben. Eine wiederverwendete, in Outlook erledigte Aufgabe bleibt erledigt (der Inhalt wird trotzdem aktualisiert); nur mit `-Reopen` (ab 1.0.8) wird sie wieder geöffnet, z. B. eine Frist, die wieder offen ist. Neu angelegte und offene Aufgaben bleiben unverändert.
 - `Complete-HUOutlookItem -Type Task|Appointment -Key`: Aufgabe erledigt (`MarkComplete`), Termin ohne Erinnerung und mit „Erledigt: “ im Betreff.
 - `Remove-HUOutlookItem -Type Task|Appointment -Key`: löschen, z. B. bei Storno.
 - `Show-HUModuleMail -ModuleId -Sender <Angabe> -To -Cc -Subject -Body -Attachments` (ab 0.1.10): Mail anzeigen mit Absender. **Module nehmen diese Funktion.**
@@ -199,7 +199,7 @@ Die Kern-Module (`Core\*.psm1`) laufen auch in einem Hintergrund-Runspace ohne F
 | Baustein | Datei | Wichtigste Funktionen |
 |---|---|---|
 | Datenablage | `Core\HU.Data.psm1` | `Read-HUJson` (mit Wiederholung, `@{Data; Error}`), `Get-HUFileStamp`, `Save-HUDataFile -Build {…}` (Sperre, Warten, Stand-Prüfung, Kopie, atomar), `Wait-HUDataFileLock`, `Write-HUDataFile`, `Get-HUDataRecords` (Zwischenspeicher nach Dateistempel), `New-HUDataId`, `New-HUShortId`, `Get-HUNextNumber`, `Get-HUProp`, `ConvertFrom-HUJsonText` (ohne Datums-Umwandlung) |
-| Zahlen, Euro, Datum | `Core\HU.Data.psm1` | `ConvertTo-HUDecimal`, `Test-HUAmbiguousNumber` (ab 0.1.12), `Format-HUEuro`, `Format-HUNumber`, `Format-HUKm`, `Get-HURound` (kaufmännisch), `ConvertFrom-HUDateText` (auch Excel-Seriennummer, `-DateOnly`), `ConvertFrom-HUClockText`, `Format-HUDate`, `Format-HUTime`. Tausenderpunkt fest, unter PS 5.1 und 7 gleich. |
+| Zahlen, Euro, Datum | `Core\HU.Data.psm1` | `ConvertTo-HUDecimal`, `Test-HUAmbiguousNumber` (ab 0.1.12), `Get-HUNumberTextError` (ab 1.0.8), `Format-HUEuro`, `Format-HUNumber`, `Format-HUKm`, `Get-HURound` (kaufmännisch), `ConvertFrom-HUDateText` (auch Excel-Seriennummer, `-DateOnly`), `ConvertFrom-HUClockText`, `Format-HUDate`, `Format-HUTime`. Tausenderpunkt fest, unter PS 5.1 und 7 gleich. |
 | Verlauf | `Core\HU.Data.psm1` | `New-HUHistoryEntry`, `Add-HUHistoryEntry` (`zeit, benutzer, pc, aktion, text, felder`), `Compare-HURecordFields`, `Get-HUFieldChangeText`, `ConvertTo-HUHistoryEntry` (liest alte Felder `von`/`art`) |
 | Anhänge | `Core\HU.Data.psm1` | `Test-HUAttachment`, `Add-HUAttachment` (überschreibt nie, `-TimePrefix`), `Get-HUAttachments`, `Remove-HUAttachment` (nach `_entfernt\`) |
 | Gemeinsame Einstellungen | `Core\HU.Data.psm1` | `Read-HUSettings`, `Save-HUSettings` (`geaendert`, `geaendertVon`), `Merge-HUSettings`, `Test-HUPermittedUser $Liste $Benutzer -IsVerwalter`, `Get-HUUserDisplayName` |
@@ -255,6 +255,29 @@ $c.txtBetrag.Add_LostFocus({
 ```
 
 Nur für Eingaben im Fenster. Für Dateien und Hintergrund-Aufträge weiter `ConvertTo-HUDecimal` nehmen, die Rückfrage braucht den Fenster-Thread.
+
+### Geändertes Verhalten ab 1.0.8
+
+Was davon ein Modul nutzt, setzt `minApp` auf 1.0.8 (`Reason`, `-Reopen`, `Get-HUNumberTextError`).
+
+- **`Save-HUDataFile`: genau ein Ergebnis je `-Build`:**
+  - Erlaubt sind Text, ein Objekt (wird JSON), `$null` oder nichts (= nichts zu tun).
+  - Gibt der Block mehrere Werte aus, etwa eine nicht verworfene Rückgabe plus den Text, wird nichts geschrieben, `Ok` ist `$false` und der Text lautet "Speichern abgebrochen: Der Inhalt war nicht eindeutig (mehrere Ergebnisse). Es wurde nichts geändert."
+  - Rückgaben von Aufrufen im Block deshalb mit `[void]` oder `| Out-Null` verwerfen. Ein Array als Inhalt nur bewusst als ein Wert: `,@(...)`.
+- **Sperren: Feld `Reason`:**
+  - `Lock-HUDataFile` und `Wait-HUDataFileLock` liefern am Ergebnis `Reason`: `'ok'`, `'busy'` (ein anderer bearbeitet), `'rights'` (kein Schreibrecht im Ordner) oder `'unreachable'` (Ordner, Laufwerk oder Freigabe nicht erreichbar).
+  - Bei `'rights'` kommt das Ergebnis sofort, ohne Warten. Bei `'unreachable'` wird bis 3 Sekunden weiter versucht (`-WaitMs`, wenn das kleiner ist), dann kommt es zurück. `'busy'` wartet wie bisher.
+  - Den Text liefert `Get-HULockInfoText $lock`: für `'busy'` unverändert "Gerade in Bearbeitung von ...", für `'rights'` und `'unreachable'` ein Satz mit dem Ordner. Ergebnisse ohne `Reason` gelten wie `'busy'`.
+  - Ein eigener Text gehört nur zu `'busy'` (so ersetzt ihn etwa Gutscheine). Bei `'rights'` und `'unreachable'` den Text des Kerns zeigen, sonst steht bei fehlendem Recht "ein anderer bearbeitet".
+- **`Open-HUPath` legt nichts mehr an:** Fehlt der Pfad, meldet der Kern "Nicht gefunden" und öffnet nichts. Wer einen fehlenden Ordner wirklich anlegen und öffnen will, ruft `Open-HUPath $Pfad -Create` auf.
+- **`Get-HUNumberTextError <Text>`:** liefert den Meldungstext für Eingaben mit mehreren Punkten und ohne Komma (`1.234.567`, `12.34.56`), sonst einen leeren Text. `ConvertTo-HUDecimal` bleibt unverändert und wirft nicht. Mit Komma (`1.234.567,89`) sind die Punkte Tausender und gültig. Gehört in die Eingabeprüfung des Fensters:
+
+```powershell
+$err = Get-HUNumberTextError $c.txtBetrag.Text
+if ($err) { Show-HUMessage $err 'Betrag' -Icon Warning; $c.txtBetrag.Focus() | Out-Null; return }
+```
+
+- **Tooltip auf gesperrten Knöpfen:** Die Stile `DarkButton` und `ToolButton` in `XAML\Theme.xaml` zeigen den Tooltip auch bei `IsEnabled = $false` (`ToolTipService.ShowOnDisabled`). Ein eigener Setter im Modul ist nicht mehr nötig. Den Grund für die Sperre in den Tooltip schreiben, z. B. "Gesperrt, weil ...". Das gilt in allen Fenstern und Reitern, die diese Stile nutzen. Stile mit `BasedOn` auf `DarkButton` oder `ToolButton` erben die Einstellung. Nur eigene Stile ohne `BasedOn` auf `DarkButton` oder `ToolButton` müssen `ToolTipService.ShowOnDisabled` selbst setzen.
 
 ### Vorlagen für Modul-Repos
 

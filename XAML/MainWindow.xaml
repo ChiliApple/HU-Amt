@@ -44,7 +44,7 @@
                     <Button x:Name="btnHelp" Content="?" Style="{StaticResource ToolButton}" Width="32" Margin="0,0,6,0"
                             ToolTip="Anleitung (F1)"/>
                     <Button x:Name="btnUpdate" Content="Update" Style="{StaticResource ToolButton}"
-                            ToolTip="Nach einer neuen Version suchen und installieren"/>
+                            ToolTip="Update: lädt eine neue Version und installiert sie (Prüfsumme und Signatur). Gold = neue Version da. Ohne neue Version meldet der Knopf nur, dass alles aktuell ist.&#x0a;Rechtsklick: jetzt prüfen, Info. Für Verwalter: andere Version, Kanal, Module."/>
                 </StackPanel>
             </DockPanel>
         </Border>

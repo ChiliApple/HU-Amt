@@ -73,6 +73,14 @@ function Test-HUDataIOException($Err) {
     }
     return $false
 }
+function Test-HUDataAccessDenied($Err) {
+    $ex = $Err.Exception
+    while ($ex) {
+        if ($ex -is [System.UnauthorizedAccessException]) { return $true }
+        $ex = $ex.InnerException
+    }
+    return $false
+}
 
 # ================================================================ JSON und Dateien ================================================================
 
@@ -176,7 +184,11 @@ function Get-HUProp($Object, [string]$Name, $Default = '') {
 .SYNOPSIS
     Sperre einer gemeinsamen Datei holen und bis -WaitMs warten (ein anderer PC speichert nur Millisekunden).
     Ein kurzes "Zugriff verweigert" beim Freigeben gilt als belegt. Legt den Ordner an.
-    Rueckgabe: Sperre aus Lock-HUDataFile (Ok, UserName, ComputerName, Since ...). Freigeben mit Unlock-HUDataFile.
+    Rueckgabe: Sperre aus Lock-HUDataFile (Ok, UserName, ComputerName, Since, Reason ...). Freigeben mit Unlock-HUDataFile.
+    K6: Reason 'rights' (kein Schreibrecht) kommt sofort zurueck, Rechte aendern sich nicht in Sekunden. Reason 'unreachable'
+    (Ordner bzw. Laufwerk/Freigabe nicht erreichbar) wird wie 'busy' weiter versucht, aber hoechstens 3000 ms ab Beginn
+    (bzw. -WaitMs, wenn das kleiner ist): ein kurzer Netzaussetzer kann sich erholen. Wird der Ordner erreichbar, gilt wieder
+    die volle Wartezeit -WaitMs ab Beginn. Das Anlegen des Ordners wird in der Schleife erneut versucht.
 #>
 function Wait-HUDataFileLock {
     [CmdletBinding()]
@@ -188,12 +200,29 @@ function Wait-HUDataFileLock {
     )
     Assert-HUDataWriter
     $dir = Split-Path -Parent $Path
-    if ($dir -and -not (Test-Path -LiteralPath $dir)) { [void](New-Item -ItemType Directory -Path $dir -Force) }
-    $until = (Get-Date).AddMilliseconds($WaitMs)
+    $start = Get-Date
+    $until = $start.AddMilliseconds($WaitMs)
+    $unreachUntil = $start.AddMilliseconds([Math]::Min(3000, $WaitMs))
     do {
-        try { $lock = Lock-HUDataFile -Path $Path -UserName $UserName -PcName $PcName }
-        catch { $lock = [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = ''; ComputerName = ''; Since = $null } }
-        if ($lock.Ok -or (Get-Date) -ge $until) { break }
+        $lock = $null
+        if ($dir -and -not (Test-Path -LiteralPath $dir)) {
+            try { [void](New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop) }
+            catch {
+                $why = $(if (Test-HUDataAccessDenied $_) { 'rights' } else { 'unreachable' })
+                $lock = [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = $why }
+            }
+        }
+        if (-not $lock) {
+            try { $lock = Lock-HUDataFile -Path $Path -UserName $UserName -PcName $PcName }
+            catch { $lock = [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = "$Path.lock"; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = 'busy' } }
+        }
+        if ($lock.Ok) { break }
+        $now = Get-Date
+        $rp = $lock.PSObject.Properties['Reason']
+        $reason = $(if ($rp) { "$($rp.Value)" } else { '' })
+        if ($reason -eq 'rights') { break }
+        if ($reason -eq 'unreachable' -and $now -ge $unreachUntil) { break }
+        if ($now -ge $until) { break }
         Start-Sleep -Milliseconds (Get-Random -Minimum 30 -Maximum 150)
     } while ($true)
     return $lock
@@ -239,8 +268,10 @@ function Write-HUDataFile {
 .SYNOPSIS
     Gemeinsame Datei speichern: Sperre (bis -WaitMs warten), Stand pruefen, Text bauen, Kopie, atomar schreiben.
 .DESCRIPTION
-    -Build liefert den Inhalt: Text (wird so geschrieben), ein Objekt (wird JSON mit -Depth) oder $null (= nichts zu tun,
-    Rueckgabe Ok mit Skipped). Wirft -Build, wird nichts geschrieben und der Text ist die Meldung.
+    -Build liefert genau EIN Ergebnis: Text (wird so geschrieben), ein Objekt (wird JSON mit -Depth, ein Array nur bewusst als ein
+    Wert mit ,@(...)) oder $null bzw. nichts (= nichts zu tun, Rueckgabe Ok mit Skipped). Gibt -Build mehrere Werte aus (z. B. eine
+    nicht verworfene Rueckgabe plus Text), wird nichts geschrieben und Ok ist $false. Wirft -Build, wird nichts geschrieben
+    und der Text ist die Meldung.
     -Build laeuft unter der Sperre: dort neu lesen und aendern, dann ist kein Stand verloren.
     -Stamp: erwarteter Stand aus Get-HUFileStamp; '' = Datei darf noch nicht existieren; $null = nicht pruefen.
     Neue Datei: ohne Ueberschreiben. Vorhandene: Kopie nach _Kopien\ (ausser -NoBackup, -Keep Kopien), dann ersetzen.
@@ -270,7 +301,9 @@ function Save-HUDataFile {
     }
     try {
         if ($null -ne $Stamp -and (Get-HUFileStamp $Path) -ne "$Stamp") { return (New-HUDataResult $false $Changed $Stamp) }
-        $out = & $Build
+        $res = @(& $Build)
+        if ($res.Count -gt 1) { return (New-HUDataResult $false 'Speichern abgebrochen: Der Inhalt war nicht eindeutig (mehrere Ergebnisse). Es wurde nichts geändert.' $Stamp) }
+        $out = $(if ($res.Count -eq 1) { $res[0] } else { $null })
         if ($null -eq $out) { return (New-HUDataResult $true '' (Get-HUFileStamp $Path) $true) }
         $text = $(if ($out -is [string]) { $out } else { ConvertTo-Json -InputObject $out -Depth $Depth })
         $exists = Test-Path -LiteralPath $Path
@@ -495,6 +528,20 @@ function Test-HUNumberText([string]$Text) {
     if ($t -match ',') { $t = $t.Replace('.', '').Replace(',', '.') }
     $d = [decimal]0
     return [decimal]::TryParse($t, [Globalization.NumberStyles]::Number, $script:HUDataInv, [ref]$d)
+}
+
+<#
+.SYNOPSIS
+    Meldungstext, wenn eine Eingabe wegen mehrerer Punkte ohne Komma keine eindeutige Zahl ist (1.234.567, 12.34.56). Sonst ''.
+.DESCRIPTION
+    Test-HUNumberText lehnt solche Texte schon ab; diese Funktion liefert dazu den EINEN Meldungstext fuer Eingabefenster.
+    ConvertTo-HUDecimal bleibt unveraendert (wirft nicht, Rueckgabe -Default). Mit Komma (1.234.567,89) sind Punkte Tausender
+    und gueltig.
+#>
+function Get-HUNumberTextError([string]$Text) {
+    $t = ("$Text" -replace ('[\s' + $script:HUDataEuro + ']'), '').Trim()
+    if ($t -match ',' -or ([regex]::Matches($t, '\.')).Count -lt 2) { return '' }
+    return ('"' + "$Text".Trim() + '" ist keine eindeutige Zahl. Bitte ohne Tausenderpunkte eingeben (1234567) oder mit Komma für die Nachkommastellen (1.234.567,00).')
 }
 
 <#
@@ -990,7 +1037,7 @@ Export-ModuleMember -Function Get-HUNowText, ConvertTo-HUTimeText, Get-HUFileSta
     Wait-HUDataFileLock, Write-HUDataFile, Save-HUDataFile,
     New-HUDataId, Test-HUDataId, New-HUShortId, Test-HUShortId, Get-HUNextNumber,
     Get-HUDataRecords,
-    ConvertTo-HUDecimal, Test-HUNumberText, Test-HUAmbiguousNumber, Get-HURound, Format-HUEuro, Format-HUNumber, Format-HUKm,
+    ConvertTo-HUDecimal, Test-HUNumberText, Test-HUAmbiguousNumber, Get-HUNumberTextError, Get-HURound, Format-HUEuro, Format-HUNumber, Format-HUKm,
     ConvertFrom-HUDateText, ConvertTo-HUDateText, ConvertFrom-HUClockText, Format-HUDate, Format-HUTime,
     New-HUHistoryEntry, Add-HUHistoryEntry, ConvertTo-HUHistoryEntry, Compare-HURecordFields, Get-HUFieldChangeText,
     Test-HUAttachment, Add-HUAttachment, Get-HUAttachments, Get-HUAttachmentDisplayName, Remove-HUAttachment,

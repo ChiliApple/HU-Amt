@@ -490,6 +490,11 @@ function Set-HUOutlookAppointment {
 <#
 .SYNOPSIS
     Aufgabe anlegen oder dieselbe aendern (Schluessel). Rueckgabe: EntryId, StoreId, Created.
+    Wird eine vorhandene Aufgabe wiederverwendet und ist sie erledigt, bleibt sie erledigt (Inhalt wird trotzdem aktualisiert).
+    -Reopen: nur dann wird eine erledigte, wiederverwendete Aufgabe wieder geoeffnet (Complete = $false setzt Status und
+    Fortschritt zurueck). Gedacht fuer Faelle, in denen das Erledigt zurueckgenommen wurde, z. B. eine Frist, die wieder offen ist.
+    Ohne -Reopen bleibt ein in Outlook abgehaktes Element abgehakt, auch wenn der Aufrufer die Aufgabe bei jedem Speichern neu schreibt.
+    Neu angelegte und offene Aufgaben bleiben unveraendert.
     -Folder leer = eigene Aufgaben. -ReminderTime leer = keine Erinnerung.
 #>
 function Set-HUOutlookTask {
@@ -497,7 +502,8 @@ function Set-HUOutlookTask {
         $Session = $null, $Folder = $null,
         [Parameter(Mandatory)][string]$Key, [string]$EntryId = '',
         [Parameter(Mandatory)][string]$Subject, [Parameter(Mandatory)][datetime]$DueDate, [Nullable[datetime]]$StartDate = $null,
-        [Nullable[datetime]]$ReminderTime = $null, [string]$Body = '', [string]$Categories = ''
+        [Nullable[datetime]]$ReminderTime = $null, [string]$Body = '', [string]$Categories = '',
+        [switch]$Reopen
     )
     Assert-HUOfficeKey $Key
     return (Use-HUOutlookSession $Session {
@@ -508,6 +514,7 @@ function Set-HUOutlookTask {
                 $it = Find-HUOutlookItem -Session $s -FolderObject $fo -Key $Key -EntryId $EntryId
                 $created = $false
                 if (-not $it) { $items = $fo.Items; $it = $items.Add($script:HUOfItemType.Task); $created = $true }
+                elseif ($Reopen -and $it.Complete) { $it.Complete = $false }
                 $it.Subject = $Subject
                 if ($StartDate) { $it.StartDate = ([datetime]$StartDate).Date }
                 $it.DueDate = $DueDate.Date

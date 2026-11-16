@@ -238,6 +238,19 @@ function Save-HUAbSettingsFromForm($c) {
 }
 
 # ---------------------------------------------------------------- Sichern ----------------------------------------------------------------
+# Sperre auf Data\sicherung.json nicht bekommen: welcher Text, und ist es ein Fehler? (ohne Fenster, testbar)
+# 'rights' / 'unreachable' (ab 1.0.8): die Sicherung kann nicht starten = Fehler. 'busy' und Ergebnisse ohne Reason: ein anderer sichert.
+# Rueckgabe: Text (fuer die Meldung), Info (Text des Kerns allein), IsError
+function Get-HUAbLockFailure($Lock) {
+    $info = Get-HULockInfoText $Lock
+    $rp = $(if ($Lock) { $Lock.PSObject.Properties['Reason'] } else { $null })
+    $reason = $(if ($rp) { "$($rp.Value)" } else { '' })
+    if ($reason -eq 'rights' -or $reason -eq 'unreachable') {
+        return [pscustomobject]@{ Text = "Die Sicherung kann nicht starten.`n`n$info"; Info = $info; IsError = $true }
+    }
+    return [pscustomobject]@{ Text = "Es läuft gerade eine Sicherung.`n`n$info"; Info = $info; IsError = $false }
+}
+
 # -FromDialog: Werte aus dem offenen Einstellungs-Dialog (auch ungespeichert), Kennwort notfalls abfragen.
 # -Auto: aus den Einstellungen, nur mit gespeichertem Kennwort, ohne Dialoge.
 function Start-HUAppBackupNow([switch]$FromDialog, [switch]$Auto) {
@@ -285,7 +298,16 @@ function Start-HUAppBackupNow([switch]$FromDialog, [switch]$Auto) {
     # gemeinsame Datei sperren: im Netzordner sichert immer nur einer
     [void](Get-HUAbConfig)
     $l = Lock-HUDataFile -Path $script:AbSettingsFile -UserName $script:UserName
-    if (-not $l.Ok) { if (-not $Auto) { Show-HUMessage "Es läuft gerade eine Sicherung.`n`n$(Get-HULockInfoText $l)" -Icon Info -Owner $owner }; return }
+    if (-not $l.Ok) {
+        $lf = Get-HUAbLockFailure $l
+        if (-not $Auto) { Show-HUMessage $lf.Text -Icon $(if ($lf.IsError) { 'Warning' } else { 'Info' }) -Owner $owner }
+        elseif ($lf.IsError) {
+            # kein Recht bzw. Ordner weg: wie eine fehlgeschlagene automatische Sicherung melden (ein anderer sichert = still)
+            Write-HULogWarn "App-Sicherung (automatisch): $($lf.Info)"
+            Show-HUToast -Title 'App-Sicherung fehlgeschlagen' -Text "$($lf.Info)`nKlick: Einstellungen > Sicherung" -Icon Error -OnClick { Open-HUSettings -Tab 'Sicherung' }
+        }
+        return
+    }
     $script:AbLock = $l
     $src = @()
     try { $src = @(Get-HUAppBackupSources -DataRoot $script:DataRoot) }

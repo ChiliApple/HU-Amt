@@ -645,6 +645,32 @@ function Update-HUToastPositions {
     }
 }
 
+# ---------------------------------------------------------------------------------------------
+# K3: unerwarteter Fehler nach einem Klick als Hinweis unten rechts fuer alle Benutzer (nicht nur im Protokoll).
+# Gedrosselt, damit ein Fehler in einem Zeitgeber den Bildschirm nicht flutet: derselbe Text hoechstens einmal
+# je 60 Sekunden, insgesamt hoechstens 3 Hinweise je 60 Sekunden.
+# ---------------------------------------------------------------------------------------------
+$script:HUErrorHintLog = $null
+# Reine Entscheidung ohne Fenster: $true = Hinweis zeigen (und als gezeigt vermerken), $false = gedrosselt
+function Test-HUErrorHintDue([string]$Message, [datetime]$Now = (Get-Date)) {
+    if ($null -eq $script:HUErrorHintLog) { $script:HUErrorHintLog = New-Object System.Collections.ArrayList }
+    foreach ($e in @($script:HUErrorHintLog)) {
+        if (($Now - $e.Time).TotalSeconds -ge 60 -or $e.Time -gt $Now) { [void]$script:HUErrorHintLog.Remove($e) }
+    }
+    foreach ($e in @($script:HUErrorHintLog)) { if ($e.Text -ceq "$Message") { return $false } }
+    if ($script:HUErrorHintLog.Count -ge 3) { return $false }
+    [void]$script:HUErrorHintLog.Add([pscustomobject]@{ Text = "$Message"; Time = $Now })
+    return $true
+}
+function Show-HUErrorHint([string]$Message) {
+    $m = ("$Message" -replace '\s+', ' ').Trim()
+    if (-not $m) { $m = 'Unbekannter Fehler.' }
+    if ($m.Length -gt 300) { $m = $m.Substring(0, 297) + '...' }
+    # Entscheidung vor dem Anzeigen vermerken: scheitert der Hinweis selbst, kommt er nicht in einer Schleife wieder
+    if (-not (Test-HUErrorHintDue $m (Get-Date))) { return }
+    Show-HUToast -Title 'Das hat nicht geklappt' -Text "$m`nBitte noch einmal versuchen. Bleibt es dabei, an den Verwalter wenden." -Icon Error
+}
+
 function Show-HUMessage {
     param([string]$Text, [string]$Title = $script:App.title, [ValidateSet('Info', 'Information', 'Warning', 'Error')][string]$Icon = 'Info', $Owner = $null)
     if ($Icon -eq 'Information') { $Icon = 'Info' }   # Alias wie bei MessageBoxImage (KERN-U1)
@@ -719,9 +745,18 @@ function Show-HUWindowFront($Window = $null) {
 }
 
 # Ordner/Datei im Explorer oeffnen (Browser/Explorer laeuft als angemeldeter Benutzer)
-function Open-HUPath([string]$Path) {
+# Fehlt der Pfad, wird nichts angelegt und nichts geoeffnet, der Benutzer bekommt einen Hinweis (K7).
+# -Create: einen fehlenden ORDNER anlegen und oeffnen (z. B. Protokollordner).
+function Open-HUPath([string]$Path, [switch]$Create) {
     try {
-        if (-not (Test-Path -LiteralPath $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
+        if (-not (Test-Path -LiteralPath $Path)) {
+            if (-not $Create) {
+                Write-HULogWarn "Oeffnen nicht moeglich, Pfad fehlt: $Path"
+                try { Show-HUToast -Title 'Nicht gefunden' -Text "$Path`nDie Datei oder der Ordner ist nicht mehr da." -Icon Warning } catch { }
+                return
+            }
+            New-Item -ItemType Directory -Path $Path -Force | Out-Null
+        }
         Start-Process -FilePath explorer.exe -ArgumentList "`"$Path`""
     } catch { Write-HULogWarn "Oeffnen fehlgeschlagen: $($_.Exception.Message)" }
 }

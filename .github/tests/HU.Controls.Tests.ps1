@@ -514,6 +514,13 @@ Describe 'Betragsfeld mit zweideutiger Eingabe (Entscheidung zu 1.500)' {
         Read-HUNumberInput 'abc' | Should -BeNullOrEmpty
         $script:Asked.Count | Should -Be 0
     }
+    It 'Bestand K8: mehrere Punkte ohne Komma liefern $null, ohne Rueckfrage und ohne Meldung des Kerns' {
+        function Read-HUChoice { param([string]$Title, [string]$Prompt, [string[]]$Choices, $Owner, [string[]]$ToolTips, [int]$DefaultIndex = -1) $script:Asked.Add($Prompt); 0 }
+        Read-HUNumberInput '1.234.567' | Should -BeNullOrEmpty
+        Read-HUNumberInput '12.34.56' | Should -BeNullOrEmpty
+        Read-HUNumberInput '1.234.567,89' | Should -Be ([decimal]1234567.89)
+        $script:Asked.Count | Should -Be 0
+    }
     It 'mit Format-HUNumberInput danach ist das Feld eindeutig (keine zweite Rueckfrage)' {
         Test-HUAmbiguousNumber (Format-HUNumberInput ([decimal]1500)) | Should -BeFalse
     }
@@ -563,5 +570,65 @@ Describe 'JSON schreiben mit eindeutiger Temp-Datei (Pruefung 086, KERN-B10)' {
         Write-HUJsonFile -Path $f -Object ([pscustomobject]@{ A = 3 })
         [IO.File]::ReadAllText("$f.tmp") | Should -Be 'fremd'
         ([IO.File]::ReadAllText($f) | ConvertFrom-Json).A | Should -Be 3
+    }
+}
+
+Describe 'Oeffnen ohne Anlegen (Befund K7)' {
+    BeforeEach {
+        $script:K7 = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtK7-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:K7)
+        Mock Start-Process { }
+        Mock Show-HUToast { }
+    }
+    AfterEach { Remove-Item -LiteralPath $script:K7 -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'fehlende Datei: nichts anlegen, nichts oeffnen, Hinweis "Nicht gefunden"' {
+        $p = Join-Path $script:K7 'Belege\Beleg.pdf'
+        Open-HUPath $p
+        Test-Path -LiteralPath $p | Should -BeFalse
+        Test-Path -LiteralPath (Join-Path $script:K7 'Belege') | Should -BeFalse
+        Should -Invoke Start-Process -Times 0 -Exactly
+        Should -Invoke Show-HUToast -Times 1 -Exactly -ParameterFilter { $Title -eq 'Nicht gefunden' -and $Icon -eq 'Warning' -and $Text -like "*$p*" -and $Text -like '*nicht mehr da*' }
+    }
+    It 'mit -Create wird ein fehlender Ordner angelegt und geoeffnet' {
+        $p = Join-Path $script:K7 'Logs'
+        Open-HUPath $p -Create
+        Test-Path -LiteralPath $p -PathType Container | Should -BeTrue
+        Should -Invoke Start-Process -Times 1 -Exactly
+        Should -Invoke Show-HUToast -Times 0 -Exactly
+    }
+    It 'vorhandener Pfad wird geoeffnet' {
+        $f = Join-Path $script:K7 'da.txt'
+        [IO.File]::WriteAllText($f, 'x')
+        Open-HUPath $f
+        Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { $FilePath -eq 'explorer.exe' }
+        Should -Invoke Show-HUToast -Times 0 -Exactly
+    }
+}
+
+Describe 'Fehlerhinweis fuer alle Benutzer, gedrosselt (Befund K3)' {
+    BeforeEach { $script:HUErrorHintLog = $null }
+    It 'derselbe Text hoechstens einmal je 60 Sekunden' {
+        $t0 = [datetime]'2026-11-15T10:00:00'
+        Test-HUErrorHintDue 'Fehler A' $t0 | Should -BeTrue
+        Test-HUErrorHintDue 'Fehler A' $t0.AddSeconds(10) | Should -BeFalse
+        Test-HUErrorHintDue 'Fehler A' $t0.AddSeconds(59) | Should -BeFalse
+        Test-HUErrorHintDue 'Fehler A' $t0.AddSeconds(61) | Should -BeTrue
+    }
+    It 'insgesamt hoechstens 3 Hinweise je 60 Sekunden' {
+        $t0 = [datetime]'2026-11-15T10:00:00'
+        Test-HUErrorHintDue 'Fehler A' $t0 | Should -BeTrue
+        Test-HUErrorHintDue 'Fehler B' $t0.AddSeconds(1) | Should -BeTrue
+        Test-HUErrorHintDue 'Fehler C' $t0.AddSeconds(2) | Should -BeTrue
+        Test-HUErrorHintDue 'Fehler D' $t0.AddSeconds(30) | Should -BeFalse
+        Test-HUErrorHintDue 'Fehler D' $t0.AddSeconds(61) | Should -BeTrue
+    }
+    It 'Hinweis unten rechts mit Symbol Fehler, Text gekuerzt, zweites Mal nicht' {
+        Mock Show-HUToast { }
+        $msg = 'x' * 500
+        Show-HUErrorHint $msg
+        Show-HUErrorHint $msg
+        Should -Invoke Show-HUToast -Times 1 -Exactly -ParameterFilter {
+            $Icon -eq 'Error' -and $Title -eq 'Das hat nicht geklappt' -and $Text -like '*Bitte noch einmal versuchen. Bleibt es dabei, an den Verwalter wenden.' -and $Text.Length -lt 400
+        }
     }
 }

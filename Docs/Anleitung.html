@@ -128,8 +128,9 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <ul>
     <li>Jede offene App meldet sich in <code>Data\Laufend</code> an. Nach einem Absturz gibt Windows die Anmeldung von selbst frei.</li>
     <li>Eine gemeinsame Liste bearbeitet immer nur eine Person. Die anderen sehen <i>„gerade in Bearbeitung von …“</i> und können nur lesen.</li>
+    <li>Lässt sich eine Liste aus einem anderen Grund nicht speichern, nennt die Meldung ihn: <i>"Kein Schreibrecht im Ordner ..."</i> (an den Verwalter wenden, HU-Amt wartet dann nicht) oder <i>"Der Ordner ... ist nicht erreichbar"</i> (Netzlaufwerk bzw. Freigabe prüfen, HU-Amt versucht es bis zu 3 Sekunden weiter).</li>
     <li>Vor dem Speichern einer gemeinsamen Liste legt HU-Amt eine Kopie mit Zeitstempel an.</li>
-    <li>Update und Wiederherstellen gehen erst, wenn alle anderen HU-Amt geschlossen haben. Die Meldung nennt, wer es noch offen hat.</li>
+    <li>Update und Wiederherstellen gehen erst, wenn alle anderen HU-Amt geschlossen haben. Die Meldung nennt, wer es noch offen hat. Das wird vor dem Laden und noch einmal direkt vor dem Ersetzen geprüft (die zweite Prüfung gilt ab dem Update, das aus Version 1.0.8 gestartet wird).</li>
   </ul>
   <h3 id="rechte">Rechte auf der Freigabe</h3>
   <p>Wer auf der Freigabe was darf, legen Freigabe- und NTFS-Rechte fest, nicht HU-Amt. Eine Anleitung mit fertigen Befehlen für die IT liegt im Programmordner: <code>RECHTE-IT.md</code>. Empfehlung:</p>
@@ -194,6 +195,9 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><td>Reiter</td><td>Jedes Modul ein Reiter. Oben im Reiter steht in einem Satz, was er tut. Der große farbige Knopf ist der Hauptknopf, alles andere ist kleiner oder unter <span class="ui">⚙ Einstellungen</span> im Reiter. Ohne Modul gibt es nur den Reiter <i>Start</i>.</td></tr>
     <tr><td>Reihenfolge</td><td>Reiter mit der Maus verschieben; die Reihenfolge bleibt beim nächsten Start. Rechtsklick auf einen Reiter: Reihenfolge zurücksetzen.</td></tr>
     <tr><td>Protokoll</td><td>Nur für Verwalter, neueste Einträge oben. Höhe am Griff ziehen.</td></tr>
+    <tr><td>Hinweis unten rechts</td><td>Geht nach einem Klick etwas Unerwartetes schief, erscheint für alle Benutzer der Hinweis <i>"Das hat nicht geklappt"</i>. Derselbe Text kommt höchstens einmal je Minute. Die Einzelheiten stehen im Protokoll. Fehler, die HU-Amt selbst abfängt, stehen weiter nur dort.</td></tr>
+    <tr><td>Gesperrte Knöpfe</td><td>Auch ein gesperrter Knopf zeigt seinen Tooltip, wenn die Maus darüber steht. Nennt das Modul einen Grund, steht er dort.</td></tr>
+    <tr><td>Datei oder Ordner öffnen</td><td>Ist das Ziel nicht mehr da, meldet HU-Amt <i>"Nicht gefunden"</i> und legt nichts an.</td></tr>
   </table>
   <p><span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b>: <i>Reiter beim Start</i> (z. B. zuletzt verwendeter), <i>Oberflächengröße</i>, <i>Startanimation</i>, <i>Farbschema</i> (Dunkel oder Hell, wirkt nach dem Neustart; schneller geht es mit dem Knopf <span class="ui">☀</span> bzw. Mond oben rechts) und <span class="ui b">Demo starten …</span> (<a href="#demo">Demo</a>). Nur Verwalter: <i>PowerShell beim Start</i> (Automatisch, PowerShell 7 oder Windows PowerShell 5.1) und <i>Protokoll-Stufe</i> mit Log-Ordner.</p>
   <div class="note tip"><b class="h">Bleibt gespeichert</b>Fensterposition und -größe, Höhe des Protokolls, Reihenfolge der Reiter, letzter Reiter und die Einstellungen der Module – je Windows-Benutzer in <code>Data\Benutzer\&lt;Name&gt;</code>. <kbd>Strg</kbd> + Mausrad skaliert die Oberfläche, <kbd>Strg</kbd>+<kbd>0</kbd> = 100 %.</div>
@@ -492,12 +496,13 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
 <section id="update">
   <h2><span class="n">12</span>Update</h2>
   <p>Beim Start sucht HU-Amt im Hintergrund nach Updates; bei einer neuen Version wird <span class="ui">Update</span> gold. Klick: HU-Amt schließt sich, <code>Pull.ps1</code> lädt die neue Version ganz, prüft jede Datei gegen die Prüfsummen-Liste und die Signatur des Herausgebers und ersetzt erst dann. Bei einem Fehler bleibt alles, wie es war. Danach startet HU-Amt neu. <code>Data\</code> und lokale Einstellungen werden nie angefasst.</p>
+  <p><b>Was der Klick tut (ab 1.0.8):</b> Ohne neue Version meldet <span class="ui">Update</span> nur, dass HU-Amt aktuell ist, und ändert nichts. Ist die installierte Version neuer als die im Kanal, steht das in der Meldung. Gab es noch keine gültige Prüfung, prüft HU-Amt zuerst. Eine Prüfung, die älter als 10 Minuten ist, wird beim Klick erneuert. Neu installieren oder eine ältere Version laden geht nur über den Rechtsklick (nur Verwalter). Das Update selbst prüft vor dem Ersetzen noch einmal, ob inzwischen jemand HU-Amt geöffnet hat, und lehnt auf den Klick hin eine ältere Version ab. Diese beiden Prüfungen wirken erst ab dem ersten Update, das aus 1.0.8 gestartet wird.</p>
   <p><b>Neu in dieser Version:</b> Beim ersten Öffnen nach einem Update zeigt HU-Amt jedem Benutzer einmal, was sich geändert hat: vom Programm und von jedem Modul, das seit seinem letzten Start neu ist. Wer HU-Amt zum ersten Mal startet, bekommt das Fenster nicht. Im Testmodus und in der Demo kommt es nicht. Wieder öffnen: Rechtsklick auf <span class="ui">?</span> › <i>Neu in dieser Version</i>.</p>
   <table>
     <tr><th>Rechtsklick auf Update</th><th>Wirkung</th></tr>
     <tr><td>Jetzt nach Updates suchen</td><td>sofort prüfen</td></tr>
     <tr><td>Info …</td><td>Version, Kanal, Prüfung der installierten Version</td></tr>
-    <tr><td>Andere Version / Vorversion installieren …</td><td>Liste aller Releases (nur Verwalter)</td></tr>
+    <tr><td>Andere Version / Vorversion installieren …</td><td>Liste aller Releases (nur Verwalter). Der Weg, um neu zu installieren oder eine ältere Version zu laden; der Klick auf <span class="ui">Update</span> tut das nicht (ab 1.0.8)</td></tr>
     <tr><td>Kanal: Testversionen annehmen</td><td>Häkchen = Kanal <b>Test</b>, auch Vorab-Versionen (nur Verwalter)</td></tr>
     <tr><td>Module (private Repositories) …</td><td>Zugänge der Module hinterlegen oder entfernen (nur Verwalter)</td></tr>
     <tr><td>Alle Releases signieren und freigeben …</td><td>nur Herausgeber (Zertifikat auf diesem PC): Programm und alle Module auf einmal. Eine Liste zeigt alles Offene, dann "Signieren und freigeben" oder "Nur signieren" (ab Version 1.0.5)</td></tr>
@@ -573,9 +578,10 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
   <h3 id="ordner-gemeinsam">Mehrere Benutzer und Netzlaufwerk</h3>
   <ul>
     <li>Eine gemeinsame Liste kann nur eine Person zugleich bearbeiten. Die anderen sehen „Gerade in Bearbeitung von … (PC) seit …“ und können nur lesen.</li>
+    <li>Fehlt das Schreibrecht im Ordner, steht in der Meldung <i>"Kein Schreibrecht im Ordner ..."</i>, ist die Freigabe weg, <i>"Der Ordner ... ist nicht erreichbar"</i>. In beiden Fällen wird nichts gespeichert, die Daten bleiben unverändert.</li>
     <li>Stürzt ein PC ab, gibt Windows die Sperre frei; beim nächsten Versuch räumt HU-Amt sie weg.</li>
     <li>Vor dem Speichern einer gemeinsamen Liste legt HU-Amt eine Kopie mit Zeitstempel in <code>_Kopien</code> neben der Liste an.</li>
-    <li>Ein Update geht erst, wenn alle anderen HU-Amt geschlossen haben. Sonst bricht es ab, ohne etwas zu ändern. <code>Data</code>, <code>Addons</code> und <code>AddonsDev</code> fasst ein Update nie an.</li>
+    <li>Ein Update geht erst, wenn alle anderen HU-Amt geschlossen haben. Sonst bricht es ab, ohne etwas zu ändern, auch wenn jemand HU-Amt erst während des Ladens öffnet (ab dem Update aus Version 1.0.8). <code>Data</code>, <code>Addons</code> und <code>AddonsDev</code> fasst ein Update nie an.</li>
   </ul>
 
   <h3 id="ordner-sicherung">Was in der Sicherung ist</h3>

@@ -6,8 +6,11 @@
 .DESCRIPTION
     Gleicher Ablauf wie in allen HU-Tools:
       - Start: Pruefung im Hintergrund, bei neuer Version wird der Knopf 'Update' gold - fuer alle Benutzer
-      - Klick: zuerst pruefen, ob jemand anderer die App offen hat (Data\Laufend); dann Pull.ps1 (wartet auf das Ende,
-        laedt + prueft ALLE Dateien, ersetzt erst dann, startet neu)
+      - Klick (ab 1.0.8): ohne gueltige Pruefung dieser Sitzung zuerst pruefen; eine Pruefung, die aelter als
+        $script:UpdateCheckMaxAgeMin (10) Minuten ist, gilt nicht mehr und wird erneuert; nur bei neuerer Version weiter, sonst Meldung
+        (aktuell / installierte Version neuer als der Kanal / keine Version / Pruefung nicht moeglich). Dann pruefen, ob jemand
+        anderer die App offen hat (Data\Laufend); dann Pull.ps1 -NoDowngrade (wartet auf das Ende, laedt + prueft ALLE Dateien,
+        ersetzt erst dann, startet neu). Neu installieren oder aeltere Version: Rechtsklick, Andere Version.
       - Rechtsklick: jetzt pruefen, Info; nur Verwalter: andere Version, Kanal, GitHub-Token, Module, signieren, freigeben
     Verwalter: wer in Data\Verwalter.txt steht (ein Windows-Benutzername je Zeile). Fehlt die Datei, nur wer das
     Herausgeber-Zertifikat hat.
@@ -25,6 +28,15 @@ $script:UpdateQuiet = $false
 $script:SignCtx = $null; $script:PubCtx = $null; $script:UpdMenuAdmin = @(); $script:UpdMenuSign = @()
 $script:SignTokFile = ''; $script:PubTokFile = ''
 $script:IsVerwalter = $null   # Zwischenspeicher; nach dem Speichern der Verwalter-Liste auf $null setzen
+# Letzte Update-Pruefung dieser Sitzung (ab 1.0.8): State none | running | ok | empty (keine Version im Kanal) | failed;
+# Key = Einstellungen, mit denen geprueft wurde (Quelle, Kanal, Signaturpflicht, Branch) - nach einer Aenderung gilt das Ergebnis nicht mehr
+$script:UpdateCheck = [pscustomobject]@{ State = 'none'; Remote = ''; Error = ''; Key = ''; Since = [datetime]::MinValue }
+# Ein Pruefergebnis, das aelter ist, gilt beim Klick nicht mehr (es wird zuerst neu geprueft): ein tagsueber freigegebenes
+# Release soll auch in einer seit dem Morgen offenen App ankommen
+$script:UpdateCheckMaxAgeMin = 10
+$script:UpdateClickPending = $false            # Klick auf Update wartet auf das Ergebnis der Pruefung
+$script:UpdateClickSince = [datetime]::MinValue
+$script:UpdateNoTokenWarned = $false           # Warnung "gespeicherter Token abgelehnt" kam in dieser Sitzung schon
 
 function Update-UpdateConfig {
     if (-not (Get-Command Get-HMUpdateConfig -ErrorAction SilentlyContinue)) { return $null }
@@ -134,65 +146,261 @@ function Set-HUUpdateButton([string]$RemoteVer = '', [bool]$Pre = $false) {
     }
 }
 
+# --- Klick auf Update (ab 1.0.8): erst entscheiden, dann laden ----------------------------------------
+# Kennung der Update-Einstellungen, mit denen eine Pruefung lief
+function Get-HUUpdateCfgKey($Cfg) {
+    if (-not $Cfg) { return '' }
+    return "$($Cfg.Owner)/$($Cfg.Repo)|$($Cfg.Channel)|$([bool]$Cfg.RequireSignature)|$([bool]$Cfg.UseBranch)|$($Cfg.Branch)"
+}
+# Versionstext -> [Version] mit vier Stellen (1.0.8 = 1.0.8.0), $null wenn nicht lesbar
+function ConvertTo-HUUpdateVersion([string]$Text) {
+    $t = "$Text".Trim() -replace '^[vV]', ''
+    $v = $null
+    if (-not $t -or -not [Version]::TryParse($t, [ref]$v)) { return $null }
+    return (New-Object Version -ArgumentList $v.Major, $v.Minor, ([Math]::Max($v.Build, 0)), ([Math]::Max($v.Revision, 0)))
+}
+# Was ein Klick auf Update tut (ohne Fenster, testbar):
+#   install = neuere Version im Kanal | current = gleich | newer = installierte Version ist neuer als der Kanal
+#   none = keine Version im Kanal | check = keine gueltige Pruefung (keine, laeuft, fehlgeschlagen, veraltet) - zuerst pruefen
+# State: Zustand der letzten Pruefung (none | running | ok | empty | failed); das Alter prueft Get-HUUpdateClickAction
+function Get-HUUpdateAction([string]$Installed, [string]$Remote, [string]$State) {
+    if ($State -eq 'empty') { return 'none' }
+    if ($State -ne 'ok') { return 'check' }
+    $r = ConvertTo-HUUpdateVersion $Remote
+    if (-not $r) { return 'check' }
+    $i = ConvertTo-HUUpdateVersion $Installed
+    if (-not $i) { return 'install' }   # installierte Version unbekannt: wie bisher anbieten (Rueckfrage folgt)
+    $c = $r.CompareTo($i)
+    if ($c -gt 0) { return 'install' }
+    if ($c -eq 0) { return 'current' }
+    return 'newer'
+}
+function Set-HUUpdateCheckState([string]$State, [string]$Remote = '', [string]$Err = '', [string]$Key = '') {
+    $script:UpdateCheck = [pscustomobject]@{ State = $State; Remote = $Remote; Error = $Err; Key = $Key; Since = (Get-Date) }
+}
+# Ist ein Pruefergebnis vom Zeitpunkt $Since zum Zeitpunkt $Now noch frisch (hoechstens $script:UpdateCheckMaxAgeMin Minuten)?
+# Fehlender, unlesbarer oder kuenftiger Zeitpunkt (Uhr zurueckgestellt) = nicht frisch. Ohne Fenster, testbar.
+function Test-HUUpdateCheckFresh($Since, [datetime]$Now) {
+    if ($Since -isnot [datetime] -or $Since -eq [datetime]::MinValue) { return $false }
+    $age = ($Now - $Since).TotalMinutes
+    return ($age -ge 0 -and $age -le $script:UpdateCheckMaxAgeMin)
+}
+# Entscheidung fuer den Klick aus der letzten Pruefung. Zaehlt nicht (= zuerst pruefen): ein Ergebnis zu anderen Einstellungen
+# (z. B. vor dem Kanalwechsel) und ein Ergebnis, das aelter als $script:UpdateCheckMaxAgeMin Minuten ist - egal welches,
+# auch "neue Version da", damit die Rueckfrage die Version nennt, die Pull dann wirklich laedt
+function Get-HUUpdateClickAction([datetime]$Now = (Get-Date)) {
+    $st = $script:UpdateCheck
+    $state = "$($st.State)"
+    $sp = $(if ($st) { $st.PSObject.Properties['Since'] } else { $null })
+    if ("$($st.Key)" -ne (Get-HUUpdateCfgKey (Update-UpdateConfig))) { $state = 'none' }
+    elseif (-not (Test-HUUpdateCheckFresh $(if ($sp) { $sp.Value } else { $null }) $Now)) { $state = 'none' }
+    return (Get-HUUpdateAction "$($script:Version)" "$($st.Remote)" $state)
+}
+# Klick ohne -Version (nicht im Branch-Modus): mit gueltiger, frischer Pruefung sofort entscheiden, sonst zuerst pruefen.
+# Waehrend die Pruefung laeuft, startet ein weiterer Klick keinen zweiten Ablauf.
+function Request-HUUpdateClick {
+    $now = Get-Date
+    if ($script:UpdateClickPending -and ($now - $script:UpdateClickSince).TotalSeconds -lt 90) { Write-HULogInfo 'Update: die Prüfung läuft noch, bitte kurz warten.'; return }
+    $script:UpdateClickPending = $false
+    $a = Get-HUUpdateClickAction $now
+    if ($a -ne 'check') { Resolve-HUUpdateClick $a; return }
+    $script:UpdateClickPending = $true; $script:UpdateClickSince = $now
+    Write-HULogInfo 'Update: zuerst wird geprüft, ob es eine neue Version gibt ...'
+    $st = $script:UpdateCheck
+    # eine laufende Pruefung mit denselben Einstellungen abwarten (ihr Ende entscheidet), sonst neu pruefen
+    if ($st.State -eq 'running' -and "$($st.Key)" -eq (Get-HUUpdateCfgKey $script:UpdateCfg) -and ($now - $st.Since).TotalSeconds -lt 90) { return }
+    Invoke-UpdateCheck
+}
+# Ende einer Pruefung: wartet ein Klick, jetzt entscheiden. $Key = Einstellungen dieser Pruefung
+function Complete-HUUpdateClick([string]$Key = '') {
+    if (-not $script:UpdateClickPending) { return }
+    if ($Key -ne (Get-HUUpdateCfgKey (Update-UpdateConfig))) {
+        # Einstellungen inzwischen geaendert: Ergebnis gilt nicht; laeuft keine Pruefung mit den neuen Einstellungen, neu pruefen
+        $st = $script:UpdateCheck
+        if (-not ($st.State -eq 'running' -and "$($st.Key)" -eq (Get-HUUpdateCfgKey $script:UpdateCfg))) { Invoke-UpdateCheck }
+        return
+    }
+    $script:UpdateClickPending = $false   # vor jedem Fenster zuruecksetzen
+    Resolve-HUUpdateClick (Get-HUUpdateClickAction)
+}
+function Resolve-HUUpdateClick([string]$Action) {
+    $cfg = $script:UpdateCfg
+    $chan = "Kanal $(Format-HUChannel $(if ($cfg) { $cfg.Channel } else { 'Stable' }))"
+    $hint = $(if (Test-HUVerwalter) { "`n`nNeu installieren oder eine andere Version: Rechtsklick auf Update, Andere Version / Vorversion installieren ..." } else { '' })
+    $st = $script:UpdateCheck
+    switch ($Action) {
+        'install' { Start-HUPull -Checked }
+        'current' { Show-HUMessage "$($script:AppTitle) ist aktuell: Version $($script:Version) ($chan). Es gibt nichts zu laden.$hint" 'Update' -Icon Info }
+        'newer' { Show-HUMessage "Installiert ist Version $($script:Version), im $chan ist $($st.Remote) die neueste. Es wird nichts geändert.$hint" 'Update' -Icon Info }
+        'none' { Show-HUMessage "Im $chan gibt es noch keine $(if ($cfg -and $cfg.RequireSignature) { 'signierte ' })Version. Es wird nichts geändert." 'Update' -Icon Info }
+        default {
+            $why = "$($st.Error)".Trim().TrimEnd('.')
+            if (-not $why) { $why = $(if ($st.State -eq 'ok') { "Version im Kanal nicht lesbar ($($st.Remote))" } else { 'keine gültige Antwort' }) }
+            Show-HUMessage "Update-Prüfung nicht möglich: $why. Bitte später noch einmal versuchen." 'Update' -Icon Warning
+        }
+    }
+}
+
+# Antwort der Hintergrund-Pruefung -> Zustand fuer Set-HUUpdateCheckState (ohne Netz, ohne Fenster, testbar).
+# Kind: REL | NONE | LIMIT | AUTH | ERR (alles Unlesbare); State: ok | empty | failed; Remote, Pre, Code (HTTP), Error
+# Vorangestelltes Kennzeichen "NOTOKEN;" (vor jeder Antwortart): der gespeicherte Token wurde abgelehnt (HTTP 401), es wurde
+# ohne Token weiter versucht -> NoToken = $true; der Rest wird wie ohne Kennzeichen gelesen. Scheiterte auch der Versuch
+# ohne Token (State failed), nennt der Fehlertext zusaetzlich den abgelehnten Token
+function ConvertFrom-HUUpdateAnswer([string]$Answer, $Cfg) {
+    $r = "$Answer".Trim()
+    $o = [pscustomobject]@{ Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Error = ''; NoToken = $false }
+    if ($r -match '^(NOTOKEN;\s*)+') { $o.NoToken = $true; $r = $r.Substring($Matches[0].Length).Trim() }
+    if ($r -match '^REL:([^|]+)\|([^|]*)\|(True|False)$') {
+        $o.Kind = 'REL'; $o.Remote = $Matches[1].Trim(); $o.Pre = ($Matches[3] -eq 'True')
+        if (ConvertTo-HUUpdateVersion $o.Remote) { $o.State = 'ok' }
+        else { $o.Error = "Version im Kanal nicht lesbar ($($o.Remote))" }
+    } elseif ($r -eq 'NONE') {
+        $o.Kind = 'NONE'; $o.State = 'empty'
+    } elseif ($r -match '^LIMIT:(\d+)\|(True|False)$') {
+        $o.Kind = 'LIMIT'; $o.Code = $Matches[1]; $o.Error = "GitHub-Abfragelimit erreicht (HTTP $($o.Code))"
+    } elseif ($r -match '^AUTH:(\d+)\|(True|False)$') {
+        $o.Kind = 'AUTH'; $o.Code = $Matches[1]; $o.Error = "$($Cfg.Owner)/$($Cfg.Repo) nicht erreichbar (HTTP $($o.Code))"
+    } else {
+        $o.Error = $r -replace '^(ERR:|FEHLER:)\s*', ''
+    }
+    if ($o.NoToken -and $o.State -eq 'failed') {
+        # ohne Schlusspunkt: die Meldung des Klicks haengt ihren eigenen Satz an
+        $e = "$($o.Error)".Trim().TrimEnd('.')
+        $o.Error = $(if ($e) { "$e. " } else { '' }) + 'Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401)'
+    }
+    return $o
+}
+
+# Abruf mit Rueckfall ohne Token (ab 1.0.8, wie Pull.ps1): ruft & $Fetch $Token auf. Lehnt GitHub einen gesetzten Token mit
+# HTTP 401 ab (abgelaufen oder widerrufen, Repo evtl. inzwischen oeffentlich), genau ein zweiter Versuch mit leerem Token.
+# Andere Fehler (auch 403, 404) und ein Fehler des zweiten Versuchs gehen unveraendert weiter.
+# Rueckgabe: Result (Ausgabe von $Fetch), NoToken ($true = ohne Token geprueft). Ohne Netz testbar.
+# Ob der zweite Versuch lief, wenn auch er scheitert: die Aufrufer halten in $Fetch den zuletzt benutzten Token fest
+# (Token gesetzt, zuletzt benutzter leer = zweiter Versuch lief).
+# Laeuft auch in den Hintergrund-Bloecken (eigener Runspace): Invoke-UpdateCheck und Show-HUVersionPicker geben den Text
+# dieser Funktion als Argument mit, darum ohne Abhaengigkeit von anderen Funktionen der App.
+function Invoke-HUWithTokenFallback {
+    param([scriptblock]$Fetch, [string]$Token)
+    try {
+        $res = & $Fetch $Token
+        return [pscustomobject]@{ Result = $res; NoToken = $false }
+    } catch {
+        $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch { $code = 0 }
+        if (-not $Token -or $code -ne 401) { throw }
+    }
+    $res = & $Fetch ''
+    return [pscustomobject]@{ Result = $res; NoToken = $true }
+}
+
 # Update-Pruefung im Hintergrund. -Quiet: nur bei neuer Version etwas protokollieren
 function Invoke-UpdateCheck([switch]$Quiet) {
     $cfg = Update-UpdateConfig
-    if (-not $cfg) { Write-HULogWarn 'Update-Pruefung: Functions\Core-Update.ps1 fehlt - Pull.ps1 ausführen'; return }
+    if (-not $cfg) {
+        Write-HULogWarn 'Update-Pruefung: Functions\Core-Update.ps1 fehlt - Pull.ps1 ausführen'
+        Set-HUUpdateCheckState 'failed' '' 'Functions\Core-Update.ps1 fehlt'
+        $script:UpdateClickPending = $false
+        return
+    }
+    $key = Get-HUUpdateCfgKey $cfg
+    # ohne Hintergrund-Aufgaben kaeme nie eine Antwort (Invoke-AsyncCommand kehrt dann ohne OnComplete zurueck)
+    $pool = Get-Variable -Name RunspacePool -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    if (-not $pool) {
+        Set-HUUpdateCheckState 'failed' '' 'Hintergrund-Aufgaben nicht bereit' $key
+        Complete-HUUpdateClick $key
+        return
+    }
     $script:UpdateQuiet = [bool]$Quiet
+    Set-HUUpdateCheckState 'running' '' '' $key
     Invoke-AsyncCommand -ScriptBlock {
-        param($lib, $token, $cfg, $ua)
+        param($lib, $token, $cfg, $ua, $fb)
+        # Token des letzten Abrufs (nach dem Rueckfall leer) - fuer das Kennzeichen hatToken in LIMIT/AUTH
+        $used = @{ Tok = "$token" }
         try {
             . $lib
+            ${function:Invoke-HUWithTokenFallback} = [scriptblock]::Create($fb)
             try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
             if ($cfg.UseBranch) {
-                $h = @{ Accept = 'application/vnd.github.v3.raw'; 'User-Agent' = $ua }
-                if ($token) { $h['Authorization'] = "token $token" }
-                $r = Invoke-WebRequest "https://api.github.com/repos/$($cfg.Owner)/$($cfg.Repo)/contents/Config/version.json?ref=$($cfg.Branch)" -Headers $h -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+                $res = Invoke-HUWithTokenFallback -Token "$token" -Fetch {
+                    param($t)
+                    $used.Tok = "$t"
+                    $h = @{ Accept = 'application/vnd.github.v3.raw'; 'User-Agent' = $ua }
+                    if ($t) { $h['Authorization'] = "token $t" }
+                    Invoke-WebRequest "https://api.github.com/repos/$($cfg.Owner)/$($cfg.Repo)/contents/Config/version.json?ref=$($cfg.Branch)" -Headers $h -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+                }
+                $nt = $(if ($res.NoToken) { 'NOTOKEN;' } else { '' })
+                $r = $res.Result
                 $text = if ($r.Content -is [byte[]]) { [System.Text.Encoding]::UTF8.GetString($r.Content) } else { [string]$r.Content }
                 $v = ($text | ConvertFrom-Json).version
-                if ($v) { return "REL:$v|Branch $($cfg.Branch)|False" }
-                return 'ERR:Version im Branch nicht gefunden'
+                if ($v) { return "${nt}REL:$v|Branch $($cfg.Branch)|False" }
+                return "${nt}ERR:Version im Branch nicht gefunden"
             }
-            $rel = Select-HMRelease @(Get-HMReleases $cfg.Owner $cfg.Repo $token) $cfg.Channel -SignedOnly:$cfg.RequireSignature
-            if (-not $rel) { return 'NONE' }
-            return "REL:$($rel.Version)|$($rel.Tag)|$($rel.Prerelease)"
+            $res = Invoke-HUWithTokenFallback -Token "$token" -Fetch { param($t) $used.Tok = "$t"; @(Get-HMReleases $cfg.Owner $cfg.Repo $t) }
+            $nt = $(if ($res.NoToken) { 'NOTOKEN;' } else { '' })
+            $rel = Select-HMRelease @($res.Result) $cfg.Channel -SignedOnly:$cfg.RequireSignature
+            if (-not $rel) { return "${nt}NONE" }
+            return "${nt}REL:$($rel.Version)|$($rel.Tag)|$($rel.Prerelease)"
         } catch {
+            # gespeicherter Token abgelehnt und auch der Versuch ohne Token gescheitert: Kennzeichen auch vor der Fehlerantwort
+            $nt = $(if ("$token" -and -not "$($used.Tok)") { 'NOTOKEN;' } else { '' })
+            $token = $used.Tok
             $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch { }
             # 403 mit verbrauchtem Kontingent = Abfragelimit (ohne Token 60 je Stunde und Internetanschluss, auch bei oeffentlichen Repos)
             $left = ''; $resp = $_.Exception.Response
             try { $left = "$($resp.Headers['X-RateLimit-Remaining'])" } catch { }                                   # PS 5.1 (WebHeaderCollection)
             if (-not $left) { try { $left = "$(@($resp.Headers.GetValues('X-RateLimit-Remaining'))[0])" } catch { } }  # PS 7 (HttpResponseHeaders)
-            if ($code -in 403, 429 -and $left -eq '0') { return "LIMIT:$code|$([bool]$token)" }
-            if ($code -in 401, 403, 404) { return "AUTH:$code|$([bool]$token)" }
-            return "ERR:$($_.Exception.Message)"
+            if ($code -in 403, 429 -and $left -eq '0') { return "${nt}LIMIT:$code|$([bool]$token)" }
+            if ($code -in 401, 403, 404) { return "${nt}AUTH:$code|$([bool]$token)" }
+            return "${nt}ERR:$($_.Exception.Message)"
         }
-    } -ArgumentList @($script:UpdateLib, (Read-GitHubToken), $cfg, "$($script:App.id)") -TimeoutSec 45 -OnComplete {
-        param($result)
-        $r = "$result".Trim()
-        $cfg = $script:UpdateCfg
-        $chan = if ($cfg.UseBranch) { "Branch $($cfg.Branch)" } else { "Kanal $(Format-HUChannel $cfg.Channel)" }
-        if ($r -match '^REL:([^|]+)\|([^|]*)\|(True|False)$') {
-            $remote = $Matches[1].Trim(); $pre = ($Matches[3] -eq 'True')
-            $cmp = 0
-            try { $cmp = ([Version]$remote).CompareTo([Version]$script:Version) } catch { $cmp = 0 }
-            if ($cmp -gt 0) {
-                $script:UpdateAvailable = $true; $script:UpdateRemoteVer = $remote
-                Write-HULogWarn "Neue Version verfügbar: v$remote$(if ($pre) { ' (Test)' }) - installiert v$($script:Version). Goldener Knopf 'Update' oben rechts."
-                Set-HUUpdateButton $remote $pre
-            } else {
-                $script:UpdateAvailable = $false
-                if (-not $script:UpdateQuiet) { Write-HULogOK "Version aktuell: v$($script:Version) ($chan$(if ($cfg.RequireSignature) { ', nur signierte Updates' }))" }
-                Set-HUUpdateButton
+    } -ArgumentList @($script:UpdateLib, (Read-GitHubToken), $cfg, "$($script:App.id)", ${function:Invoke-HUWithTokenFallback}.ToString()) -State ([pscustomobject]@{ Cfg = $cfg; Key = $key }) -TimeoutSec 45 -OnComplete {
+        param($result, $ctx)
+        # Ergebnis gilt fuer die Einstellungen, mit denen geprueft wurde (nicht fuer inzwischen geaenderte)
+        $ck = $(if ($ctx) { "$($ctx.Key)" } else { '' })
+        try {
+            $r = "$result".Trim()
+            $cfg = $(if ($ctx -and $ctx.Cfg) { $ctx.Cfg } else { $script:UpdateCfg })
+            # nur festhalten, wenn die Einstellungen noch dieselben sind (sonst laeuft bzw. folgt eine neuere Pruefung)
+            $keep = ($ck -eq (Get-HUUpdateCfgKey $script:UpdateCfg))
+            $chan = if ($cfg.UseBranch) { "Branch $($cfg.Branch)" } else { "Kanal $(Format-HUChannel $cfg.Channel)" }
+            $a = ConvertFrom-HUUpdateAnswer $r $cfg
+            if ($keep) { Set-HUUpdateCheckState $a.State $a.Remote $a.Error $ck }
+            # ohne Token geprueft, weil der gespeicherte abgelehnt wurde (auch wenn die Pruefung danach scheiterte):
+            # einmal je Sitzung melden, auch beim stillen Start. Den Menuepunkt GitHub-Token sehen nur Verwalter
+            if ($a.NoToken -and -not $script:UpdateNoTokenWarned) {
+                $script:UpdateNoTokenWarned = $true
+                $adm = $false; try { $adm = [bool](Test-HUVerwalter) } catch { $adm = $false }
+                $fix = $(if ($adm) { 'Token unter Rechtsklick auf Update, GitHub-Token erneuern oder löschen.' } else { 'Bitte dem Verwalter melden.' })
+                Write-HULogWarn "Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. $fix"
             }
-        } elseif ($r -eq 'NONE') {
-            if (-not $script:UpdateQuiet) { Write-HULogInfo "Update-Prüfung: noch keine $(if ($cfg.RequireSignature) { 'signierte ' })Version im $chan" }
-        } elseif ($r -match '^LIMIT:(\d+)\|(True|False)$') {
-            Write-HULogWarn "Update-Prüfung: GitHub-Abfragelimit erreicht (HTTP $($Matches[1])) - später erneut versuchen."
-        } elseif ($r -match '^AUTH:(\d+)\|(True|False)$') {
-            Write-HULogWarn "Update-Prüfung: $($cfg.Owner)/$($cfg.Repo) nicht erreichbar (HTTP $($Matches[1]))."
-        } else {
-            # auch beim stillen Start melden - sonst sieht man nie, warum kein Update angeboten wird
-            Write-HULogWarn "Update-Prüfung fehlgeschlagen: $($r -replace '^(ERR:|FEHLER:)\s*', '')"
+            if ($a.Kind -eq 'REL') {
+                $remote = $a.Remote; $pre = $a.Pre
+                $cmp = 0
+                try { $cmp = ([Version]$remote).CompareTo([Version]$script:Version) } catch { $cmp = 0 }
+                if ($cmp -gt 0) {
+                    $script:UpdateAvailable = $true; $script:UpdateRemoteVer = $remote
+                    Write-HULogWarn "Neue Version verfügbar: v$remote$(if ($pre) { ' (Test)' }) - installiert v$($script:Version). Goldener Knopf 'Update' oben rechts."
+                    Set-HUUpdateButton $remote $pre
+                } else {
+                    $script:UpdateAvailable = $false
+                    if (-not $script:UpdateQuiet) { Write-HULogOK "Version aktuell: v$($script:Version) ($chan$(if ($cfg.RequireSignature) { ', nur signierte Updates' }))" }
+                    Set-HUUpdateButton
+                }
+            } elseif ($a.Kind -eq 'NONE') {
+                if (-not $script:UpdateQuiet) { Write-HULogInfo "Update-Prüfung: noch keine $(if ($cfg.RequireSignature) { 'signierte ' })Version im $chan" }
+            } elseif ($a.Kind -eq 'LIMIT') {
+                Write-HULogWarn "Update-Prüfung: GitHub-Abfragelimit erreicht (HTTP $($a.Code)) - später erneut versuchen."
+            } elseif ($a.Kind -eq 'AUTH') {
+                Write-HULogWarn "Update-Prüfung: $($cfg.Owner)/$($cfg.Repo) nicht erreichbar (HTTP $($a.Code))."
+            } else {
+                # auch beim stillen Start melden - sonst sieht man nie, warum kein Update angeboten wird
+                Write-HULogWarn "Update-Prüfung fehlgeschlagen: $($a.Error)"
+            }
+        } catch {
+            if ($ck -eq (Get-HUUpdateCfgKey $script:UpdateCfg)) { Set-HUUpdateCheckState 'failed' '' "$($_.Exception.Message)" $ck }
+            Write-HULogWarn "Update-Prüfung: $($_.Exception.Message)"
+        } finally {
+            # wartet ein Klick auf Update, jetzt entscheiden (auch nach einem Fehler, sonst bliebe der Klick haengen)
+            Complete-HUUpdateClick $ck
         }
     }
 }
@@ -204,17 +412,26 @@ function Get-HUOtherSessionsText {
     return (($o | ForEach-Object { "  $($_.UserName) am PC $($_.ComputerName)$(if ($_.Since) { " (seit $($_.Since.ToString('HH:mm')))" })" }) -join "`n")
 }
 
-function Start-HUPull([string]$Version = '') {
+# Kennt dieses Pull.ps1 den Schalter -NoDowngrade?
+function Test-HUPullNoDowngrade([string]$Path) {
+    try { return ([IO.File]::ReadAllText($Path, [Text.Encoding]::UTF8) -match '\[switch\]\$NoDowngrade\b') } catch { return $false }
+}
+# -Version: genau diese Version (Rechtsklick, Andere Version), ohne Vergleich.
+# Ohne -Version (Klick auf den Knopf, ab 1.0.8): zuerst entscheiden (Request-HUUpdateClick), geladen wird nur eine neuere
+# Version; -Checked = Entscheidung ist gefallen. Branch-Modus und fehlende Update-Bibliothek: wie bisher (Pull repariert).
+function Start-HUPull([string]$Version = '', [switch]$Checked) {
     $pullScript = Join-Path $script:AppRoot 'Pull.ps1'
     if (-not (Test-Path -LiteralPath $pullScript)) { Write-HULogError "Pull.ps1 nicht gefunden: $pullScript"; return }
+    $cfg = Update-UpdateConfig
+    if (-not $Version -and -not $Checked -and $cfg -and -not $cfg.UseBranch) { Request-HUUpdateClick; return }
     $others = Get-HUOtherSessionsText
     if ($others) {
         Show-HUMessage "Das Update geht erst, wenn alle anderen $($script:AppTitle) geschlossen haben.`n`nBitte zuerst schließen:`n$others" -Icon Warning
         return
     }
-    $cfg = Update-UpdateConfig
     $what = if ($Version) { "Version $Version" }
             elseif ($cfg -and $cfg.UseBranch) { "den Entwicklungsstand (Branch $($cfg.Branch), ohne Prüfsumme)" }
+            elseif ($Checked -and "$($script:UpdateCheck.Remote)") { "v$($script:UpdateCheck.Remote)" }
             elseif ($script:UpdateAvailable) { "v$($script:UpdateRemoteVer)" }
             else { "die neueste Version im Kanal $(Format-HUChannel $(if ($cfg) { $cfg.Channel } else { 'Stable' }))" }
     $check = if ($cfg -and $cfg.RequireSignature -and -not $cfg.UseBranch) { 'Prüfsumme und Signatur werden geprüft.' } elseif ($cfg -and $cfg.UseBranch) { 'OHNE Prüfung.' } else { 'Prüfsumme wird geprüft.' }
@@ -223,6 +440,9 @@ function Start-HUPull([string]$Version = '') {
         $exe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
         $argLine = "-NoProfile -ExecutionPolicy Bypass -File `"$pullScript`" -Target `"$($script:AppRoot)`" -WaitPid $PID"
         if ($Version) { $argLine += " -Version $Version" }
+        # Klick ohne -Version: Pull lehnt eine gleiche oder aeltere Version ab (zweite Sicherung, ab 1.0.8).
+        # Nur, wenn dieses Pull.ps1 den Schalter kennt (ein aelteres wuerde ihn ohnehin nur uebergehen)
+        elseif ($cfg -and -not $cfg.UseBranch -and (Test-HUPullNoDowngrade $pullScript)) { $argLine += ' -NoDowngrade' }
         Start-Process -FilePath $exe -ArgumentList $argLine -WorkingDirectory $script:AppRoot | Out-Null
         Write-HULogOK "Update gestartet - $($script:AppTitle) wird beendet und neu gestartet."
         $script:Window.Close()
@@ -272,19 +492,27 @@ function Show-HUVersionPicker {
     if (-not $cfg) { Write-HULogError 'Functions\Core-Update.ps1 fehlt - Pull.ps1 ausführen'; return }
     Write-HULogInfo 'Versionen werden von GitHub gelesen ...'
     Invoke-AsyncCommand -ScriptBlock {
-        param($lib, $token, $owner, $repo)
+        param($lib, $token, $owner, $repo, $fb)
+        # Token des letzten Abrufs (nach dem Rueckfall leer) - fuer den Hinweis auf den abgelehnten Token
+        $used = @{ Tok = "$token" }
         try {
             . $lib
-            $l = @(Get-HMReleases $owner $repo $token | ForEach-Object {
+            ${function:Invoke-HUWithTokenFallback} = [scriptblock]::Create($fb)
+            # gespeicherter Token abgelehnt (HTTP 401): einmal ohne Token, wie die Update-Pruefung
+            $res = Invoke-HUWithTokenFallback -Token "$token" -Fetch { param($t) $used.Tok = "$t"; @(Get-HMReleases $owner $repo $t) }
+            $l = @(@($res.Result) | ForEach-Object {
                 [pscustomobject]@{ Version = "$($_.Version)"; Tag = $_.Tag; Prerelease = [bool]$_.Prerelease; Date = $_.Date; Notes = $_.Notes; Manifest = [bool]$_.ManifestUrl; Signature = [bool]$_.SignatureUrl }
             })
             return ('LIST:' + (ConvertTo-Json -InputObject @($l) -Compress -Depth 3))
         } catch {
+            # Token abgelehnt und auch der Versuch ohne Token gescheitert: das gehoert in die Meldung
+            $tk = $(if ("$token" -and -not "$($used.Tok)") { 'Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401).' } else { '' })
             $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch { }
-            if ($code -in 401, 403, 404) { return "ERR:Repo nicht erreichbar (HTTP $code)" }
-            return "ERR:$($_.Exception.Message)"
+            $msg = $(if ($code -in 401, 403, 404) { "Repo nicht erreichbar (HTTP $code)" } else { "$($_.Exception.Message)" })
+            if ($tk) { $m = $msg.Trim().TrimEnd('.'); $msg = $(if ($m) { "$m. $tk" } else { $tk }) }
+            return "ERR:$msg"
         }
-    } -ArgumentList @($script:UpdateLib, (Read-GitHubToken), $cfg.Owner, $cfg.Repo) -TimeoutSec 40 -OnComplete {
+    } -ArgumentList @($script:UpdateLib, (Read-GitHubToken), $cfg.Owner, $cfg.Repo, ${function:Invoke-HUWithTokenFallback}.ToString()) -TimeoutSec 40 -OnComplete {
         param($result)
         $r = "$result".Trim()
         if ($r -notmatch '^LIST:') { Write-HULogError "Versionen nicht lesbar: $($r -replace '^(ERR:|FEHLER:)\s*', '')"; return }
@@ -635,8 +863,7 @@ function Show-HUAbout {
 
 function Register-HUUpdateHandlers {
     $b = $script:Controls['btnUpdate']
-    $b.Add_Click({ Start-HUPull })
-    $b.ToolTip = "Neue Version laden und installieren (Prüfsumme und Signatur). Gold = neue Version da.`nRechtsklick: jetzt prüfen, Info"
+    $b.Add_Click({ Start-HUPull })   # Tooltip steht in XAML\MainWindow.xaml
     $cm = New-Object System.Windows.Controls.ContextMenu
     $add = { param($h, $sb) $mi = New-Object System.Windows.Controls.MenuItem; $mi.Header = $h; $mi.Add_Click($sb); [void]$cm.Items.Add($mi); $mi }
     [void](& $add 'Jetzt nach Updates suchen' { Invoke-UpdateCheck; if (Test-HUVerwalter) { try { Start-HUAddonUpdate -Loud } catch { } } })

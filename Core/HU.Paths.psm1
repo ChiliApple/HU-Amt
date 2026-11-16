@@ -346,10 +346,53 @@ function Get-HURunningInstances {
 # Regel 3: gemeinsame Datei bearbeiten
 # ============================================================================
 
+# K6: Grund, warum eine Sperre nicht zu haben war. Nur nach einem Fehler aufrufen (keine Zugriffe im Normalfall).
+# Zugriff verweigert in der Kette der Ausnahmen (auch als InnerException von MethodInvocationException)
+function Test-HUAccessDenied($Exception) {
+    $ex = $Exception
+    while ($ex) { if ($ex -is [System.UnauthorizedAccessException]) { return $true }; $ex = $ex.InnerException }
+    return $false
+}
+function Test-HUIOFailure($Exception) {
+    $ex = $Exception
+    while ($ex) { if ($ex -is [System.IO.IOException] -or $ex -is [System.UnauthorizedAccessException]) { return $true }; $ex = $ex.InnerException }
+    return $false
+}
+# Ordner oder seine Wurzel (Laufwerk bzw. \\server\freigabe) nicht da?
+function Test-HUFolderUnreachable([string]$Dir) {
+    try {
+        $full = [IO.Path]::GetFullPath($Dir)
+        $root = [IO.Path]::GetPathRoot($full)
+        if ($root -and -not [IO.Directory]::Exists($root)) { return $true }
+        return (-not [IO.Directory]::Exists($full))
+    } catch { return $true }
+}
+# Laesst sich im Ordner nachweislich keine Datei anlegen? Probe mit eigenem Namen (nicht die Sperrdatei), wird sofort geloescht.
+# Ein einzelnes "Zugriff verweigert" an der Sperrdatei kann auch eine gerade geloeschte Sperre eines anderen sein.
+function Test-HUFolderDenied([string]$Dir) {
+    $probe = Join-Path $Dir ('.schreibtest-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    try { $fs = [IO.File]::Open($probe, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None); $fs.Dispose() }
+    catch { return (Test-HUAccessDenied $_.Exception) }
+    try { [IO.File]::Delete($probe) } catch { }
+    return $false
+}
+# 'busy' | 'rights' | 'unreachable' nach einem Fehler beim Anlegen der Sperrdatei. Im Zweifel 'busy' (bisheriges Verhalten).
+function Get-HULockFailReason([string]$Path, $Exception) {
+    $lp = "$Path.lock"
+    if (Test-Path -LiteralPath $lp) { return 'busy' }
+    $dir = [IO.Path]::GetDirectoryName($Path)
+    if (-not $dir) { return 'busy' }
+    if (Test-HUFolderUnreachable $dir) { return 'unreachable' }
+    if ((Test-HUAccessDenied $Exception) -and -not (Test-Path -LiteralPath $lp) -and (Test-HUFolderDenied $dir)) { return 'rights' }
+    return 'busy'
+}
+
 <#
 .SYNOPSIS
     Sperrt eine gemeinsame Datei zum Bearbeiten (<Datei>.lock).
     Rueckgabe: Ok = $true mit Stream (bis Unlock-HUDataFile), oder Ok = $false mit UserName, ComputerName, Since des anderen.
+    Reason: 'ok' | 'busy' (ein anderer bearbeitet) | 'rights' (kein Schreibrecht im Ordner) | 'unreachable' (Ordner bzw.
+    Laufwerk/Freigabe nicht erreichbar). Bei 'rights' und 'unreachable' sind UserName, ComputerName und Since leer.
 #>
 function Lock-HUDataFile {
     [CmdletBinding()]
@@ -359,17 +402,24 @@ function Lock-HUDataFile {
         [string]$PcName = $env:COMPUTERNAME
     )
     $lp = "$Path.lock"
+    $reason = 'busy'
     for ($try = 0; $try -lt 2; $try++) {
         if (-not (Remove-HUStaleLock $lp)) { break }
         try {
             $fs = New-HUHeldFile $lp (ConvertTo-HULockText $UserName $PcName)
-            return [pscustomobject]@{ Ok = $true; Path = $Path; LockPath = $lp; Stream = $fs; UserName = $UserName; ComputerName = $PcName; Since = Get-Date }
-        } catch [System.IO.IOException] {
-            # ein anderer war gleichzeitig schneller: noch einmal pruefen
+            return [pscustomobject]@{ Ok = $true; Path = $Path; LockPath = $lp; Stream = $fs; UserName = $UserName; ComputerName = $PcName; Since = Get-Date; Reason = 'ok' }
+        } catch {
+            if (-not (Test-HUIOFailure $_.Exception)) { throw }
+            # ein anderer war gleichzeitig schneller: noch einmal pruefen. Kein Recht oder Ordner weg: sofort melden.
+            $reason = Get-HULockFailReason $Path $_.Exception
+            if ($reason -ne 'busy') { break }
         }
     }
+    if ($reason -ne 'busy') {
+        return [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = $lp; Stream = $null; UserName = ''; ComputerName = ''; Since = $null; Reason = $reason }
+    }
     $i = ConvertFrom-HULockText (Read-HULockText $lp)
-    return [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = $lp; Stream = $null; UserName = $i.UserName; ComputerName = $i.ComputerName; Since = $i.Since }
+    return [pscustomobject]@{ Ok = $false; Path = $Path; LockPath = $lp; Stream = $null; UserName = $i.UserName; ComputerName = $i.ComputerName; Since = $i.Since; Reason = 'busy' }
 }
 
 function Unlock-HUDataFile($Lock) {
@@ -379,8 +429,18 @@ function Unlock-HUDataFile($Lock) {
 }
 
 # Text fuer die Oberflaeche: "gerade in Bearbeitung von Maria (PC-12) seit 10:15"
+# 'busy' und Ergebnisse ohne Reason: Text wie bisher (Module ersetzen darin Teilsaetze). 'rights'/'unreachable' nennen den Ordner.
 function Get-HULockInfoText($Lock) {
     if (-not $Lock -or $Lock.Ok) { return '' }
+    $rp = $Lock.PSObject.Properties['Reason']
+    $reason = $(if ($rp) { "$($rp.Value)" } else { '' })
+    if ($reason -eq 'rights' -or $reason -eq 'unreachable') {
+        $dir = ''
+        try { $dir = [IO.Path]::GetDirectoryName("$($Lock.Path)") } catch { }
+        if (-not $dir) { $dir = "$($Lock.Path)" }
+        if ($reason -eq 'rights') { return "Kein Schreibrecht im Ordner $dir. Bitte an den Verwalter wenden." }
+        return "Der Ordner $dir ist nicht erreichbar. Bitte Netzlaufwerk bzw. Freigabe pr$([char]0xFC)fen."
+    }
     $who = $(if ($Lock.UserName) { $Lock.UserName } else { 'jemand anderem' })
     $pc = $(if ($Lock.ComputerName) { " ($($Lock.ComputerName))" } else { '' })
     $since = $(if ($Lock.Since) { " seit $($Lock.Since.ToString('dd.MM. HH:mm'))" } else { '' })
