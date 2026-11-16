@@ -243,12 +243,13 @@ function Resolve-HUUpdateClick([string]$Action) {
 
 # Antwort der Hintergrund-Pruefung -> Zustand fuer Set-HUUpdateCheckState (ohne Netz, ohne Fenster, testbar).
 # Kind: REL | NONE | LIMIT | AUTH | ERR (alles Unlesbare); State: ok | empty | failed; Remote, Pre, Code (HTTP), Error
-# Vorangestelltes Kennzeichen "NOTOKEN;": der gespeicherte Token wurde abgelehnt (HTTP 401), geprueft wurde ohne Token
-# -> NoToken = $true; der Rest wird wie ohne Kennzeichen gelesen
+# Vorangestelltes Kennzeichen "NOTOKEN;" (vor jeder Antwortart): der gespeicherte Token wurde abgelehnt (HTTP 401), es wurde
+# ohne Token weiter versucht -> NoToken = $true; der Rest wird wie ohne Kennzeichen gelesen. Scheiterte auch der Versuch
+# ohne Token (State failed), nennt der Fehlertext zusaetzlich den abgelehnten Token
 function ConvertFrom-HUUpdateAnswer([string]$Answer, $Cfg) {
     $r = "$Answer".Trim()
     $o = [pscustomobject]@{ Kind = 'ERR'; State = 'failed'; Remote = ''; Pre = $false; Code = ''; Error = ''; NoToken = $false }
-    if ($r -match '^NOTOKEN;') { $o.NoToken = $true; $r = $r.Substring(8).Trim() }
+    if ($r -match '^(NOTOKEN;\s*)+') { $o.NoToken = $true; $r = $r.Substring($Matches[0].Length).Trim() }
     if ($r -match '^REL:([^|]+)\|([^|]*)\|(True|False)$') {
         $o.Kind = 'REL'; $o.Remote = $Matches[1].Trim(); $o.Pre = ($Matches[3] -eq 'True')
         if (ConvertTo-HUUpdateVersion $o.Remote) { $o.State = 'ok' }
@@ -262,6 +263,11 @@ function ConvertFrom-HUUpdateAnswer([string]$Answer, $Cfg) {
     } else {
         $o.Error = $r -replace '^(ERR:|FEHLER:)\s*', ''
     }
+    if ($o.NoToken -and $o.State -eq 'failed') {
+        # ohne Schlusspunkt: die Meldung des Klicks haengt ihren eigenen Satz an
+        $e = "$($o.Error)".Trim().TrimEnd('.')
+        $o.Error = $(if ($e) { "$e. " } else { '' }) + 'Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401)'
+    }
     return $o
 }
 
@@ -269,6 +275,8 @@ function ConvertFrom-HUUpdateAnswer([string]$Answer, $Cfg) {
 # HTTP 401 ab (abgelaufen oder widerrufen, Repo evtl. inzwischen oeffentlich), genau ein zweiter Versuch mit leerem Token.
 # Andere Fehler (auch 403, 404) und ein Fehler des zweiten Versuchs gehen unveraendert weiter.
 # Rueckgabe: Result (Ausgabe von $Fetch), NoToken ($true = ohne Token geprueft). Ohne Netz testbar.
+# Ob der zweite Versuch lief, wenn auch er scheitert: die Aufrufer halten in $Fetch den zuletzt benutzten Token fest
+# (Token gesetzt, zuletzt benutzter leer = zweiter Versuch lief).
 # Laeuft auch in den Hintergrund-Bloecken (eigener Runspace): Invoke-UpdateCheck und Show-HUVersionPicker geben den Text
 # dieser Funktion als Argument mit, darum ohne Abhaengigkeit von anderen Funktionen der App.
 function Invoke-HUWithTokenFallback {
@@ -324,7 +332,7 @@ function Invoke-UpdateCheck([switch]$Quiet) {
                 $text = if ($r.Content -is [byte[]]) { [System.Text.Encoding]::UTF8.GetString($r.Content) } else { [string]$r.Content }
                 $v = ($text | ConvertFrom-Json).version
                 if ($v) { return "${nt}REL:$v|Branch $($cfg.Branch)|False" }
-                return 'ERR:Version im Branch nicht gefunden'
+                return "${nt}ERR:Version im Branch nicht gefunden"
             }
             $res = Invoke-HUWithTokenFallback -Token "$token" -Fetch { param($t) $used.Tok = "$t"; @(Get-HMReleases $cfg.Owner $cfg.Repo $t) }
             $nt = $(if ($res.NoToken) { 'NOTOKEN;' } else { '' })
@@ -332,15 +340,17 @@ function Invoke-UpdateCheck([switch]$Quiet) {
             if (-not $rel) { return "${nt}NONE" }
             return "${nt}REL:$($rel.Version)|$($rel.Tag)|$($rel.Prerelease)"
         } catch {
+            # gespeicherter Token abgelehnt und auch der Versuch ohne Token gescheitert: Kennzeichen auch vor der Fehlerantwort
+            $nt = $(if ("$token" -and -not "$($used.Tok)") { 'NOTOKEN;' } else { '' })
             $token = $used.Tok
             $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch { }
             # 403 mit verbrauchtem Kontingent = Abfragelimit (ohne Token 60 je Stunde und Internetanschluss, auch bei oeffentlichen Repos)
             $left = ''; $resp = $_.Exception.Response
             try { $left = "$($resp.Headers['X-RateLimit-Remaining'])" } catch { }                                   # PS 5.1 (WebHeaderCollection)
             if (-not $left) { try { $left = "$(@($resp.Headers.GetValues('X-RateLimit-Remaining'))[0])" } catch { } }  # PS 7 (HttpResponseHeaders)
-            if ($code -in 403, 429 -and $left -eq '0') { return "LIMIT:$code|$([bool]$token)" }
-            if ($code -in 401, 403, 404) { return "AUTH:$code|$([bool]$token)" }
-            return "ERR:$($_.Exception.Message)"
+            if ($code -in 403, 429 -and $left -eq '0') { return "${nt}LIMIT:$code|$([bool]$token)" }
+            if ($code -in 401, 403, 404) { return "${nt}AUTH:$code|$([bool]$token)" }
+            return "${nt}ERR:$($_.Exception.Message)"
         }
     } -ArgumentList @($script:UpdateLib, (Read-GitHubToken), $cfg, "$($script:App.id)", ${function:Invoke-HUWithTokenFallback}.ToString()) -State ([pscustomobject]@{ Cfg = $cfg; Key = $key }) -TimeoutSec 45 -OnComplete {
         param($result, $ctx)
@@ -354,10 +364,13 @@ function Invoke-UpdateCheck([switch]$Quiet) {
             $chan = if ($cfg.UseBranch) { "Branch $($cfg.Branch)" } else { "Kanal $(Format-HUChannel $cfg.Channel)" }
             $a = ConvertFrom-HUUpdateAnswer $r $cfg
             if ($keep) { Set-HUUpdateCheckState $a.State $a.Remote $a.Error $ck }
-            # ohne Token geprueft, weil der gespeicherte abgelehnt wurde: einmal je Sitzung melden, auch beim stillen Start
-            if ($a.NoToken -and $a.Kind -in 'REL', 'NONE' -and -not $script:UpdateNoTokenWarned) {
+            # ohne Token geprueft, weil der gespeicherte abgelehnt wurde (auch wenn die Pruefung danach scheiterte):
+            # einmal je Sitzung melden, auch beim stillen Start. Den Menuepunkt GitHub-Token sehen nur Verwalter
+            if ($a.NoToken -and -not $script:UpdateNoTokenWarned) {
                 $script:UpdateNoTokenWarned = $true
-                Write-HULogWarn 'Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. Token unter Rechtsklick auf Update, GitHub-Token erneuern oder löschen.'
+                $adm = $false; try { $adm = [bool](Test-HUVerwalter) } catch { $adm = $false }
+                $fix = $(if ($adm) { 'Token unter Rechtsklick auf Update, GitHub-Token erneuern oder löschen.' } else { 'Bitte dem Verwalter melden.' })
+                Write-HULogWarn "Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. $fix"
             }
             if ($a.Kind -eq 'REL') {
                 $remote = $a.Remote; $pre = $a.Pre
@@ -480,19 +493,24 @@ function Show-HUVersionPicker {
     Write-HULogInfo 'Versionen werden von GitHub gelesen ...'
     Invoke-AsyncCommand -ScriptBlock {
         param($lib, $token, $owner, $repo, $fb)
+        # Token des letzten Abrufs (nach dem Rueckfall leer) - fuer den Hinweis auf den abgelehnten Token
+        $used = @{ Tok = "$token" }
         try {
             . $lib
             ${function:Invoke-HUWithTokenFallback} = [scriptblock]::Create($fb)
             # gespeicherter Token abgelehnt (HTTP 401): einmal ohne Token, wie die Update-Pruefung
-            $res = Invoke-HUWithTokenFallback -Token "$token" -Fetch { param($t) @(Get-HMReleases $owner $repo $t) }
+            $res = Invoke-HUWithTokenFallback -Token "$token" -Fetch { param($t) $used.Tok = "$t"; @(Get-HMReleases $owner $repo $t) }
             $l = @(@($res.Result) | ForEach-Object {
                 [pscustomobject]@{ Version = "$($_.Version)"; Tag = $_.Tag; Prerelease = [bool]$_.Prerelease; Date = $_.Date; Notes = $_.Notes; Manifest = [bool]$_.ManifestUrl; Signature = [bool]$_.SignatureUrl }
             })
             return ('LIST:' + (ConvertTo-Json -InputObject @($l) -Compress -Depth 3))
         } catch {
+            # Token abgelehnt und auch der Versuch ohne Token gescheitert: das gehoert in die Meldung
+            $tk = $(if ("$token" -and -not "$($used.Tok)") { 'Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401).' } else { '' })
             $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch { }
-            if ($code -in 401, 403, 404) { return "ERR:Repo nicht erreichbar (HTTP $code)" }
-            return "ERR:$($_.Exception.Message)"
+            $msg = $(if ($code -in 401, 403, 404) { "Repo nicht erreichbar (HTTP $code)" } else { "$($_.Exception.Message)" })
+            if ($tk) { $m = $msg.Trim().TrimEnd('.'); $msg = $(if ($m) { "$m. $tk" } else { $tk }) }
+            return "ERR:$msg"
         }
     } -ArgumentList @($script:UpdateLib, (Read-GitHubToken), $cfg.Owner, $cfg.Repo, ${function:Invoke-HUWithTokenFallback}.ToString()) -TimeoutSec 40 -OnComplete {
         param($result)
