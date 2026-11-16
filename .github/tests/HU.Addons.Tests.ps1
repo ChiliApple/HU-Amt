@@ -303,6 +303,21 @@ Describe 'Wartende Fassung uebernehmen (V5, Use-HUAddonPending)' {
         $r[0].Status | Should -Be 'Repariert'
         [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
     }
+    It 'Abbruch zwischen den Schritten, andere Sitzung offen: alte Fassung kommt sofort zurück, neue wartet' {
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AD '.alt') -Force)
+        Move-Item -LiteralPath (Join-Path $script:AD 'Reisen') -Destination (Join-Path $script:AD '.alt\Reisen')
+        $others = @([pscustomobject]@{ UserName = 'maria'; ComputerName = 'PC-12'; Since = (Get-Date); Path = 'x' })
+        $r = @(Use-HUAddonPending $script:AD -Others $others)
+        @($r | ForEach-Object Status) -contains 'Wartet' | Should -BeTrue
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
+        Test-Path (Join-Path $script:AD '.pending\Reisen\addon.json') | Should -BeTrue
+    }
+    It 'Rest in .alt neben einem vorhandenen Modul wird vor dem Tausch entfernt, Tausch klappt' {
+        [void](New-TestAddon (Join-Path $script:AD '.alt') 'Reisen' @{ version = '1.0.3' })
+        $r = @(Use-HUAddonPending $script:AD)
+        $r[-1].Status | Should -Be 'Uebernommen'
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'neu'
+    }
     It 'der Ordner .alt wird nicht als Modul geladen' {
         [void](New-TestAddon (Join-Path $script:AD '.alt') 'Fristen')
         @(Get-HUAddonsInDir $script:AD ([version]'9.9.9') 'Privat' | ForEach-Object { $_.Id }) | Should -Not -Contain 'Fristen'

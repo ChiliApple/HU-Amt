@@ -130,6 +130,11 @@ Describe 'Sichern: verschwundene Dateien und Grenzen (V6)' {
         $o = Open-HUAppBackup -Path $r.Path -Password $script:Pw -AppVersion '0.0.1' -AppRoot (Join-Path $script:Base 'App') -DataRoot $script:Data
         @($o.Errors).Count | Should -Be 0
     }
+    It 'Datenordner weg (z. B. Freigabe getrennt): keine leere Sicherung, Abbruch' {
+        Remove-Item -LiteralPath $script:Data -Recurse -Force
+        { New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1' } | Should -Throw
+        @(Get-ChildItem -LiteralPath $script:Out -Filter '*.husicherung' -ErrorAction SilentlyContinue).Count | Should -Be 0
+    }
     It 'gesperrte Datei wird nicht still uebergangen: Sicherung bricht ab' {
         $p = Join-Path $script:Data 'Beispiel\verlauf.txt'
         $h = [IO.File]::Open($p, 'Open', 'ReadWrite', 'None')
