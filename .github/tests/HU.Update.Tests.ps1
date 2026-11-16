@@ -564,7 +564,11 @@ Describe 'Update-Pruefung: Antwort auswerten (ab 1.0.8)' {
                 try { & $Do } catch { return [int]$_.Exception.Response.StatusCode }
                 return -1
             }
-            $script:Warn401 = 'WARN|Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. Token unter Rechtsklick auf Update, GitHub-Token erneuern oder löschen.'
+            # Warnung zum abgelehnten Token: nur Verwalter sehen den Menuepunkt GitHub-Token, andere melden es dem Verwalter
+            $script:Warn401Admin = 'WARN|Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. Token unter Rechtsklick auf Update, GitHub-Token erneuern oder löschen.'
+            $script:Warn401User = 'WARN|Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. Bitte dem Verwalter melden.'
+            # Zusatz im Fehlertext, wenn der Token abgelehnt wurde und auch der Versuch ohne Token scheiterte
+            $script:Tok401 = 'Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401)'
             # Platzhalter fuer die Update-Bibliothek im Hintergrund: kein Netz, jeder Abruf wird in einer Datei festgehalten
             # Mode: ok = mit Token 401, ohne Token Antwort | ohne404 = mit Token 401, ohne Token 404 | mit403 = mit Token 403
             function New-TestStubLib([string]$Mode) {
@@ -663,11 +667,74 @@ function Invoke-WebRequest {
             $script:UpdateCheck.State | Should -Be 'ok'
             $script:UpdateCheck.Remote | Should -Be '1.0.8'
             Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False'
-            @($script:Log | Where-Object { $_ -ceq $script:Warn401 }).Count | Should -Be 1
+            @($script:Log | Where-Object { $_ -ceq $script:Warn401User }).Count | Should -Be 1
             # ohne Kennzeichen keine Warnung
             $script:UpdateNoTokenWarned = $false; $script:Log.Clear()
             Invoke-Answer 'REL:1.0.8|v1.0.8|False'
-            @($script:Log | Where-Object { $_ -ceq $script:Warn401 }).Count | Should -Be 0
+            @($script:Log | Where-Object { $_ -like '*GitHub-Token wird abgelehnt*' }).Count | Should -Be 0
+        }
+        It 'Kennzeichen vor <Answer>: abgetrennt, NoToken gesetzt, Fehlertext nennt den abgelehnten Token' -TestCases @(
+            @{ Answer = 'NOTOKEN;AUTH:404|False'; Kind = 'AUTH'; Code = '404'; Err = 'o/r nicht erreichbar (HTTP 404)' }
+            @{ Answer = 'NOTOKEN;LIMIT:403|False'; Kind = 'LIMIT'; Code = '403'; Err = 'GitHub-Abfragelimit erreicht (HTTP 403)' }
+            @{ Answer = 'NOTOKEN;ERR:Netz weg'; Kind = 'ERR'; Code = ''; Err = 'Netz weg' }
+            @{ Answer = 'NOTOKEN;ERR:Zeitüberschreitung.'; Kind = 'ERR'; Code = ''; Err = 'Zeitüberschreitung' }
+            @{ Answer = 'NOTOKEN;REL:kaputt|x|False'; Kind = 'REL'; Code = ''; Err = 'Version im Kanal nicht lesbar (kaputt)' }
+            @{ Answer = 'NOTOKEN;NOTOKEN;AUTH:401|False'; Kind = 'AUTH'; Code = '401'; Err = 'o/r nicht erreichbar (HTTP 401)' }
+        ) {
+            param($Answer, $Kind, $Code, $Err)
+            $a = ConvertFrom-HUUpdateAnswer $Answer ([pscustomobject]@{ Owner = 'o'; Repo = 'r' })
+            $a.Kind | Should -BeExactly $Kind
+            $a.State | Should -BeExactly 'failed'
+            "$($a.Code)" | Should -BeExactly $Code
+            $a.NoToken | Should -BeTrue
+            $a.Error | Should -BeExactly "$Err. $($script:Tok401)"
+            $a.Error | Should -Not -Match 'NOTOKEN'
+        }
+        It 'Kennzeichen ohne Rest: Fehlertext nur der Zusatz; ohne Kennzeichen kein Zusatz' {
+            $c = [pscustomobject]@{ Owner = 'o'; Repo = 'r' }
+            $a = ConvertFrom-HUUpdateAnswer 'NOTOKEN;' $c
+            $a.Kind | Should -BeExactly 'ERR'; $a.NoToken | Should -BeTrue; $a.Error | Should -BeExactly $script:Tok401
+            foreach ($x in 'AUTH:404|False', 'LIMIT:403|False', 'ERR:Netz weg') {
+                $a = ConvertFrom-HUUpdateAnswer $x $c
+                $a.NoToken | Should -BeFalse
+                $a.Error | Should -Not -Match 'abgelehnt'
+            }
+        }
+        It 'Ablauf: gescheiterte Antwort mit Kennzeichen: Zustand failed, Klick-Meldung nennt den abgelehnten Token, Warnung einmal' {
+            $script:UpdateClickPending = $true; $script:UpdateClickSince = Get-Date
+            Invoke-Answer 'NOTOKEN;AUTH:404|False'
+            $script:UpdateCheck.State | Should -Be 'failed'
+            $script:UpdateCheck.Error | Should -BeExactly "$($script:Repo) nicht erreichbar (HTTP 404). $($script:Tok401)"
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Msgs.Count | Should -Be 1
+            $script:Msgs[0] | Should -BeExactly "Warning|Update-Prüfung nicht möglich: $($script:Repo) nicht erreichbar (HTTP 404). $($script:Tok401). Bitte später noch einmal versuchen."
+            $script:Log | Should -Contain "WARN|Update-Prüfung: $($script:Repo) nicht erreichbar (HTTP 404)."
+            # zweite gescheiterte Pruefung: keine zweite Warnung
+            Invoke-Answer 'NOTOKEN;LIMIT:403|False'
+            $script:UpdateCheck.Error | Should -BeExactly "GitHub-Abfragelimit erreicht (HTTP 403). $($script:Tok401)"
+            @($script:Log | Where-Object { $_ -ceq $script:Warn401User }).Count | Should -Be 1
+            @($script:Log | Where-Object { $_ -like '*NOTOKEN*' }).Count | Should -Be 0
+            @($script:Msgs | Where-Object { $_ -like '*NOTOKEN*' }).Count | Should -Be 0
+        }
+        It 'Warntext: Verwalter <Verwalter> bekommt den passenden Hinweis' -TestCases @(
+            @{ Verwalter = $true; Answer = 'NOTOKEN;REL:1.0.8|v1.0.8|False' }
+            @{ Verwalter = $false; Answer = 'NOTOKEN;REL:1.0.8|v1.0.8|False' }
+            @{ Verwalter = $true; Answer = 'NOTOKEN;AUTH:404|False' }
+            @{ Verwalter = $false; Answer = 'NOTOKEN;AUTH:404|False' }
+        ) {
+            param($Verwalter, $Answer)
+            if ($Verwalter) { Mock Test-HUVerwalter { $true } } else { Mock Test-HUVerwalter { $false } }
+            Invoke-Answer $Answer
+            $want = $(if ($Verwalter) { $script:Warn401Admin } else { $script:Warn401User })
+            $other = $(if ($Verwalter) { $script:Warn401User } else { $script:Warn401Admin })
+            @($script:Log | Where-Object { $_ -ceq $want }).Count | Should -Be 1
+            @($script:Log | Where-Object { $_ -ceq $other }).Count | Should -Be 0
+        }
+        It 'Warntext: scheitert die Verwalter-Abfrage, Text fuer Nicht-Verwalter, die Pruefung bleibt gueltig' {
+            Mock Test-HUVerwalter { throw 'Verwalter-Liste nicht lesbar' }
+            Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False'
+            $script:UpdateCheck.State | Should -Be 'ok'
+            @($script:Log | Where-Object { $_ -ceq $script:Warn401User }).Count | Should -Be 1
         }
         It 'Ablauf: wartender Klick wird mit Kennzeichen normal entschieden' {
             $script:UpdateClickPending = $true; $script:UpdateClickSince = Get-Date
@@ -676,20 +743,20 @@ function Invoke-WebRequest {
             $script:Msgs.Count | Should -Be 1
             $script:Msgs[0] | Should -BeExactly 'Info|HU-Amt ist aktuell: Version 1.0.8 (Kanal Stabil). Es gibt nichts zu laden.'
         }
-        It 'echter Hintergrund-Block (Release): 401 mit Token, ohne Token gefunden = NOTOKEN;REL; ohne Token 404 = AUTH:404|False' {
+        It 'echter Hintergrund-Block (Release): 401 mit Token, ohne Token gefunden = NOTOKEN;REL; ohne Token 404 = NOTOKEN;AUTH:404|False; 403 ohne Kennzeichen' {
             Invoke-UpdateCheck
             $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
             $al[0] = New-TestStubLib 'ok'
             Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;REL:1.0.9|v1.0.9|False'
             Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
             $al[0] = New-TestStubLib 'ohne404'
-            Invoke-TestBackground $al | Should -BeExactly 'AUTH:404|False'
+            Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;AUTH:404|False'
             Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
             $al[0] = New-TestStubLib 'mit403'
             Invoke-TestBackground $al | Should -BeExactly 'AUTH:403|True'
             Get-TestStubCalls | Should -Be @('REL|alt')
         }
-        It 'echter Hintergrund-Block (Branch): 401 mit Token, zweiter Abruf ohne Authorization = NOTOKEN;REL' {
+        It 'echter Hintergrund-Block (Branch): 401 mit Token, zweiter Abruf ohne Authorization = NOTOKEN;REL; ohne Token 404 = NOTOKEN;AUTH:404|False' {
             Invoke-UpdateCheck
             $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
             $al[2] = [pscustomobject]@{ Owner = 'o'; Repo = 'r'; Channel = 'Stable'; RequireSignature = $false; UseBranch = $true; Branch = 'dev' }
@@ -697,9 +764,12 @@ function Invoke-WebRequest {
             Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;REL:1.0.9|Branch dev|False'
             Get-TestStubCalls | Should -Be @('WEB|alt', 'WEB|')
             $al[0] = New-TestStubLib 'ohne404'
-            Invoke-TestBackground $al | Should -BeExactly 'AUTH:404|False'
+            Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;AUTH:404|False'
+            Get-TestStubCalls | Should -Be @('WEB|alt', 'WEB|')
+            $al[0] = New-TestStubLib 'mit403'
+            Invoke-TestBackground $al | Should -BeExactly 'AUTH:403|True'
         }
-        It 'echter Hintergrund-Block (Andere Version): Versionsliste wird nach 401 ohne Token gelesen' {
+        It 'echter Hintergrund-Block (Andere Version): Versionsliste wird nach 401 ohne Token gelesen, 401 dann 404 nennt den abgelehnten Token' {
             Show-HUVersionPicker
             $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
             $al[0] = New-TestStubLib 'ok'
@@ -708,7 +778,7 @@ function Invoke-WebRequest {
             $r | Should -BeLike '*"Version":"1.0.9"*'
             Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
             $al[0] = New-TestStubLib 'ohne404'
-            Invoke-TestBackground $al | Should -BeExactly 'ERR:Repo nicht erreichbar (HTTP 404)'
+            Invoke-TestBackground $al | Should -BeExactly "ERR:Repo nicht erreichbar (HTTP 404). $($script:Tok401)."
             $al[0] = New-TestStubLib 'mit403'
             Invoke-TestBackground $al | Should -BeExactly 'ERR:Repo nicht erreichbar (HTTP 403)'
             Get-TestStubCalls | Should -Be @('REL|alt')
