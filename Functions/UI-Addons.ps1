@@ -52,13 +52,13 @@ function Add-HUAddonTab($Info) {
 function Get-HUAddonStartList {
     $dir = Get-HUAddonsDir
     # V5: nur tauschen, wenn sonst niemand das Programm offen hat (sonst beim naechsten Start). Fehler sichtbar nach dem Start.
-    $script:AddonPendingIssues = @()
+    $script:AddonPendingIssues = @(); $script:AddonPendingWaiting = @()
     try {
         $others = @(); try { $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock) } catch { }
         foreach ($r in @(Use-HUAddonPending $dir -Others $others)) {
             switch ($r.Status) {
                 'Fehler' { Write-HULogWarn "Module: $($r.Text)"; $script:AddonPendingIssues += $r.Text }
-                'Wartet' { Write-HULogInfo "Module: $($r.Text). Sie wird beim nächsten Start übernommen, wenn sonst niemand das Programm offen hat." }
+                'Wartet' { Write-HULogInfo "Module: $($r.Text). Sie wird beim nächsten Start übernommen, wenn sonst niemand das Programm offen hat."; $script:AddonPendingWaiting += $r.Text }
                 default { Write-HULogInfo "Module: $($r.Text)" }
             }
         }
@@ -469,7 +469,7 @@ function Import-HUAddonKeyFile([string]$Path, $Owner = $null, [switch]$FromPacka
 
 # Hinweis nach dem Laden einer neuen Fassung: jetzt neu starten?
 function Show-HUAddonRestartPrompt([string[]]$Names) {
-    $txt = "Modul geladen:`n`n  $($Names -join "`n  ")`n`nEs wird nach einem Neustart von $($script:AppTitle) aktiv. Jetzt neu starten?"
+    $txt = "Modul geladen:`n`n  $($Names -join "`n  ")`n`nEs wird beim nächsten Start von $($script:AppTitle) aktiv, an dem sonst niemand $($script:AppTitle) offen hat. Haben andere es gerade offen, bleibt bis dahin die bisherige Fassung. Jetzt neu starten?"
     if (-not (Confirm-HU $txt 'Module')) { Write-HULogInfo 'Modul wird beim nächsten Start geladen.'; return }
     Restart-HUApp
 }

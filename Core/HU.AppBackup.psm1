@@ -355,7 +355,8 @@ function Read-HUAbFileBytes([string]$Path) {
             try { $ms = New-Object IO.MemoryStream; $fs.CopyTo($ms); return , $ms.ToArray() } finally { $fs.Dispose() }
         } catch {
             $ex = $_.Exception; while ($ex.InnerException -and -not ($ex -is [IO.IOException])) { $ex = $ex.InnerException }
-            if (($ex -is [IO.FileNotFoundException] -or $ex -is [IO.DirectoryNotFoundException]) -and -not [IO.File]::Exists($Path)) { return $null }
+            # nur wenn die Datei selbst weg ist, ihr Ordner aber da: fehlt der Ordner (Freigabe getrennt, Ordner verschoben), abbrechen
+            if ($ex -is [IO.FileNotFoundException] -and -not [IO.File]::Exists($Path) -and [IO.Directory]::Exists([IO.Path]::GetDirectoryName($Path))) { return $null }
             if ($try -ge 3) { throw }; Start-Sleep -Milliseconds 300
         }
     }
@@ -454,6 +455,7 @@ function New-HUAppBackup {
                 $bytes += $data.Length
                 if (($man.Count % 25) -eq 0) { & $prog 'Dateien' $man.Count }
             }
+            if ($Sources.Count -and -not $man.Count) { throw "Keine einzige Datei war lesbar ($($skipped.Count) fehlen). Es wurde keine Sicherung geschrieben. Ist der Datenordner erreichbar?" }
             $mj = [Text.Encoding]::UTF8.GetBytes((([pscustomobject]@{ Format = 1; App = $AppVersion; Created = $Now.ToString('s'); Files = $man.ToArray(); Modules = @($Modules) }) | ConvertTo-Json -Depth 6))
             # V6: noch einmal mit den tatsaechlich gelesenen Groessen samt Liste (Dateien koennen inzwischen gewachsen sein)
             $warning = Test-HUAbLimits $sizes ([int64]$mj.Length)

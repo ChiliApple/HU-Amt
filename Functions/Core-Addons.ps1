@@ -187,17 +187,15 @@ function Use-HUAddonPending([string]$AddonsDir, [object[]]$Others = @()) {
         $src = Join-Path $pend $id; $dst = Join-Path $AddonsDir $id; $old = Join-Path $alt $id
         $hasNew = Test-Path -LiteralPath (Join-Path $src 'addon.json')
         try {
-            if (-not $hasNew) {
-                # nur ein Rest in .alt: liegt das Modul nicht mehr an seinem Platz, zurueckholen, sonst den Rest entfernen
-                if (-not (Test-Path -LiteralPath $old)) { continue }
-                if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $old -Recurse -Force -ErrorAction Stop; continue }
-                & $mv $old $dst
-                & $note $id 'Repariert' "Modul $id nach einem abgebrochenen Austausch wiederhergestellt"
-                continue
+            # zuerst einen Rest in .alt bereinigen, auch wenn noch jemand offen hat: fehlt das Modul an seinem Platz
+            # (Abbruch mitten im Austausch), die bisherige Fassung zurueckholen, sonst den Rest entfernen
+            if (Test-Path -LiteralPath $old) {
+                if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $old -Recurse -Force -ErrorAction Stop }
+                else { & $mv $old $dst; & $note $id 'Repariert' "Modul $id nach einem abgebrochenen Austausch wiederhergestellt" }
             }
+            if (-not $hasNew) { continue }
             if ($who.Count) { & $note $id 'Wartet' "Neue Fassung von $id wartet, weil noch offen bei: $($who -join ', ')"; continue }
             if (-not (Test-Path -LiteralPath $alt)) { [void](New-Item -ItemType Directory -Path $alt -Force -ErrorAction Stop) }
-            if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Recurse -Force -ErrorAction Stop }
             $moved = $false
             if (Test-Path -LiteralPath $dst) { & $mv $dst $old; $moved = $true }
             try { & $mv $src $dst }
@@ -395,7 +393,7 @@ function Install-HUAddon([string]$Owner, [string]$Repo, [string]$Token, [string]
             if (Test-Path -LiteralPath $pend) { Remove-Item -LiteralPath $pend -Recurse -Force }
             New-Item -ItemType Directory -Path (Split-Path $pend -Parent) -Force | Out-Null
             Move-Item -LiteralPath $stage -Destination $pend -Force
-            $res.Status = 'Neu'; $res.Text = "$($i.Title) $($i.Version) geladen - wirkt nach dem Neustart"
+            $res.Status = 'Neu'; $res.Text = "$($i.Title) $($i.Version) geladen - wirkt nach dem nächsten Start, an dem sonst niemand das Programm offen hat"
             return $res
         } finally { if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue } }
     } catch {
