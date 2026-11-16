@@ -157,18 +157,56 @@ function Test-HUAddonFiles([string]$Dir, [string]$Thumbprint) {
     return ''
 }
 
-# Wartende neue Fassungen uebernehmen (vor dem Laden, beim Start)
-function Use-HUAddonPending([string]$AddonsDir) {
+# Wartende neue Fassungen uebernehmen (vor dem Laden, beim Start).
+# -Others: andere laufende Sitzungen (Get-HURunningInstances). Laeuft noch jemand, wird nichts getauscht (Status Wartet):
+# die anderen haben das alte Modul geladen, und auf der Freigabe liesse es sich nur halb ersetzen.
+# Tausch per Umbenennen: altes Modul nach Addons\.alt\<Id>, neues hinein, gelingt das nicht, kommt das alte zurueck.
+# Ein Abbruch dazwischen (Programm weg, Strom weg) wird beim naechsten Start repariert. Ordner mit . am Anfang laedt der
+# Modulscanner nicht. Rueckgabe: je Modul Id, Status (Uebernommen, Wartet, Fehler, Repariert) und Text.
+function Use-HUAddonPending([string]$AddonsDir, [object[]]$Others = @()) {
+    $out = New-Object System.Collections.Generic.List[object]
     $pend = Join-Path $AddonsDir '.pending'
-    if (-not (Test-Path -LiteralPath $pend)) { return }
-    foreach ($d in @(Get-ChildItem -LiteralPath $pend -Directory -ErrorAction SilentlyContinue)) {
-        if (-not (Test-HUAddonId $d.Name)) { continue }
-        $dst = Join-Path $AddonsDir $d.Name
-        try {
-            if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Recurse -Force -ErrorAction Stop }
-            Move-Item -LiteralPath $d.FullName -Destination $dst -Force -ErrorAction Stop
-        } catch { }
+    $alt = Join-Path $AddonsDir '.alt'
+    $note = { param($id, $st, $tx) $out.Add([pscustomobject]@{ Id = $id; Status = $st; Text = $tx }) }
+    # echtes Umbenennen. Nicht Move-Item: das verschiebt nach einem gescheiterten Umbenennen Datei fuer Datei weiter
+    # und hinterlaesst ein halbes Modul (nachgestellt mit einer offenen Datei im Modul).
+    $mv = { param($from, $to) try { [IO.Directory]::Move($from, $to) } catch { $e = $_.Exception; if ($e.InnerException) { $e = $e.InnerException }; throw $e.Message } }
+    $ids = @()
+    foreach ($base in $pend, $alt) {
+        if (Test-Path -LiteralPath $base) { $ids += @(Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) }
     }
+    $who = @($Others | Where-Object { $_ } | ForEach-Object { "$($_.UserName) ($($_.ComputerName))" })
+    foreach ($id in @($ids | Sort-Object -Unique)) {
+        if (-not (Test-HUAddonId $id)) { continue }
+        $src = Join-Path $pend $id; $dst = Join-Path $AddonsDir $id; $old = Join-Path $alt $id
+        $hasNew = Test-Path -LiteralPath (Join-Path $src 'addon.json')
+        try {
+            if (-not $hasNew) {
+                # nur ein Rest in .alt: liegt das Modul nicht mehr an seinem Platz, zurueckholen, sonst den Rest entfernen
+                if (-not (Test-Path -LiteralPath $old)) { continue }
+                if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $old -Recurse -Force -ErrorAction Stop; continue }
+                & $mv $old $dst
+                & $note $id 'Repariert' "Modul $id nach einem abgebrochenen Austausch wiederhergestellt"
+                continue
+            }
+            if ($who.Count) { & $note $id 'Wartet' "Neue Fassung von $id wartet, weil noch offen bei: $($who -join ', ')"; continue }
+            if (-not (Test-Path -LiteralPath $alt)) { [void](New-Item -ItemType Directory -Path $alt -Force -ErrorAction Stop) }
+            if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Recurse -Force -ErrorAction Stop }
+            $moved = $false
+            if (Test-Path -LiteralPath $dst) { & $mv $dst $old; $moved = $true }
+            try { & $mv $src $dst }
+            catch {
+                $why = $_.Exception.Message
+                if ($moved -and -not (Test-Path -LiteralPath $dst)) { try { & $mv $old $dst } catch { $why += " / alte Fassung nicht zurueckgeholt: $($_.Exception.Message)" } }
+                throw $why
+            }
+            if ($moved) { try { Remove-Item -LiteralPath $old -Recurse -Force -ErrorAction Stop } catch { } }   # Rest wird beim naechsten Start entfernt
+            & $note $id 'Uebernommen' "Neue Fassung von $id uebernommen"
+        } catch {
+            & $note $id 'Fehler' "Neue Fassung von $id nicht uebernommen, die bisherige bleibt: $($_.Exception.Message)"
+        }
+    }
+    return @($out.ToArray())
 }
 
 # Module eines Ordners lesen. -Signed: jede Datei gegen die signierte Pruefsumme pruefen. -SkipDisabled: Ordner mit _ oder . am Anfang auslassen

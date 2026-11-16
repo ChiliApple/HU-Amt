@@ -40,7 +40,7 @@ $script:AppRoot = $PSScriptRoot
 $script:Window = $null; $script:Controls = @{}; $script:AppIcon = $null; $script:UiScale = 1.0
 $script:StartupDone = $false; $script:AbRestored = $false; $script:LastDialog = $null
 $script:SmokeTestFile = $SmokeTest; $script:SmokeTimer = $null; $script:SmokeSteps = @(); $script:SmokeWatch = $null; $script:OnContentRendered = $null; $script:SmokeState = $null; $script:SmokeRun = $null; $script:SmokeRan = $false
-$script:Settings = $null; $script:App = $null; $script:Paths = $null; $script:RunLock = $null
+$script:Settings = $null; $script:App = $null; $script:Paths = $null; $script:RunLock = $null; $script:AddonPendingIssues = @()
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
 
@@ -506,6 +506,10 @@ $script:OnContentRendered = {
         $script:SmokeTimer.Start()
         $script:SmokeState.Steps = '(Zeitgeber gestartet)'
         return
+    }
+    # V5: neue Modulfassung konnte nicht uebernommen werden (die bisherige laeuft weiter): Hinweis fuer alle, Details im Protokoll
+    if (@($script:AddonPendingIssues).Count) {
+        try { Show-HUToast -Title 'Modul-Update nicht übernommen' -Text "Die bisherige Fassung läuft weiter. Beim nächsten Start wird es erneut versucht. Bleibt der Hinweis, an den Verwalter wenden (Protokoll)." -Icon Warning } catch { }
     }
     # Erststart ohne Verwalter: einmal fragen, ob dieser Benutzer Verwalter wird
     if (-not $script:TestModeActive) { try { [void](Request-HUFirstVerwalter) } catch { Write-HULogWarn "Verwalter: $($_.Exception.Message)" } }

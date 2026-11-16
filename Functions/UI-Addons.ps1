@@ -50,7 +50,18 @@ function Add-HUAddonTab($Info) {
 # Main.ps1 laedt die Skripte selbst per Dot-Source, damit ihre Funktionen im Programm-Bereich liegen.
 function Get-HUAddonStartList {
     $dir = Get-HUAddonsDir
-    try { Use-HUAddonPending $dir } catch { Write-HULogWarn "Module: Uebernahme fehlgeschlagen: $($_.Exception.Message)" }
+    # V5: nur tauschen, wenn sonst niemand das Programm offen hat (sonst beim naechsten Start). Fehler sichtbar nach dem Start.
+    $script:AddonPendingIssues = @()
+    try {
+        $others = @(); try { $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock) } catch { }
+        foreach ($r in @(Use-HUAddonPending $dir -Others $others)) {
+            switch ($r.Status) {
+                'Fehler' { Write-HULogWarn "Module: $($r.Text)"; $script:AddonPendingIssues += $r.Text }
+                'Wartet' { Write-HULogInfo "Module: $($r.Text). Sie wird beim nächsten Start übernommen, wenn sonst niemand das Programm offen hat." }
+                default { Write-HULogInfo "Module: $($r.Text)" }
+            }
+        }
+    } catch { Write-HULogWarn "Module: Uebernahme fehlgeschlagen: $($_.Exception.Message)"; $script:AddonPendingIssues += "$($_.Exception.Message)" }
     $tp = "$($script:App.signer)"
     $ver = [Version]$script:Version
     # mitgelieferte Module gelten wie Functions\ (ohne eigene Signatur); Abschalten je Modul: settings.json "modulesOff"
