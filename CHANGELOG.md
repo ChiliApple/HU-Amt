@@ -20,7 +20,7 @@
 - **Falsche Sperre wird abgelehnt:** Übergibt ein Modul beim Speichern die Sperre einer anderen Datei, wird nichts geschrieben.
 
 ### 🎨 Oberfläche
-- **Tooltips und Hilfe stimmen mit dem Verhalten:** Einstellungen, Support, Datenordner und "Datei einlesen" erklären vollständig, was sie tun. Die Hilfe nennt beim Reiter Update und beim Paket für Außenstellen die richtigen Namen, und sie kündigt das Ausblenden von Modulen ohne Zugriff nicht mehr als bestehend an.
+- **Tooltips und Hilfe stimmen mit dem Verhalten:** Einstellungen, Support, Datenordner und "Datei einlesen" erklären vollständig, was sie tun. Die Hilfe nennt beim Reiter Update und beim Paket für Außenstellen die richtigen Namen, und sie kündigt das Ausblenden von Modulen ohne Zugriff nicht mehr als bestehend an. Die Bilder der PDF-Werkzeuge und der Ideen zeigen den aktuellen Stand.
 
 ### ⚠️ Nach dem Update
 - **Modul-Updates kommen etwas später an:** Hat beim Start noch jemand anderer HU-Amt offen, wird eine geladene Modulfassung erst beim nächsten Start ohne andere Sitzung übernommen.
