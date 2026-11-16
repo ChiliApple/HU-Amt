@@ -334,7 +334,7 @@ function Install-HUAddon([string]$Owner, [string]$Repo, [string]$Token, [string]
                     $cur0 = Read-HUAddonInfo (Join-Path $AddonsDir $aid)
                     if (-not $cur0.Error -and $cur0.Version -ge $aver) { $res.Id = $aid; $res.Version = $aver; $res.Status = 'Aktuell'; $res.Text = "$atitle $aver ist aktuell"; return $res }
                     $pen0 = Read-HUAddonInfo (Join-Path (Join-Path $AddonsDir '.pending') $aid)
-                    if (-not $pen0.Error -and $pen0.Version -ge $aver) { $res.Id = $aid; $res.Version = $aver; $res.Status = 'Aktuell'; $res.Text = "$atitle $aver ist geladen und wartet auf den Neustart"; return $res }
+                    if (-not $pen0.Error -and $pen0.Version -ge $aver) { $res.Id = $aid; $res.Version = $aver; $res.Status = 'Aktuell'; $res.Text = "$atitle $aver ist geladen und wartet auf den nächsten Start, an dem sonst niemand das Programm offen hat"; return $res }
                 }
             }
         } catch { }   # schneller Weg geht nicht: wie bisher alles laden und dann vergleichen

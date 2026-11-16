@@ -233,7 +233,7 @@ Describe 'Modul-Update: schneller Weg ohne alle Dateien (ab 1.0.5)' {
         $script:RelId = 'Fristen'; $script:RelVer = '1.0.5'
         $r = Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x'
         $r.Status | Should -Be 'Aktuell'
-        $r.Text | Should -BeLike '*wartet auf den Neustart*'
+        $r.Text | Should -BeLike '*wartet auf den nächsten Start*'
         Should -Invoke Invoke-WebRequest -Times 1 -Exactly
     }
     It 'neuere Version: ein Archiv statt jeder Datei einzeln (ab 1.0.7)' {

@@ -346,7 +346,25 @@ function Get-HUAppBackupSources {
     return $out.ToArray()
 }
 
-function Read-HUAbFileBytes([string]$Path) {
+# Ordner, der für "Datei inzwischen gelöscht" noch da sein muss: der Bereich unter dem Datenordner (data/<Bereich>/...),
+# sonst der Ordner der Datei. Ein abgeholter Postfach-Eintrag (ganzer Unterordner weg) wird so ausgelassen, ein fehlender
+# Bereich oder Datenordner (Freigabe getrennt) bricht die Sicherung ab.
+function Get-HUAbKeepDir([string]$Path, [string]$Name) {
+    try {
+        if ($Name.StartsWith('data/')) {
+            $rel = $Name.Substring(5) -replace '/', '\'
+            if ($Path.EndsWith($rel, [StringComparison]::OrdinalIgnoreCase)) {
+                $root = $Path.Substring(0, $Path.Length - $rel.Length).TrimEnd('\')
+                $seg = $rel.Split('\')
+                if ($seg.Count -gt 1) { return (Join-Path $root $seg[0]) }
+                return $root
+            }
+        }
+    } catch { }
+    return [IO.Path]::GetDirectoryName($Path)
+}
+function Read-HUAbFileBytes([string]$Path, [string]$KeepDir = '') {
+    if (-not $KeepDir) { $KeepDir = [IO.Path]::GetDirectoryName($Path) }
     # die App kann gerade schreiben -> mit Wiederholung und FileShare.ReadWrite lesen.
     # V6: Ist die Datei inzwischen weg (z. B. alte Kopie aufgeraeumt), kommt $null zurueck. Gesperrt oder nicht lesbar wirft weiter.
     for ($try = 1; ; $try++) {
@@ -355,8 +373,8 @@ function Read-HUAbFileBytes([string]$Path) {
             try { $ms = New-Object IO.MemoryStream; $fs.CopyTo($ms); return , $ms.ToArray() } finally { $fs.Dispose() }
         } catch {
             $ex = $_.Exception; while ($ex.InnerException -and -not ($ex -is [IO.IOException])) { $ex = $ex.InnerException }
-            # nur wenn die Datei selbst weg ist, ihr Ordner aber da: fehlt der Ordner (Freigabe getrennt, Ordner verschoben), abbrechen
-            if ($ex -is [IO.FileNotFoundException] -and -not [IO.File]::Exists($Path) -and [IO.Directory]::Exists([IO.Path]::GetDirectoryName($Path))) { return $null }
+            # nur wenn die Datei weg ist, ihr Bereich aber da (siehe Get-HUAbKeepDir): sonst abbrechen
+            if (($ex -is [IO.FileNotFoundException] -or $ex -is [IO.DirectoryNotFoundException]) -and -not [IO.File]::Exists($Path) -and [IO.Directory]::Exists($KeepDir)) { return $null }
             if ($try -ge 3) { throw }; Start-Sleep -Milliseconds 300
         }
     }
@@ -444,7 +462,7 @@ function New-HUAppBackup {
         $zip = New-Object IO.Compression.ZipArchive($zs, [IO.Compression.ZipArchiveMode]::Create, $true)
         try {
             foreach ($s in $Sources) {
-                $data = Read-HUAbFileBytes $s.Path
+                $data = Read-HUAbFileBytes $s.Path (Get-HUAbKeepDir $s.Path $s.Name)
                 if ($null -eq $data) { $skipped.Add("$($s.Name)"); continue }   # inzwischen geloescht: auslassen und nennen
                 $sizes[$s.Name] = [int64]$data.Length
                 $lw = $null; try { $lw = [IO.File]::GetLastWriteTime($s.Path) } catch { }

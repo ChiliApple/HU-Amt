@@ -29,7 +29,7 @@
 - **Sicherung über der Grenze:** Größere Datenmengen lassen sich weiter nicht sichern. Die Meldung sagt das jetzt vorher, statt eine Sicherung zu schreiben, die sich nicht öffnen lässt.
 
 ### ✅ Qualität
-- 719 Tests.
+- 725 Tests.
 
 ## v1.0.8
 
