@@ -107,6 +107,62 @@ Describe 'Sichern und Wiederherstellen' {
     }
 }
 
+Describe 'Sichern: verschwundene Dateien und Grenzen (V6)' {
+    BeforeEach {
+        $script:Base = Join-Path ([IO.Path]::GetTempPath()) ('HUAmtAbV6-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        $script:Data = Join-Path $script:Base 'App\Data'
+        $script:Out = Join-Path $script:Base 'Sicherungen'
+        New-TestData $script:Data
+        $script:Src = @(Get-HUAppBackupSources -DataRoot $script:Data)
+        $script:LimitsBefore = & (Get-Module HU.AppBackup) { $script:HUAbLimits.Clone() }
+    }
+    AfterEach {
+        $lb = $script:LimitsBefore
+        & (Get-Module HU.AppBackup) { param($l) $script:HUAbLimits = $l } $lb
+        Remove-Item -LiteralPath $script:Base -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    It 'Datei verschwindet nach dem Sammeln: Sicherung entsteht trotzdem, die Datei wird genannt' {
+        Remove-Item -LiteralPath (Join-Path $script:Data 'Beispiel\verlauf.txt') -Force
+        $r = New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1'
+        Test-Path $r.Path | Should -BeTrue
+        $r.Files | Should -Be 4
+        @($r.Skipped) | Should -Be @('data/Beispiel/verlauf.txt')
+        $o = Open-HUAppBackup -Path $r.Path -Password $script:Pw -AppVersion '0.0.1' -AppRoot (Join-Path $script:Base 'App') -DataRoot $script:Data
+        @($o.Errors).Count | Should -Be 0
+    }
+    It 'gesperrte Datei wird nicht still uebergangen: Sicherung bricht ab' {
+        $p = Join-Path $script:Data 'Beispiel\verlauf.txt'
+        $h = [IO.File]::Open($p, 'Open', 'ReadWrite', 'None')
+        try { { New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1' } | Should -Throw }
+        finally { $h.Dispose() }
+        @(Get-ChildItem -LiteralPath $script:Out -Filter '*.husicherung' -ErrorAction SilentlyContinue).Count | Should -Be 0
+    }
+    It 'mehr Dateien als das Wiederherstellen erlaubt: keine Sicherung, klare Meldung' {
+        & (Get-Module HU.AppBackup) { $script:HUAbLimits = @{ Files = 3; EntryBytes = 512MB; TotalBytes = 2GB } }
+        { New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1' } | Should -Throw '*Wiederherstellen*'
+        @(Get-ChildItem -LiteralPath $script:Out -Filter '*.husicherung*' -ErrorAction SilentlyContinue).Count | Should -Be 0
+    }
+    It 'Datei groesser als erlaubt: keine Sicherung, Meldung nennt die Datei' {
+        & (Get-Module HU.AppBackup) { $script:HUAbLimits = @{ Files = 200000; EntryBytes = 1; TotalBytes = 2GB } }
+        { New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1' } | Should -Throw '*data/*'
+    }
+    It 'zusammen zu gross: keine Sicherung' {
+        & (Get-Module HU.AppBackup) { $script:HUAbLimits = @{ Files = 200000; EntryBytes = 512MB; TotalBytes = 6 } }
+        { New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1' } | Should -Throw '*Wiederherstellen*'
+    }
+    It 'ab 80 Prozent einer Grenze: Sicherung entsteht, mit Warnung' {
+        & (Get-Module HU.AppBackup) { $script:HUAbLimits = @{ Files = 7; EntryBytes = 512MB; TotalBytes = 2GB } }
+        $r = New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1'
+        Test-Path $r.Path | Should -BeTrue
+        "$($r.Warning)" | Should -Match 'Dateien'
+    }
+    It 'weit unter den Grenzen: keine Warnung, nichts uebersprungen' {
+        $r = New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1'
+        "$($r.Warning)" | Should -Be ''
+        @($r.Skipped).Count | Should -Be 0
+    }
+}
+
 Describe 'Automatik' {
     It 'taeglich: faellig am naechsten Kalendertag, nicht am selben' {
         $now = [datetime]'2026-11-03T08:00:00'
