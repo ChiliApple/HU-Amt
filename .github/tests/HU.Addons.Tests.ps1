@@ -291,7 +291,7 @@ Describe 'Wartende Fassung uebernehmen (V5, Use-HUAddonPending)' {
         [void](New-Item -ItemType Directory -Path (Join-Path $script:AD '.alt') -Force)
         Move-Item -LiteralPath (Join-Path $script:AD 'Reisen') -Destination (Join-Path $script:AD '.alt\Reisen')
         $r = @(Use-HUAddonPending $script:AD)
-        $r[0].Status | Should -Be 'Uebernommen'
+        $r[-1].Status | Should -Be 'Uebernommen'
         [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'neu'
         Test-Path (Join-Path $script:AD '.alt\Reisen') | Should -BeFalse
     }
@@ -360,6 +360,12 @@ Describe 'Texte im Kern stimmen mit dem Verhalten (V13)' {
     }
     It 'KD8: Tooltip "Datei einlesen" sagt, dass die Datei danach geloescht wird' {
         (& $script:Rd 'Functions\UI-Addons.ps1') | Should -Match 'x:Name="btnFile"[^>]*gelöscht'
+    }
+    It 'V5: Texte zum Neustart nennen andere offene Sitzungen, Wartet bekommt einen Hinweis fuer Verwalter' {
+        $ui = & $script:Rd 'Functions\UI-Addons.ps1'
+        (& $script:Rd 'Functions\Core-Addons.ps1') | Should -Not -Match 'geladen - wirkt nach dem Neustart"'
+        $ui | Should -Not -Match 'Es wird nach einem Neustart von \$\(\$script:AppTitle\) aktiv\. Jetzt neu starten\?'
+        $ui | Should -Match 'AddonPendingWaiting'
     }
     It 'KD9: Tooltip Datenordner nennt den Fall mit vorhandenen Daten' {
         (& $script:Rd 'XAML\SettingsWindow.xaml') | Should -Match 'x:Name="btnDataLocation"[^>]*schon Daten'
