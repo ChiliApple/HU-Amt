@@ -264,6 +264,12 @@ function Write-HUDataFile {
     }
 }
 
+# Zeigen zwei Pfade auf dieselbe Datei? Vollstaendiger Pfad, Gross/klein egal. Nicht aufloesbar = nein.
+function Test-HUSameDataPath([string]$A, [string]$B) {
+    if (-not $A -or -not $B) { return $false }
+    try { return ([IO.Path]::GetFullPath($A).TrimEnd('\') -ieq [IO.Path]::GetFullPath($B).TrimEnd('\')) } catch { return $false }
+}
+
 <#
 .SYNOPSIS
     Gemeinsame Datei speichern: Sperre (bis -WaitMs warten), Stand pruefen, Text bauen, Kopie, atomar schreiben.
@@ -276,6 +282,7 @@ function Write-HUDataFile {
     -Stamp: erwarteter Stand aus Get-HUFileStamp; '' = Datei darf noch nicht existieren; $null = nicht pruefen.
     Neue Datei: ohne Ueberschreiben. Vorhandene: Kopie nach _Kopien\ (ausser -NoBackup, -Keep Kopien), dann ersetzen.
     -Lock: schon gehaltene Sperre (z. B. Verwaltungsfenster); dann wird nicht neu gesperrt und nicht freigegeben.
+    Gehoert die Sperre zu einer anderen Datei als -Path, wird nichts geschrieben und Ok ist $false.
     Rueckgabe: Ok, Message, Stamp (neuer Stand, bei Fehler der uebergebene), Skipped.
 #>
 function Save-HUDataFile {
@@ -295,6 +302,9 @@ function Save-HUDataFile {
     )
     Assert-HUDataWriter
     $own = $null
+    if ($Lock -and $Lock.Ok -and -not (Test-HUSameDataPath "$(Get-HUProp $Lock 'Path' '')" $Path)) {
+        return (New-HUDataResult $false 'Speichern abgebrochen: Die übergebene Sperre gehört zu einer anderen Datei. Es wurde nichts geändert.' $Stamp)
+    }
     if (-not ($Lock -and $Lock.Ok)) {
         $own = Wait-HUDataFileLock -Path $Path -UserName $UserName -PcName $PcName -WaitMs $WaitMs
         if (-not $own.Ok) { return (New-HUDataResult $false (Get-HULockInfoText $own) $Stamp) }
