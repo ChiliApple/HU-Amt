@@ -12,7 +12,7 @@
 
 ### 💾 Sicherung
 - **Gelöschte Dateien halten die Sicherung nicht mehr auf:** Wird während der Sicherung eine Datei gelöscht (z. B. eine alte Kopie), entsteht die Sicherung trotzdem. Die Meldung nennt die Zahl, das Protokoll die Dateien.
-  - Gesperrte oder nicht lesbare Dateien brechen die Sicherung weiter ab, damit nichts still fehlt. Fehlt ein ganzer Ordner (z. B. Freigabe getrennt), entsteht keine Sicherung.
+  - Gesperrte oder nicht lesbare Dateien brechen die Sicherung weiter ab, damit nichts still fehlt. Fehlt ein ganzer Bereich unter dem Datenordner oder der Datenordner selbst (z. B. Freigabe getrennt), entsteht keine Sicherung. Ein inzwischen abgeholter Postfach-Eintrag wird wie eine gelöschte Datei ausgelassen.
 - **Grenzen schon beim Sichern:** Wäre eine Sicherung zu groß, um sie wiederherzustellen (mehr als 200000 Dateien, eine Datei über 512 MB oder zusammen über 2 GB), schreibt HU-Amt keine Sicherung und sagt, warum.
   - Ab 80 Prozent einer Grenze entsteht die Sicherung, mit einer Warnung.
 
