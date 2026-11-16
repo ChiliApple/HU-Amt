@@ -308,3 +308,45 @@ Describe 'Wartende Fassung uebernehmen (V5, Use-HUAddonPending)' {
         @(Get-HUAddonsInDir $script:AD ([version]'9.9.9') 'Privat' | ForEach-Object { $_.Id }) | Should -Not -Contain 'Fristen'
     }
 }
+
+Describe 'Texte im Kern stimmen mit dem Verhalten (V13)' {
+    BeforeAll {
+        $script:Rd = { param($f) [IO.File]::ReadAllText((Join-Path $script:Root $f), [Text.Encoding]::UTF8) }
+    }
+    It 'K11: Zahl am Reiter hat eine Erklaerung' {
+        Get-HUAddonInboxTip 0 | Should -Be ''
+        Get-HUAddonInboxTip 3 | Should -Match '3 Dateien'
+        Get-HUAddonInboxTip 1 | Should -Match '1 Datei '
+        (& $script:Rd 'Functions\UI-Addons.ps1') | Should -Match 'Get-HUAddonInboxTip'
+    }
+    It 'KD2: Tooltips Einstellungen und Support nennen alle Bereiche' {
+        $x = & $script:Rd 'XAML\MainWindow.xaml'
+        $x | Should -Not -Match 'ToolTip="Einstellungen: Allgemein, Sicherung, Update"'
+        $x | Should -Match 'ToolTip="Einstellungen: Allgemein, Sicherung, Update, Module, Verwalter'
+        $x | Should -Not -Match 'ToolTip="Protokolle als ZIP packen, um Hilfe anzufragen"'
+    }
+    It 'KD4: Anleitung verspricht keinen lueckenlosen Schutz beim Update, nennt GitHub-Token und Signieren' {
+        $a = & $script:Rd 'Docs\Anleitung.html'
+        $a | Should -Not -Match 'auch wenn jemand HU-Amt erst w&auml;hrend des Ladens|auch wenn jemand HU-Amt erst während des Ladens'
+        $a | Should -Match 'GitHub-Token \(nur privates Repo\)'
+        $a | Should -Match 'Release signieren \(Herausgeber\)'
+    }
+    It 'KD5: Hilfe kuendigt das Ausblenden ohne Recht nicht als bestehend an' {
+        (& $script:Rd 'Docs\Daten.html') | Should -Not -Match 'Welche Module wer sehen darf, regeln die Rechte'
+    }
+    It 'KD6: RECHTE-IT nennt keinen alten Stand als aktuell' {
+        (& $script:Rd 'RECHTE-IT.md') | Should -Not -Match 'Stand: HU-Amt 1\.0\.3'
+    }
+    It 'KD7: Reiter Update sehen alle, Knopf heisst "Paket fuer Aussenstelle erstellen"' {
+        $g = & $script:Rd 'Docs\Grundhilfe.html'
+        $g | Should -Not -Match 'die Reiter Sicherung, Update, Module und Verwalter'
+        $g | Should -Not -Match '"Paket für Außenstelle \.\.\."'
+        (& $script:Rd 'Docs\Einstieg.html') | Should -Not -Match 'Paket für Außenstelle \.\.\.</span>'
+    }
+    It 'KD8: Tooltip "Datei einlesen" sagt, dass die Datei danach geloescht wird' {
+        (& $script:Rd 'Functions\UI-Addons.ps1') | Should -Match 'x:Name="btnFile"[^>]*gelöscht'
+    }
+    It 'KD9: Tooltip Datenordner nennt den Fall mit vorhandenen Daten' {
+        (& $script:Rd 'XAML\SettingsWindow.xaml') | Should -Match 'x:Name="btnDataLocation"[^>]*schon Daten'
+    }
+}
