@@ -157,6 +157,12 @@ function Test-HUAddonFiles([string]$Dir, [string]$Thumbprint) {
     return ''
 }
 
+# Erklaerung zur Zahl am Reiter ("Titel (3)"), K11. 0 = keine.
+function Get-HUAddonInboxTip([int]$Count) {
+    if ($Count -le 0) { return '' }
+    return "$Count $(if ($Count -eq 1) { 'Datei wartet' } else { 'Dateien warten' }) im Postfach dieses Reiters (weitergegeben aus einem anderen Reiter oder von einem anderen PC). Reiter öffnen, um sie zu übernehmen."
+}
+
 # Wartende neue Fassungen uebernehmen (vor dem Laden, beim Start).
 # -Others: andere laufende Sitzungen (Get-HURunningInstances). Laeuft noch jemand, wird nichts getauscht (Status Wartet):
 # die anderen haben das alte Modul geladen, und auf der Freigabe liesse es sich nur halb ersetzen.

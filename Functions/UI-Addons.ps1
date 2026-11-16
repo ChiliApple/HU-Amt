@@ -11,6 +11,7 @@ $script:LoadedAddons = @()
 $script:AllAddons = @()         # alle gueltigen Module dieser Installation, auch abgeschaltete (Einstellungen > Module)
 $script:AddonByTab = @{}
 $script:AddonHeader = @{}       # Kennung -> urspruengliche Reiter-Beschriftung (fuer die Zahl im Postfach)
+$script:AddonTabTip = @{}       # Kennung -> urspruenglicher Tooltip des Reiters (K11)
 $script:AddonInboxTimer = $null
 
 # Reiter eines (bereits gepruefen) Moduls in das Hauptfenster einbauen und die benannten Elemente registrieren
@@ -269,6 +270,9 @@ function Update-HUAddonInboxBadge([string]$Id = '') {
         $n = 0; try { $n = @(Get-HUAddonInbox $a.Id).Count } catch { }
         $h = $script:AddonHeader[$a.Id]
         $tab.Header = $(if ($n) { "$h ($n)" } else { $h })
+        # K11: Zahl erklaeren; eigener Tooltip des Reiters bleibt gemerkt und kommt ohne wartende Dateien zurueck
+        if (-not $script:AddonTabTip.ContainsKey($a.Id)) { $script:AddonTabTip[$a.Id] = $tab.ToolTip }
+        $tab.ToolTip = $(if ($n) { Get-HUAddonInboxTip $n } else { $script:AddonTabTip[$a.Id] })
     }
 }
 
@@ -364,7 +368,7 @@ function Show-HUAddonDialog {
         <TextBlock Text="Nur-Lese-Token" Foreground="#AAAAAA" FontSize="11"/>
         <PasswordBox x:Name="pwdTok" Margin="0,2,0,12" Background="#2D2D30" Foreground="White" BorderBrush="#3E3E42" Padding="4,3" ToolTip="Token vom Herausgeber (wird verschlüsselt gespeichert)"/>
         <WrapPanel HorizontalAlignment="Right">
-            <Button x:Name="btnFile" Content="Datei einlesen ..." Width="140" Background="#0E639C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Modul-Datei (*.humodule) mit Repositories und Token einlesen. Geht auch per Hineinziehen ins Hauptfenster."/>
+            <Button x:Name="btnFile" Content="Datei einlesen ..." Width="140" Background="#0E639C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Modul-Datei (*.humodule) mit Repositories und Token einlesen. Ist alles eingetragen, wird die Datei danach gelöscht (sie enthält Token). Geht auch per Hineinziehen ins Hauptfenster."/>
             <Button x:Name="btnDel" Content="Markiertes entfernen" Width="160" Background="#C62828" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Token des markierten Repositories löschen"/>
             <Button x:Name="btnAdd" Content="Hinterlegen und laden" Width="170" Background="#388E3C" Style="{StaticResource DarkButton}" Margin="0,0,8,0" ToolTip="Token speichern und das Modul laden"/>
             <Button x:Name="btnClose" Content="Schließen" Width="100" Background="#555555" Style="{StaticResource DarkButton}" IsCancel="True" ToolTip="Fenster schließen"/>

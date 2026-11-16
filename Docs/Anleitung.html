@@ -505,10 +505,12 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><td>Andere Version / Vorversion installieren …</td><td>Liste aller Releases (nur Verwalter). Der Weg, um neu zu installieren oder eine ältere Version zu laden; der Klick auf <span class="ui">Update</span> tut das nicht (ab 1.0.8)</td></tr>
     <tr><td>Kanal: Testversionen annehmen</td><td>Häkchen = Kanal <b>Test</b>, auch Vorab-Versionen (nur Verwalter)</td></tr>
     <tr><td>Module (private Repositories) …</td><td>Zugänge der Module hinterlegen oder entfernen (nur Verwalter)</td></tr>
+    <tr><td>GitHub-Token (nur privates Repo) ...</td><td>Token für ein privates Programm-Repository hinterlegen oder löschen (nur Verwalter)</td></tr>
     <tr><td>Alle Releases signieren und freigeben …</td><td>nur Herausgeber (Zertifikat auf diesem PC): Programm und alle Module auf einmal. Eine Liste zeigt alles Offene, dann "Signieren und freigeben" oder "Nur signieren" (ab Version 1.0.5)</td></tr>
+    <tr><td>Release signieren (Herausgeber) ..., Release freigeben (Herausgeber) ..., dazu dasselbe für ein Modul</td><td>nur Herausgeber: ein einzelnes Release signieren bzw. freigeben</td></tr>
   </table>
   <p><span class="ui">⚙ Einstellungen</span> › <b>Update</b>: <i>Beim Start nach Updates suchen</i>, <span class="ui">Jetzt prüfen</span>, Kanal <i>Stabil</i> (freigegebene Versionen) oder <i>Test</i> (auch Vorab-Versionen), <i>Nur signierte Updates installieren (empfohlen)</i>.</p>
-  <div class="note"><b class="h">Module</b>Module aus privaten Repositories werden nur als signierte Fassung geladen und genauso aktuell gehalten: <span class="ui">⚙ Einstellungen</span> › <b>Module</b> zeigt die geladenen Module mit Version und Herkunft, <span class="ui">Module jetzt aktualisieren</span> holt die neueste signierte Fassung. Eine neue Fassung wirkt nach dem nächsten Neustart.</div>
+  <div class="note"><b class="h">Module</b>Module aus privaten Repositories werden nur als signierte Fassung geladen und genauso aktuell gehalten: <span class="ui">⚙ Einstellungen</span> › <b>Module</b> zeigt die geladenen Module mit Version und Herkunft, <span class="ui">Module jetzt aktualisieren</span> holt die neueste signierte Fassung. Eine neue Fassung wirkt nach dem nächsten Neustart, sobald sonst niemand HU-Amt offen hat. Haben andere HU-Amt noch offen, bleibt die bisherige Fassung, bis der nächste Start ohne andere Sitzung kommt (ab 1.0.9). Klappt das Übernehmen nicht, meldet HU-Amt das nach dem Start, die bisherige Fassung läuft weiter.</div>
 </section>
 
 <section id="support">
@@ -581,7 +583,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li>Fehlt das Schreibrecht im Ordner, steht in der Meldung <i>"Kein Schreibrecht im Ordner ..."</i>, ist die Freigabe weg, <i>"Der Ordner ... ist nicht erreichbar"</i>. In beiden Fällen wird nichts gespeichert, die Daten bleiben unverändert.</li>
     <li>Stürzt ein PC ab, gibt Windows die Sperre frei; beim nächsten Versuch räumt HU-Amt sie weg.</li>
     <li>Vor dem Speichern einer gemeinsamen Liste legt HU-Amt eine Kopie mit Zeitstempel in <code>_Kopien</code> neben der Liste an.</li>
-    <li>Ein Update geht erst, wenn alle anderen HU-Amt geschlossen haben. Sonst bricht es ab, ohne etwas zu ändern, auch wenn jemand HU-Amt erst während des Ladens öffnet (ab dem Update aus Version 1.0.8). <code>Data</code>, <code>Addons</code> und <code>AddonsDev</code> fasst ein Update nie an.</li>
+    <li>Ein Update geht erst, wenn alle anderen HU-Amt geschlossen haben. Sonst bricht es ab, ohne etwas zu ändern. Kurz vor dem Ersetzen prüft es das noch einmal (ab dem Update aus Version 1.0.8). Das verkleinert die Lücke, wenn jemand HU-Amt erst während des Ladens öffnet, schließt sie aber nicht ganz. <code>Data</code>, <code>Addons</code> und <code>AddonsDev</code> fasst ein Update nie an.</li>
   </ul>
 
   <h3 id="ordner-sicherung">Was in der Sicherung ist</h3>

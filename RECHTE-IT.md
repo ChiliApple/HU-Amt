@@ -1,6 +1,6 @@
 ﻿# HU-Amt: Ordner und Rechte auf dem Server
 
-Anleitung für die IT. Liegt jeder Installation bei. Stand: HU-Amt 1.0.3.
+Anleitung für die IT. Liegt jeder Installation bei. Gilt ab HU-Amt 1.0.3, Ordnerrechte einzelner Module stehen zusätzlich in deren Hilfe.
 
 HU-Amt ist ein Büroprogramm ohne Installation. Es läuft aus einem Ordner auf dem Server, alle Bediensteten starten es von dort. Das Programm selbst und seine Daten liegen in zwei getrennten Ordnern. Wer was darf, regeln nur die NTFS-Rechte. HU-Amt hat keine eigene Benutzerverwaltung.
 
