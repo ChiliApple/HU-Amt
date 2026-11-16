@@ -320,7 +320,7 @@ function Start-HUAppBackupNow([switch]$FromDialog, [switch]$Auto) {
     $ok = Start-HUJob -Name 'AppBackup' -Quiet -Vars @{ Src = $src; Pw = $pw; Folder = $folder; Ver = "$($script:Version)"; Keep = $keep; Mods = $mods; Prog = $script:AbProg } -Code {
         try {
             $r = New-HUAppBackup -Sources $Src -Password $Pw -Folder $Folder -AppVersion $Ver -Keep $Keep -Modules $Mods -Progress $Prog
-            [pscustomobject]@{ __Ab = $true; Ok = $true; Path = $r.Path; Files = $r.Files; Bytes = $r.Bytes; Removed = @($r.Removed); Error = '' }
+            [pscustomobject]@{ __Ab = $true; Ok = $true; Path = $r.Path; Files = $r.Files; Bytes = $r.Bytes; Removed = @($r.Removed); Skipped = @($r.Skipped); Warning = "$($r.Warning)"; Error = '' }
         } catch { [pscustomobject]@{ __Ab = $true; Ok = $false; Error = "$($_.Exception.Message)" } }
     } -OnDone {
         param($Result, $Errors)
@@ -331,8 +331,17 @@ function Start-HUAppBackupNow([switch]$FromDialog, [switch]$Auto) {
                 $mb = [Math]::Round($r.Bytes / 1MB, 1)
                 Set-HUAbResult "ok, $($r.Files) Dateien ($mb MB)$(if ($auto) { ', automatisch' })" -Success
                 Write-HULogOK "App-Sicherung: $(Split-Path -Leaf $r.Path) ($($r.Files) Dateien, $mb MB)$(if (@($r.Removed).Count) { " - alte entfernt: $(@($r.Removed).Count)" })"
-                if (-not $auto) { Show-HUMessage "Sicherung erstellt:`n$($r.Path)`n`n$($r.Files) Dateien, $mb MB." -Owner $(if ($script:AbDlg) { $script:AbDlg.W } else { $script:Window }) }
-                else { Show-HUToast -Title 'App-Sicherung erstellt' -Text "$($r.Files) Dateien, $mb MB - $(Split-Path -Leaf $r.Path)" -Icon Success -OnClick { Open-HUSettings -Tab 'Sicherung' } }
+                # V6: waehrend der Sicherung geloeschte Dateien (z. B. aufgeraeumte Kopien) und Warnung vor der Grenze
+                $sk = @($r.Skipped | Where-Object { $_ })
+                $extra = ''
+                if ($sk.Count) {
+                    Write-HULogWarn "App-Sicherung: $($sk.Count) Datei(en) waren beim Lesen nicht mehr da und fehlen in der Sicherung: $($sk -join ', ')"
+                    $extra += "`n`n$($sk.Count) Datei(en) wurden während der Sicherung gelöscht und fehlen darin (Details im Protokoll)."
+                }
+                if ("$($r.Warning)") { Write-HULogWarn "App-Sicherung: $($r.Warning)"; $extra += "`n`n$($r.Warning)" }
+                if (-not $auto) { Show-HUMessage "Sicherung erstellt:`n$($r.Path)`n`n$($r.Files) Dateien, $mb MB.$extra" -Icon $(if ("$($r.Warning)") { 'Warning' } else { 'Info' }) -Owner $(if ($script:AbDlg) { $script:AbDlg.W } else { $script:Window }) }
+                elseif ("$($r.Warning)") { Show-HUToast -Title 'App-Sicherung erstellt, Grenze bald erreicht' -Text "$($r.Warning)" -Icon Warning -OnClick { Open-HUSettings -Tab 'Sicherung' } }
+                else { Show-HUToast -Title 'App-Sicherung erstellt' -Text "$($r.Files) Dateien, $mb MB - $(Split-Path -Leaf $r.Path)$(if ($sk.Count) { " ($($sk.Count) gelöscht während der Sicherung)" })" -Icon Success -OnClick { Open-HUSettings -Tab 'Sicherung' } }
             } else {
                 $err = $(if ($r) { $r.Error } else { (@($Errors) -join ' ') })
                 Set-HUAbResult "FEHLER: $err"

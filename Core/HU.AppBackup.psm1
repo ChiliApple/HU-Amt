@@ -347,13 +347,38 @@ function Get-HUAppBackupSources {
 }
 
 function Read-HUAbFileBytes([string]$Path) {
-    # die App kann gerade schreiben -> mit Wiederholung und FileShare.ReadWrite lesen
+    # die App kann gerade schreiben -> mit Wiederholung und FileShare.ReadWrite lesen.
+    # V6: Ist die Datei inzwischen weg (z. B. alte Kopie aufgeraeumt), kommt $null zurueck. Gesperrt oder nicht lesbar wirft weiter.
     for ($try = 1; ; $try++) {
         try {
             $fs = New-Object IO.FileStream($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
             try { $ms = New-Object IO.MemoryStream; $fs.CopyTo($ms); return , $ms.ToArray() } finally { $fs.Dispose() }
-        } catch { if ($try -ge 3) { throw }; Start-Sleep -Milliseconds 300 }
+        } catch {
+            $ex = $_.Exception; while ($ex.InnerException -and -not ($ex -is [IO.IOException])) { $ex = $ex.InnerException }
+            if (($ex -is [IO.FileNotFoundException] -or $ex -is [IO.DirectoryNotFoundException]) -and -not [IO.File]::Exists($Path)) { return $null }
+            if ($try -ge 3) { throw }; Start-Sleep -Milliseconds 300
+        }
     }
+}
+
+# V6: Passt die Sicherung in die Grenzen, die das Wiederherstellen prueft (Open-HUAppBackup)? Wirft mit klarer Meldung,
+# sonst Rueckgabe Warntext ab 80 Prozent einer Grenze ('' = weit darunter). $Sizes: Name -> Bytes, $Extra: Bytes fuer die Liste.
+function Test-HUAbLimits([hashtable]$Sizes, [int64]$Extra = 0) {
+    $L = $script:HUAbLimits
+    $files = $Sizes.Count + 1   # dazu meta/manifest.json
+    $total = [int64]$Extra; $big = ''; $bigB = [int64]0
+    foreach ($k in $Sizes.Keys) { $b = [int64]$Sizes[$k]; $total += $b; if ($b -gt $bigB) { $bigB = $b; $big = $k } }
+    $gb = { param($x) '{0:N2} GB' -f ($x / 1GB) }
+    $tail = 'Es wurde keine Sicherung geschrieben. Bitte an den Betreuer der App wenden (Daten aufteilen oder alte Belege auslagern).'
+    if ($files -gt $L.Files) { throw "Die Sicherung hätte $files Dateien, das Wiederherstellen erlaubt höchstens $($L.Files). $tail" }
+    if ($bigB -gt $L.EntryBytes) { throw "Die Datei $big ist zu groß für das Wiederherstellen ($(& $gb $bigB), höchstens $(& $gb $L.EntryBytes)). $tail" }
+    if ($total -gt $L.TotalBytes) { throw "Die Sicherung wäre zu groß für das Wiederherstellen ($(& $gb $total), höchstens $(& $gb $L.TotalBytes)). $tail" }
+    $w = @()
+    if ($files -ge 0.8 * $L.Files) { $w += "$files von höchstens $($L.Files) Dateien" }
+    if ($bigB -ge 0.8 * $L.EntryBytes) { $w += "größte Datei $(& $gb $bigB) von höchstens $(& $gb $L.EntryBytes)" }
+    if ($total -ge 0.8 * $L.TotalBytes) { $w += "$(& $gb $total) von höchstens $(& $gb $L.TotalBytes)" }
+    if (-not $w.Count) { return '' }
+    return "Die Sicherung nähert sich der Grenze für das Wiederherstellen: $($w -join ', '). Bitte bald an den Betreuer der App wenden."
 }
 
 function Get-HUAbSha256([byte[]]$Bytes) {
@@ -388,7 +413,8 @@ function New-HUAppBackup {
     <#
     .SYNOPSIS
         Sicherung schreiben: ZIP (Manifest mit SHA-256) -> verschluesseln -> .tmp -> Flush -> zuruecklesen und MAC pruefen -> umbenennen -> alte aufraeumen.
-        Rueckgabe: @{ Path; Files; Bytes; Removed }.
+        Rueckgabe: @{ Path; Files; Bytes; Removed; Skipped (inzwischen geloeschte Dateien); Warning (ab 80 Prozent einer Grenze) }.
+        Wirft, wenn die Grenzen des Wiederherstellens ($script:HUAbLimits) ueberschritten wuerden, oder eine Datei gesperrt bzw. nicht lesbar ist.
     #>
     param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Sources, [Parameter(Mandatory)][object]$Password, [Parameter(Mandatory)][string]$Folder,
         [Parameter(Mandatory)][string]$AppVersion, [string]$Pc = $env:COMPUTERNAME, [int]$Keep = 10, [object[]]$Modules = @(),
@@ -401,7 +427,12 @@ function New-HUAppBackup {
     $final = Join-Path $Folder $name
     $tmp = "$final.tmp"
     Clear-HUAbTempZips
-    $total = [int64]0; foreach ($s in $Sources) { try { $total += (Get-Item -LiteralPath $s.Path).Length } catch { } }
+    $total = [int64]0; $pre = @{}
+    foreach ($s in $Sources) { try { $len = (Get-Item -LiteralPath $s.Path -ErrorAction Stop).Length; $total += $len; $pre[$s.Name] = $len } catch { } }
+    # V6: Grenzen des Wiederherstellens schon vor dem Lesen pruefen (sonst entstuende eine Sicherung, die sich nicht oeffnen laesst)
+    [void](Test-HUAbLimits $pre)
+    $skipped = New-Object System.Collections.Generic.List[string]
+    $sizes = @{}
     # grosse Datenmengen nicht im Speicher zippen, sondern in einer Temp-Datei, die beim Schliessen verschwindet
     $zs = if ($total -gt 256MB) { New-Object IO.FileStream((Join-Path ([IO.Path]::GetTempPath()) ("HU-Sicherung-" + [guid]::NewGuid().ToString('N') + '.zip')), [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None, 65536, [IO.FileOptions]::DeleteOnClose) } else { New-Object IO.MemoryStream }
     $man = New-Object System.Collections.Generic.List[object]
@@ -413,6 +444,8 @@ function New-HUAppBackup {
         try {
             foreach ($s in $Sources) {
                 $data = Read-HUAbFileBytes $s.Path
+                if ($null -eq $data) { $skipped.Add("$($s.Name)"); continue }   # inzwischen geloescht: auslassen und nennen
+                $sizes[$s.Name] = [int64]$data.Length
                 $lw = $null; try { $lw = [IO.File]::GetLastWriteTime($s.Path) } catch { }
                 $e = $zip.CreateEntry($s.Name, [IO.Compression.CompressionLevel]::Optimal)
                 if ($lw) { try { $e.LastWriteTime = $lw } catch { } }
@@ -422,6 +455,8 @@ function New-HUAppBackup {
                 if (($man.Count % 25) -eq 0) { & $prog 'Dateien' $man.Count }
             }
             $mj = [Text.Encoding]::UTF8.GetBytes((([pscustomobject]@{ Format = 1; App = $AppVersion; Created = $Now.ToString('s'); Files = $man.ToArray(); Modules = @($Modules) }) | ConvertTo-Json -Depth 6))
+            # V6: noch einmal mit den tatsaechlich gelesenen Groessen samt Liste (Dateien koennen inzwischen gewachsen sein)
+            $warning = Test-HUAbLimits $sizes ([int64]$mj.Length)
             $e = $zip.CreateEntry('meta/manifest.json'); $w = $e.Open(); try { $w.Write($mj, 0, $mj.Length) } finally { $w.Dispose() }
         } finally { $zip.Dispose() }
         [void]$zs.Seek(0, 'Begin')
@@ -441,7 +476,7 @@ function New-HUAppBackup {
     } catch { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue; throw "Sicherung nach dem Schreiben nicht lesbar - verworfen: $($_.Exception.Message)" }
     Move-Item -LiteralPath $tmp -Destination $final -Force
     $removed = @(Remove-HUAppBackupOld -Folder $Folder -Keep $Keep -Pc $Pc)
-    return [pscustomobject]@{ Path = $final; Files = $man.Count; Bytes = $bytes; Removed = $removed }
+    return [pscustomobject]@{ Path = $final; Files = $man.Count; Bytes = $bytes; Removed = $removed; Skipped = @($skipped.ToArray()); Warning = "$warning" }
 }
 
 function Get-HUAppBackupList([string]$Folder) {
