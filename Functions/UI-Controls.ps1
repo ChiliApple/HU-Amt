@@ -110,6 +110,76 @@ function New-HUModuleWindow {
 }
 
 # ---------------------------------------------------------------------------------------------
+# V15: Rueckfrage beim Schliessen mit ungespeicherten Aenderungen
+# ---------------------------------------------------------------------------------------------
+<#
+.SYNOPSIS
+    Stand der genannten Steuerelemente als Text (zum Vergleichen). Haken (IsChecked), Datum (SelectedDate), Text, sonst bei
+    Listen nur die Anzahl der Eintraege (eine Auswahl in einer Liste ist keine Aenderung). Kennwortfelder und fehlende Namen
+    werden uebergangen. $Controls: Tabelle Name -> Steuerelement (wie $c aus New-HUWindow).
+#>
+function Get-HUControlState($Controls, [string[]]$Names) {
+    $parts = foreach ($n in $Names) {
+        $x = $null
+        try { $x = $(if ($Controls -is [System.Collections.IDictionary]) { $Controls[$n] } else { $Controls.$n }) } catch { }
+        if ($null -eq $x -or $x.PSObject.Properties['Password']) { continue }
+        $v = $(if ($x.PSObject.Properties['IsChecked']) { "$($x.IsChecked)" }
+            elseif ($x.PSObject.Properties['SelectedDate']) { $(if ($x.SelectedDate) { ([datetime]$x.SelectedDate).ToString('yyyy-MM-dd') } else { '' }) }
+            elseif ($x.PSObject.Properties['Text']) { "$($x.Text)" }
+            elseif ($x.PSObject.Properties['Items']) { "#$(@($x.Items).Count)" }
+            else { '' })
+        "$n=$v"
+    }
+    return (@($parts) -join "`n")
+}
+# Rueckfrage abgeschaltet: Starttest der App und automatische Tests der Module (HUAMT_NOCLOSEGUARD), sie schliessen Fenster selbst
+function Test-HUCloseGuardOff {
+    if ("$env:HUAMT_NOCLOSEGUARD") { return $true }
+    return [bool](Get-HUCtlScriptVar 'SmokeTestFile')
+}
+# Soll beim Schliessen gefragt werden? Nein nach erfolgreichem Speichern (DialogResult = $true), bei -Skip (Fenster schliesst
+# sich selbst, z. B. nach Loeschen), wenn abgeschaltet, oder wenn sich nichts geaendert hat.
+function Test-HUCloseGuardAsk([string]$Baseline, [string]$Current, $DialogResult = $null, [bool]$Off = $false, [bool]$Skip = $false) {
+    if ($Off -or $Skip) { return $false }
+    if ($DialogResult -eq $true) { return $false }
+    return ($Current -cne $Baseline)
+}
+<#
+.SYNOPSIS
+    Fragt beim Schliessen (Abbrechen, Esc, Kreuz), ob ungespeicherte Aenderungen verworfen werden sollen.
+    Erst aufrufen, wenn das Fenster gefuellt ist: der Stand von -State in diesem Moment gilt als "unveraendert".
+    -State: liefert den aktuellen Stand als Text, meist { Get-HUControlState $c @('feld1', 'feld2') }.
+    Nach dem Speichern DialogResult = $true setzen (dann keine Frage). Schliesst sich das Fenster aus anderem Grund selbst:
+    vorher Skip-HUCloseGuard. Nach einem Zwischenspeichern im Fenster: Reset-HUCloseGuard.
+#>
+function Register-HUCloseGuard {
+    param([Parameter(Mandatory)]$Window, [Parameter(Mandatory)][scriptblock]$State, [string]$Text = '')
+    if (-not $Text) { $Text = "Es gibt ungespeicherte Änderungen.`n`nFenster schließen und die Änderungen verwerfen?" }
+    $base = ''; try { $base = "$(& $State)" } catch { }
+    $first = -not $Window.Resources.Contains('huCloseGuard')
+    $Window.Resources['huCloseGuard'] = @{ State = $State; Base = $base; Text = $Text; Skip = $false }
+    if (-not $first) { return }
+    $Window.Add_Closing({
+            param($s, $e)
+            $g = $null; try { $g = $s.Resources['huCloseGuard'] } catch { }
+            if (-not $g) { return }
+            $cur = $g.Base
+            try { $cur = "$(& $g.State)" } catch { return }
+            if (-not (Test-HUCloseGuardAsk -Baseline $g.Base -Current $cur -DialogResult $s.DialogResult -Off (Test-HUCloseGuardOff) -Skip ([bool]$g.Skip))) { return }
+            if (-not (Confirm-HU $g.Text -Warning -Owner $s)) { $e.Cancel = $true }
+        })
+}
+function Reset-HUCloseGuard($Window) {
+    $g = $null; try { $g = $Window.Resources['huCloseGuard'] } catch { }
+    if (-not $g) { return }
+    try { $g.Base = "$(& $g.State)" } catch { }
+}
+function Skip-HUCloseGuard($Window) {
+    $g = $null; try { $g = $Window.Resources['huCloseGuard'] } catch { }
+    if ($g) { $g.Skip = $true }
+}
+
+# ---------------------------------------------------------------------------------------------
 # Auswahllisten
 # ---------------------------------------------------------------------------------------------
 <#
