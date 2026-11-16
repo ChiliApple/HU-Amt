@@ -461,7 +461,7 @@ Describe 'Update-Pruefung: Antwort auswerten (ab 1.0.8)' {
         function Read-HUJsonFile([string]$Path) { if (Test-Path -LiteralPath $Path) { return ([IO.File]::ReadAllText($Path) | ConvertFrom-Json) } return $null }
         function Show-HUMessage { param([string]$Text, [string]$Title, [string]$Icon = 'Info', $Owner = $null) $script:Msgs.Add("$Icon|$Text") }
         function Confirm-HU { param([string]$Text, [string]$Title, [switch]$Warning, $Owner = $null) return $false }
-        function Invoke-AsyncCommand { param([scriptblock]$ScriptBlock, $ArgumentList, $State, $TimeoutSec, [scriptblock]$OnComplete) $script:Captured = @{ OnComplete = $OnComplete; State = $State } }
+        function Invoke-AsyncCommand { param([scriptblock]$ScriptBlock, $ArgumentList, $State, $TimeoutSec, [scriptblock]$OnComplete) $script:Captured = @{ OnComplete = $OnComplete; State = $State; ScriptBlock = $ScriptBlock; ArgumentList = $ArgumentList } }
         . (Join-Path $script:Root 'Functions\Core-Update.ps1')
         . (Join-Path $script:Root 'Functions\UI-Update.ps1')
         $script:RunspacePool = 'Platzhalter'
@@ -547,6 +547,171 @@ Describe 'Update-Pruefung: Antwort auswerten (ab 1.0.8)' {
             $script:UpdateClickPending | Should -BeFalse
             $script:Msgs.Count | Should -Be 1
             $script:Msgs[0] | Should -BeLike 'Info|Im Kanal Stabil gibt es noch keine*'
+        }
+    }
+
+    Context 'Gespeicherter Token abgelehnt (HTTP 401): einmal ohne Token, wie Pull.ps1' {
+        BeforeAll {
+            # HTTP-Fehler nachgebildet: eine Ausnahme mit Response.StatusCode, gelesen wie im Code ([int]$_.Exception.Response.StatusCode).
+            # Echte WebException (5.1) bzw. HttpResponseException (7) lassen sich ohne Netz nicht mit Antwort bauen.
+            function New-TestHttpError([int]$Code) {
+                $e = New-Object System.Exception "HTTP $Code"
+                $e | Add-Member -NotePropertyName Response -NotePropertyValue ([pscustomobject]@{ StatusCode = $Code; Headers = @{} })
+                return $e
+            }
+            # Status der Ausnahme, die $Do wirft; -1 = keine Ausnahme
+            function Get-TestThrownCode([scriptblock]$Do) {
+                try { & $Do } catch { return [int]$_.Exception.Response.StatusCode }
+                return -1
+            }
+            $script:Warn401 = 'WARN|Update-Prüfung: Der gespeicherte GitHub-Token wird abgelehnt (HTTP 401). Geprüft wurde ohne Token. Token unter Rechtsklick auf Update, GitHub-Token erneuern oder löschen.'
+            # Platzhalter fuer die Update-Bibliothek im Hintergrund: kein Netz, jeder Abruf wird in einer Datei festgehalten
+            # Mode: ok = mit Token 401, ohne Token Antwort | ohne404 = mit Token 401, ohne Token 404 | mit403 = mit Token 403
+            function New-TestStubLib([string]$Mode) {
+                $script:StubLog = Join-Path $script:AppRoot ('stub-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.log')
+                $p = Join-Path $script:AppRoot 'stub-lib.ps1'
+                $t = @'
+$stubLog = '__LOG__'; $stubMode = '__MODE__'
+function New-StubHttpError([int]$Code) {
+    $e = New-Object System.Exception "HTTP $Code"
+    $e | Add-Member -NotePropertyName Response -NotePropertyValue ([pscustomobject]@{ StatusCode = $Code; Headers = @{} })
+    return $e
+}
+function Test-StubAnswer([string]$Token) {
+    if ($Token) { if ($stubMode -eq 'mit403') { throw (New-StubHttpError 403) }; throw (New-StubHttpError 401) }
+    if ($stubMode -eq 'ohne404') { throw (New-StubHttpError 404) }
+}
+function Get-HMReleases([string]$Owner, [string]$Repo, [string]$Token) {
+    Add-Content -LiteralPath $stubLog -Value "REL|$Token" -Encoding UTF8
+    Test-StubAnswer $Token
+    return @([pscustomobject]@{ Version = [version]'1.0.9'; Tag = 'v1.0.9'; Prerelease = $false; Date = '2026-11-16'; Notes = ''; ManifestUrl = 'm'; SignatureUrl = 's' })
+}
+function Select-HMRelease($Releases, [string]$Channel, [switch]$SignedOnly) { return @($Releases)[0] }
+function Invoke-WebRequest {
+    [CmdletBinding()]
+    param([Parameter(Position = 0)][string]$Uri, [hashtable]$Headers, [switch]$UseBasicParsing, [int]$TimeoutSec)
+    $tk = "$($Headers['Authorization'])" -replace '^token ', ''
+    Add-Content -LiteralPath $stubLog -Value "WEB|$tk" -Encoding UTF8
+    Test-StubAnswer $tk
+    return [pscustomobject]@{ Content = '{"version":"1.0.9"}' }
+}
+'@
+                [IO.File]::WriteAllText($p, $t.Replace('__LOG__', $script:StubLog).Replace('__MODE__', $Mode), (New-Object Text.UTF8Encoding $true))
+                return $p
+            }
+            function Get-TestStubCalls { if (Test-Path -LiteralPath $script:StubLog) { return @(Get-Content -LiteralPath $script:StubLog -Encoding UTF8) } return @() }
+            # den festgehaltenen Hintergrund-Block so ausfuehren wie Invoke-AsyncCommand: eigener Runspace, Text des Blocks, Argumente
+            function Invoke-TestBackground([object[]]$ArgList) {
+                $ps = [PowerShell]::Create()
+                try {
+                    [void]$ps.AddScript($script:Captured.ScriptBlock.ToString())
+                    foreach ($a in $ArgList) { [void]$ps.AddArgument($a) }
+                    return (($ps.Invoke() | Out-String).Trim())
+                } finally { $ps.Dispose() }
+            }
+        }
+        BeforeEach { $script:UpdateNoTokenWarned = $false }
+
+        It 'Abruf: 401 mit Token, ohne Token klappt es: Ergebnis, Kennzeichen ohne Token, genau zwei Aufrufe' {
+            $calls = New-Object System.Collections.Generic.List[string]
+            $r = Invoke-HUWithTokenFallback -Token 'alt' -Fetch { param($t) $calls.Add("$t"); if ($t) { throw (New-TestHttpError 401) }; 'daten' }
+            $r.Result | Should -BeExactly 'daten'
+            $r.NoToken | Should -BeTrue
+            $calls.Count | Should -Be 2
+            $calls[0] | Should -BeExactly 'alt'
+            $calls[1] | Should -BeExactly ''
+        }
+        It 'Abruf: 401 ohne Token: kein zweiter Versuch, der Fehler geht mit Status weiter' {
+            $calls = New-Object System.Collections.Generic.List[string]
+            Get-TestThrownCode { Invoke-HUWithTokenFallback -Token '' -Fetch { param($t) $calls.Add("$t"); throw (New-TestHttpError 401) } } | Should -Be 401
+            $calls.Count | Should -Be 1
+        }
+        It 'Abruf: 404 und 403 mit Token: kein zweiter Versuch, der Fehler geht mit Status weiter' {
+            foreach ($c in 404, 403) {
+                $calls = New-Object System.Collections.Generic.List[string]
+                Get-TestThrownCode { Invoke-HUWithTokenFallback -Token 'alt' -Fetch { param($t) $calls.Add("$t"); throw (New-TestHttpError $c) } } | Should -Be $c
+                $calls.Count | Should -Be 1
+            }
+        }
+        It 'Abruf: klappt beim ersten Mal: ein Aufruf, Kennzeichen nicht gesetzt' {
+            $calls = New-Object System.Collections.Generic.List[string]
+            $r = Invoke-HUWithTokenFallback -Token 'alt' -Fetch { param($t) $calls.Add("$t"); @('a', 'b') }
+            @($r.Result) | Should -Be @('a', 'b')
+            $r.NoToken | Should -BeFalse
+            $calls.Count | Should -Be 1
+            $calls[0] | Should -BeExactly 'alt'
+        }
+        It 'Abruf: auch der zweite Versuch scheitert: dessen Fehler geht weiter (404, nicht 401)' {
+            $calls = New-Object System.Collections.Generic.List[string]
+            Get-TestThrownCode { Invoke-HUWithTokenFallback -Token 'alt' -Fetch { param($t) $calls.Add("$t"); if ($t) { throw (New-TestHttpError 401) }; throw (New-TestHttpError 404) } } | Should -Be 404
+            $calls.Count | Should -Be 2
+            $calls[1] | Should -BeExactly ''
+        }
+        It 'Antwort mit Kennzeichen NOTOKEN; ergibt denselben Zustand, neues Feld NoToken' {
+            $c = [pscustomobject]@{ Owner = 'o'; Repo = 'r' }
+            $a = ConvertFrom-HUUpdateAnswer 'NOTOKEN;REL:1.0.9|v1.0.9|False' $c
+            $a.Kind | Should -BeExactly 'REL'; $a.State | Should -BeExactly 'ok'; $a.Remote | Should -BeExactly '1.0.9'; $a.Pre | Should -BeFalse; $a.Error | Should -BeExactly ''
+            $a.NoToken | Should -BeTrue
+            $a = ConvertFrom-HUUpdateAnswer 'NOTOKEN;NONE' $c
+            $a.Kind | Should -BeExactly 'NONE'; $a.State | Should -BeExactly 'empty'; $a.NoToken | Should -BeTrue
+            $a = ConvertFrom-HUUpdateAnswer 'REL:1.0.9|v1.0.9|False' $c
+            $a.NoToken | Should -BeFalse
+            (ConvertFrom-HUUpdateAnswer 'AUTH:404|False' $c).NoToken | Should -BeFalse
+        }
+        It 'Ablauf: Antwort mit Kennzeichen ist ok, die Warnung zum abgelehnten Token kommt einmal je Sitzung (auch beim stillen Start)' {
+            Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False' -Quiet
+            $script:UpdateCheck.State | Should -Be 'ok'
+            $script:UpdateCheck.Remote | Should -Be '1.0.8'
+            Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False'
+            @($script:Log | Where-Object { $_ -ceq $script:Warn401 }).Count | Should -Be 1
+            # ohne Kennzeichen keine Warnung
+            $script:UpdateNoTokenWarned = $false; $script:Log.Clear()
+            Invoke-Answer 'REL:1.0.8|v1.0.8|False'
+            @($script:Log | Where-Object { $_ -ceq $script:Warn401 }).Count | Should -Be 0
+        }
+        It 'Ablauf: wartender Klick wird mit Kennzeichen normal entschieden' {
+            $script:UpdateClickPending = $true; $script:UpdateClickSince = Get-Date
+            Invoke-Answer 'NOTOKEN;REL:1.0.8|v1.0.8|False'
+            $script:UpdateClickPending | Should -BeFalse
+            $script:Msgs.Count | Should -Be 1
+            $script:Msgs[0] | Should -BeExactly 'Info|HU-Amt ist aktuell: Version 1.0.8 (Kanal Stabil). Es gibt nichts zu laden.'
+        }
+        It 'echter Hintergrund-Block (Release): 401 mit Token, ohne Token gefunden = NOTOKEN;REL; ohne Token 404 = AUTH:404|False' {
+            Invoke-UpdateCheck
+            $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
+            $al[0] = New-TestStubLib 'ok'
+            Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;REL:1.0.9|v1.0.9|False'
+            Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
+            $al[0] = New-TestStubLib 'ohne404'
+            Invoke-TestBackground $al | Should -BeExactly 'AUTH:404|False'
+            Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
+            $al[0] = New-TestStubLib 'mit403'
+            Invoke-TestBackground $al | Should -BeExactly 'AUTH:403|True'
+            Get-TestStubCalls | Should -Be @('REL|alt')
+        }
+        It 'echter Hintergrund-Block (Branch): 401 mit Token, zweiter Abruf ohne Authorization = NOTOKEN;REL' {
+            Invoke-UpdateCheck
+            $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
+            $al[2] = [pscustomobject]@{ Owner = 'o'; Repo = 'r'; Channel = 'Stable'; RequireSignature = $false; UseBranch = $true; Branch = 'dev' }
+            $al[0] = New-TestStubLib 'ok'
+            Invoke-TestBackground $al | Should -BeExactly 'NOTOKEN;REL:1.0.9|Branch dev|False'
+            Get-TestStubCalls | Should -Be @('WEB|alt', 'WEB|')
+            $al[0] = New-TestStubLib 'ohne404'
+            Invoke-TestBackground $al | Should -BeExactly 'AUTH:404|False'
+        }
+        It 'echter Hintergrund-Block (Andere Version): Versionsliste wird nach 401 ohne Token gelesen' {
+            Show-HUVersionPicker
+            $al = @($script:Captured.ArgumentList); $al[1] = 'alt'
+            $al[0] = New-TestStubLib 'ok'
+            $r = Invoke-TestBackground $al
+            $r | Should -BeLike 'LIST:*'
+            $r | Should -BeLike '*"Version":"1.0.9"*'
+            Get-TestStubCalls | Should -Be @('REL|alt', 'REL|')
+            $al[0] = New-TestStubLib 'ohne404'
+            Invoke-TestBackground $al | Should -BeExactly 'ERR:Repo nicht erreichbar (HTTP 404)'
+            $al[0] = New-TestStubLib 'mit403'
+            Invoke-TestBackground $al | Should -BeExactly 'ERR:Repo nicht erreichbar (HTTP 403)'
+            Get-TestStubCalls | Should -Be @('REL|alt')
         }
     }
 }
