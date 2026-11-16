@@ -1,5 +1,36 @@
 ﻿# Changelog
 
+## v1.0.9
+
+### 🧩 Module
+- **Modul-Updates ohne halbes Modul:** Eine neue Modulfassung wird beim Start nur übernommen, wenn sonst niemand HU-Amt offen hat.
+  - Haben andere HU-Amt noch offen, bleibt die bisherige Fassung, bis zum nächsten Start ohne andere Sitzung.
+  - Der Austausch geht in einem Schritt. Klappt er nicht, bleibt die bisherige Fassung vollständig, und nach dem Start erscheint ein Hinweis.
+  - Bricht der Austausch ab (Strom weg, Programm beendet), repariert der nächste Start das.
+- **Rückfrage beim Schließen:** Module können beim Schließen eines Fensters mit ungespeicherten Änderungen fragen, ob sie verworfen werden sollen. Buchungen, Reisen und Fristen nutzen das in ihren nächsten Versionen.
+- **Zahl am Reiter erklärt:** Die Zahl in Klammern am Reiter hat einen Tooltip. Sie zeigt, wie viele Dateien im Postfach dieses Reiters warten.
+
+### 💾 Sicherung
+- **Gelöschte Dateien halten die Sicherung nicht mehr auf:** Wird während der Sicherung eine Datei gelöscht (z. B. eine alte Kopie), entsteht die Sicherung trotzdem. Die Meldung nennt die Zahl, das Protokoll die Dateien.
+  - Gesperrte oder nicht lesbare Dateien brechen die Sicherung weiter ab, damit nichts still fehlt.
+- **Grenzen schon beim Sichern:** Wäre eine Sicherung zu groß, um sie wiederherzustellen (mehr als 200000 Dateien, eine Datei über 512 MB oder zusammen über 2 GB), schreibt HU-Amt keine Sicherung und sagt, warum.
+  - Ab 80 Prozent einer Grenze entsteht die Sicherung, mit einer Warnung.
+
+### 💾 Daten auf der Freigabe
+- **Falsche Sperre wird abgelehnt:** Übergibt ein Modul beim Speichern die Sperre einer anderen Datei, wird nichts geschrieben.
+
+### 🎨 Oberfläche
+- **Tooltips und Hilfe stimmen mit dem Verhalten:** Einstellungen, Support, Datenordner und "Datei einlesen" erklären vollständig, was sie tun. Die Hilfe nennt beim Reiter Update und beim Paket für Außenstellen die richtigen Namen, und sie kündigt das Ausblenden von Modulen ohne Zugriff nicht mehr als bestehend an.
+
+### ⚠️ Nach dem Update
+- **Modul-Updates kommen etwas später an:** Hat beim Start noch jemand anderer HU-Amt offen, wird eine geladene Modulfassung erst beim nächsten Start ohne andere Sitzung übernommen.
+
+### 🚧 Grenzen
+- **Sicherung über der Grenze:** Größere Datenmengen lassen sich weiter nicht sichern. Die Meldung sagt das jetzt vorher, statt eine Sicherung zu schreiben, die sich nicht öffnen lässt.
+
+### ✅ Qualität
+- TESTZAHL Tests.
+
 ## v1.0.8
 
 ### 🔄 Update

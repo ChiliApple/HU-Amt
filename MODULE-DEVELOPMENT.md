@@ -279,6 +279,19 @@ if ($err) { Show-HUMessage $err 'Betrag' -Icon Warning; $c.txtBetrag.Focus() | O
 
 - **Tooltip auf gesperrten Knöpfen:** Die Stile `DarkButton` und `ToolButton` in `XAML\Theme.xaml` zeigen den Tooltip auch bei `IsEnabled = $false` (`ToolTipService.ShowOnDisabled`). Ein eigener Setter im Modul ist nicht mehr nötig. Den Grund für die Sperre in den Tooltip schreiben, z. B. "Gesperrt, weil ...". Das gilt in allen Fenstern und Reitern, die diese Stile nutzen. Stile mit `BasedOn` auf `DarkButton` oder `ToolButton` erben die Einstellung. Nur eigene Stile ohne `BasedOn` auf `DarkButton` oder `ToolButton` müssen `ToolTipService.ShowOnDisabled` selbst setzen.
 
+### Neu und geändert ab 1.0.9
+
+Was davon ein Modul nutzt, setzt `minApp` auf 1.0.9 (`Register-HUCloseGuard`, `Get-HUControlState`).
+
+- **Rückfrage beim Schließen:** `Register-HUCloseGuard -Window $w -State { Get-HUControlState $c @('txtName', 'chkAktiv', 'lstAnhaenge') }` fragt beim Schließen über Abbrechen, Esc oder das Kreuz "Fenster schließen und die Änderungen verwerfen?", wenn sich der Stand seit dem Anmelden geändert hat.
+  - Erst aufrufen, wenn das Fenster gefüllt ist: der Stand in diesem Moment gilt als unverändert.
+  - Nach erfolgreichem Speichern wie bisher `$w.DialogResult = $true` setzen, dann kommt keine Frage.
+  - Schließt sich das Fenster aus einem anderen Grund selbst (z. B. nach dem Löschen), vorher `Skip-HUCloseGuard $w`. Nach einem Zwischenspeichern im Fenster `Reset-HUCloseGuard $w`.
+  - `Get-HUControlState` liest Haken, Datum, Text und bei Listen nur die Anzahl der Einträge. Eine Auswahl in einer Liste zählt nicht als Änderung, Kennwortfelder werden übergangen. Statt der Steuerelemente darf `-State` jeden Text liefern, der sich bei einer Änderung ändert.
+  - Im Starttest der App und mit der Umgebungsvariable `HUAMT_NOCLOSEGUARD=1` fragt es nie (für automatische Tests, die Fenster selbst schließen).
+- **`Save-HUDataFile -Lock`:** Gehört die übergebene Sperre zu einer anderen Datei als `-Path`, wird nichts geschrieben, `Ok` ist `$false`. Verglichen wird der vollständige Pfad, Groß und klein egal.
+- **Modul-Updates:** Eine neue Modulfassung wird beim Start nur übernommen, wenn sonst niemand die App offen hat. Der Tausch läuft über `Addons\.alt\<Kennung>` mit Rückfall. Module müssen dafür nichts ändern.
+
 ### Vorlagen für Modul-Repos
 
 `HU-Amt\.github\modul-vorlage\` enthält `Format-Dateien.ps1`, `Test-Start.ps1` und `Deploy-Dev.ps1`. Module kopieren sie **unverändert** nach `.github\dev\`, wie die Wächter-Vorlage. Was nur ein Modul braucht, steht in `.github\dev\modul-dev.json`; Aufbau und Felder in der `LIESMICH.md` dort. `Deploy-Dev.ps1` bricht ab, wenn die Test-App läuft. Ab 0.1.12 gilt für die Modul-Id dieselbe Regel wie im Kern (Buchstabe, dann 1 bis 30 Buchstaben oder Ziffern), und Dateien, die kein gültiges UTF-8 sind, werden nicht umgeschrieben, sondern als Warnung gemeldet.
