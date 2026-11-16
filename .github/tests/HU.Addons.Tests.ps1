@@ -250,3 +250,61 @@ Describe 'Modul-Update: schneller Weg ohne alle Dateien (ab 1.0.5)' {
         Should -Invoke Invoke-WebRequest -Times 4 -Exactly -ParameterFilter { "$Uri" -like '*/contents/*' }
     }
 }
+
+Describe 'Wartende Fassung uebernehmen (V5, Use-HUAddonPending)' {
+    BeforeEach {
+        $script:AD = Join-Path ([IO.Path]::GetTempPath()) ('hu-addpend-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:AD)
+        [void](New-TestAddon $script:AD 'Reisen' @{ version = '1.0.4' })
+        [IO.File]::WriteAllText((Join-Path $script:AD 'Reisen\Addon.ps1'), 'alt')
+        [void](New-TestAddon (Join-Path $script:AD '.pending') 'Reisen' @{ version = '1.0.5' })
+        [IO.File]::WriteAllText((Join-Path $script:AD '.pending\Reisen\Addon.ps1'), 'neu')
+    }
+    AfterEach { Remove-Item -LiteralPath $script:AD -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'niemand sonst offen: neue Fassung uebernommen, alte weg, Status Uebernommen' {
+        $r = @(Use-HUAddonPending $script:AD)
+        $r.Count | Should -Be 1
+        $r[0].Id | Should -Be 'Reisen'
+        $r[0].Status | Should -Be 'Uebernommen'
+        (Read-HUAddonInfo (Join-Path $script:AD 'Reisen')).Version | Should -Be ([version]'1.0.5')
+        Test-Path (Join-Path $script:AD '.pending\Reisen') | Should -BeFalse
+        Test-Path (Join-Path $script:AD '.alt\Reisen') | Should -BeFalse
+    }
+    It 'andere Sitzung offen: nichts getauscht, Status Wartet, beide Fassungen bleiben' {
+        $others = @([pscustomobject]@{ UserName = 'maria'; ComputerName = 'PC-12'; Since = (Get-Date); Path = 'x' })
+        $r = @(Use-HUAddonPending $script:AD -Others $others)
+        $r[0].Status | Should -Be 'Wartet'
+        $r[0].Text | Should -Match 'maria'
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
+        Test-Path (Join-Path $script:AD '.pending\Reisen\addon.json') | Should -BeTrue
+    }
+    It 'Tausch scheitert (Datei im alten Modul offen): altes Modul vollstaendig, Status Fehler, Fassung wartet weiter' {
+        $held = [IO.File]::Open((Join-Path $script:AD 'Reisen\Addon.ps1'), 'Open', 'Read', 'None')
+        try { $r = @(Use-HUAddonPending $script:AD) } finally { $held.Dispose() }
+        $r[0].Status | Should -Be 'Fehler'
+        $r[0].Text | Should -Not -BeNullOrEmpty
+        Test-Path (Join-Path $script:AD 'Reisen\addon.json') | Should -BeTrue
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
+        Test-Path (Join-Path $script:AD '.pending\Reisen\addon.json') | Should -BeTrue
+    }
+    It 'Abbruch zwischen den Schritten (alt verschoben, neu nicht da): beim naechsten Start wird die neue Fassung uebernommen' {
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AD '.alt') -Force)
+        Move-Item -LiteralPath (Join-Path $script:AD 'Reisen') -Destination (Join-Path $script:AD '.alt\Reisen')
+        $r = @(Use-HUAddonPending $script:AD)
+        $r[0].Status | Should -Be 'Uebernommen'
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'neu'
+        Test-Path (Join-Path $script:AD '.alt\Reisen') | Should -BeFalse
+    }
+    It 'Abbruch ohne wartende Fassung (alt verschoben, kein neues): alte Fassung wird zurueckgeholt' {
+        Remove-Item -LiteralPath (Join-Path $script:AD '.pending') -Recurse -Force
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AD '.alt') -Force)
+        Move-Item -LiteralPath (Join-Path $script:AD 'Reisen') -Destination (Join-Path $script:AD '.alt\Reisen')
+        $r = @(Use-HUAddonPending $script:AD)
+        $r[0].Status | Should -Be 'Repariert'
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
+    }
+    It 'der Ordner .alt wird nicht als Modul geladen' {
+        [void](New-TestAddon (Join-Path $script:AD '.alt') 'Fristen')
+        @(Get-HUAddonsInDir $script:AD ([version]'9.9.9') 'Privat' | ForEach-Object { $_.Id }) | Should -Not -Contain 'Fristen'
+    }
+}
