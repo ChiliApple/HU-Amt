@@ -130,6 +130,20 @@ Describe 'Sichern: verschwundene Dateien und Grenzen (V6)' {
         $o = Open-HUAppBackup -Path $r.Path -Password $script:Pw -AppVersion '0.0.1' -AppRoot (Join-Path $script:Base 'App') -DataRoot $script:Data
         @($o.Errors).Count | Should -Be 0
     }
+    It 'Unterordner verschwindet waehrend der Sicherung (Postfach-Eintrag abgeholt): wird ausgelassen, Sicherung entsteht' {
+        $pf = Join-Path $script:Data 'Postfach\Beispiel\0123456789abcdef0123456789abcdef'
+        [void](New-Item -ItemType Directory -Path $pf -Force)
+        [IO.File]::WriteAllText((Join-Path $pf 'eintrag.json'), '{}')
+        $src = @(Get-HUAppBackupSources -DataRoot $script:Data)
+        Remove-Item -LiteralPath $pf -Recurse -Force
+        $r = New-HUAppBackup -Sources $src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1'
+        Test-Path $r.Path | Should -BeTrue
+        @($r.Skipped) | Should -Contain 'data/Postfach/Beispiel/0123456789abcdef0123456789abcdef/eintrag.json'
+    }
+    It 'Bereichsordner verschwindet waehrend der Sicherung: Abbruch' {
+        Remove-Item -LiteralPath (Join-Path $script:Data 'Beispiel') -Recurse -Force
+        { New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1' } | Should -Throw
+    }
     It 'Datenordner weg (z. B. Freigabe getrennt): keine leere Sicherung, Abbruch' {
         Remove-Item -LiteralPath $script:Data -Recurse -Force
         { New-HUAppBackup -Sources $script:Src -Password $script:Pw -Folder $script:Out -AppVersion '0.0.1' -Pc 'PC-1' } | Should -Throw

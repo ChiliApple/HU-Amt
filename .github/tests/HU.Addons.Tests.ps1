@@ -366,6 +366,8 @@ Describe 'Texte im Kern stimmen mit dem Verhalten (V13)' {
         (& $script:Rd 'Functions\Core-Addons.ps1') | Should -Not -Match 'geladen - wirkt nach dem Neustart"'
         $ui | Should -Not -Match 'Es wird nach einem Neustart von \$\(\$script:AppTitle\) aktiv\. Jetzt neu starten\?'
         $ui | Should -Match 'AddonPendingWaiting'
+        (& $script:Rd 'Functions\Core-Addons.ps1') | Should -Not -Match 'ist geladen und wartet auf den Neustart"'
+        (& $script:Rd 'Docs\Funktionen.html') | Should -Not -Match 'neue Fassung nach dem Neustart'
     }
     It 'KD9: Tooltip Datenordner nennt den Fall mit vorhandenen Daten' {
         (& $script:Rd 'XAML\SettingsWindow.xaml') | Should -Match 'x:Name="btnDataLocation"[^>]*schon Daten'
