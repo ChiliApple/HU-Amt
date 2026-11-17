@@ -122,7 +122,9 @@ function Show-HUAbPasswordDialog($Owner = $null, [switch]$New, [string]$Text = '
             $st.R = [pscustomobject]@{ Password = $c.pw1.SecurePassword.Copy(); Remember = [bool]($New -and $c.chkRemember.IsChecked) }
             $w.Close()
         })
-    $w.Add_ContentRendered({ $c.pw1.Focus() })
+    # $c fest binden: laeuft ContentRendered erst nach dem Schliessen (waehrend schon das naechste Fenster offen ist),
+    # fand $c sonst die Variable jenes Fensters ("Methodenaufruf fuer einen Ausdruck mit Nullwert", Starttest unter 7)
+    $w.Add_ContentRendered({ [void]$c.pw1.Focus() }.GetNewClosure())
     [void]$w.ShowDialog()
     return $st.R
 }
