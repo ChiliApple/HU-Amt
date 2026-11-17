@@ -96,7 +96,8 @@ function Read-HUSecretDialog([string]$Message, [string]$Title = 'GitHub-Token') 
     $c.txtMsg.Text = $Message
     $script:HUSecretOk = $false
     $c.btnOk.Add_Click({ $script:HUSecretOk = $true; $w.Close() })
-    $w.Add_ContentRendered({ $c.pwdTok.Focus() | Out-Null })
+    # $c fest binden: kommt ContentRendered erst nach dem Schliessen, saehe der Block sonst das $c des naechsten Fensters
+    $w.Add_ContentRendered({ $c.pwdTok.Focus() | Out-Null }.GetNewClosure())
     [void]$w.ShowDialog()
     if (-not $script:HUSecretOk) { return $null }
     $s = $c.pwdTok.SecurePassword.Copy(); $s.MakeReadOnly()

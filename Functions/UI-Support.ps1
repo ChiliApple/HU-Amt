@@ -209,6 +209,7 @@ function Show-HUSupport {
             Open-HUUrl "https://github.com/$owner/$repo/issues/new?title=$([uri]::EscapeDataString("[v$($script:Version)] " + (ConvertTo-HURedacted $first $map)))&body=$([uri]::EscapeDataString($body))"
         })
     $c.btnCancel.Add_Click({ $w.Close() })
-    $w.Add_ContentRendered({ $c.txtDesc.Focus() | Out-Null })
+    # $c fest binden: kommt ContentRendered erst nach dem Schliessen, saehe der Block sonst das $c des naechsten Fensters
+    $w.Add_ContentRendered({ $c.txtDesc.Focus() | Out-Null }.GetNewClosure())
     [void]$w.ShowDialog()
 }

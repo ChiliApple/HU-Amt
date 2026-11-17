@@ -18,7 +18,7 @@
   - Gesperrte oder nicht lesbare Dateien brechen die Sicherung weiter ab, damit nichts still fehlt. Fehlt ein ganzer Bereich unter dem Datenordner oder der Datenordner selbst (z. B. Freigabe getrennt), entsteht keine Sicherung. Ein inzwischen abgeholter Postfach-Eintrag wird wie eine gelöschte Datei ausgelassen.
 - **Grenzen schon beim Sichern:** Wäre eine Sicherung zu groß, um sie wiederherzustellen (mehr als 200000 Dateien, eine Datei über 512 MB oder zusammen über 2 GB), schreibt HU-Amt keine Sicherung und sagt, warum.
   - Ab 80 Prozent einer Grenze entsteht die Sicherung, mit einer Warnung.
-- **Kennwortfenster der Sicherung:** Wird das Fenster sehr schnell wieder geschlossen, erscheint kein "Unerwarteter Fehler" mehr im Protokoll (PowerShell 7).
+- **Schnell geschlossene Fenster:** Wird ein Fenster sehr schnell wieder geschlossen, erscheint kein "Unerwarteter Fehler" mehr im Protokoll (PowerShell 7). Betrifft das Kennwortfenster der Sicherung, das Fenster für Name und Beschreibung, die Abfrage des GitHub-Tokens und das Support-Fenster.
 
 ### 💾 Daten auf der Freigabe
 - **Falsche Sperre wird abgelehnt:** Übergibt ein Modul beim Speichern die Sperre einer anderen Datei, wird nichts geschrieben.
