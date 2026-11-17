@@ -164,10 +164,17 @@ function Get-HUAddonInboxTip([int]$Count) {
 }
 
 # Geladene und gepruefte Fassung nach Addons\.pending\<Id> legen (ersetzt eine aeltere wartende Fassung).
+# Echtes Umbenennen: Move-Item legt den Ordner IN ein vorhandenes Ziel. Hat ein anderer Verwalter dieselbe Fassung
+# zwischen Entfernen und Ablegen abgelegt, entstand so ein Unterordner, und das Modul liess sich nach dem Tausch
+# nicht mehr laden ("fremde Datei"). Jetzt bleibt seine Fassung unberuehrt, und es gibt eine Meldung.
 function Move-HUAddonStageToPending([string]$Stage, [string]$Pending) {
     if (Test-Path -LiteralPath $Pending) { Remove-Item -LiteralPath $Pending -Recurse -Force }
     New-Item -ItemType Directory -Path (Split-Path $Pending -Parent) -Force | Out-Null
-    Move-Item -LiteralPath $Stage -Destination $Pending -Force
+    try { [IO.Directory]::Move($Stage, $Pending) }
+    catch {
+        if (Test-Path -LiteralPath $Pending) { throw 'wird gerade auch von einem anderen PC geladen - bitte in einer Minute noch einmal prüfen' }
+        $e = $_.Exception; if ($e.InnerException) { $e = $e.InnerException }; throw $e.Message
+    }
 }
 
 # Andere Sitzungen fuer das Modul-Update trennen: verwaiste (Stale, niemand haelt die Sitzungsdatei offen, sie liess
