@@ -255,7 +255,7 @@
                     <Border DockPanel.Dock="Bottom" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,8,0,0">
                         <DockPanel>
                             <Button x:Name="btnDataLocation" DockPanel.Dock="Right" Content="Datenordner &#xE4;ndern ..." Style="{StaticResource ToolButton}" Margin="8,0,0,0"
-                                    ToolTip="Daten aller Module auf eine andere Freigabe legen. Bestehende Daten werden kopiert und gepr&#xFC;ft, danach Neustart."/>
+                                    ToolTip="Daten aller Module auf eine andere Freigabe legen. In einen leeren Ordner werden die bestehenden Daten kopiert und gepr&#xFC;ft. Liegen dort schon Daten dieser App, wird nach R&#xFC;ckfrage nur umgestellt und nichts kopiert. Danach Neustart."/>
                             <TextBlock x:Name="txtDataLocation" Style="{StaticResource HintText}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"
                                        ToolTip="Hier liegen die Daten aller Module, die Verwalter-Liste und die pers&#xF6;nlichen Einstellungen. Gilt f&#xFC;r alle, die diese Installation starten."/>
                         </DockPanel>

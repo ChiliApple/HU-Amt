@@ -528,7 +528,8 @@ function Show-HUDialogBox {
                     $e.Handled = $true
                 }
             })
-        $w.Add_ContentRendered({ if ($first) { [void]$first.Focus() } })
+        # $first fest binden: kommt ContentRendered erst nach dem Schliessen, gaebe es $first im naechsten Fenster nicht
+        $w.Add_ContentRendered({ if ($first) { [void]$first.Focus() } }.GetNewClosure())
         [void]$w.ShowDialog()
         return $st.R
     } catch {
@@ -725,7 +726,8 @@ function Read-HUNameDescription {
         if (-not $c.txtName.Text.Trim()) { Show-HUMessage 'Bitte einen Namen eingeben.' -Icon Warning -Owner $w; return }
         $state.Ok = $true; $w.Close()
     })
-    $w.Add_ContentRendered({ $c.txtName.Focus(); $c.txtName.SelectAll() })
+    # $c fest binden: kommt ContentRendered erst nach dem Schliessen, saehe der Block sonst das $c des naechsten Fensters
+    $w.Add_ContentRendered({ $c.txtName.Focus(); $c.txtName.SelectAll() }.GetNewClosure())
     [void]$w.ShowDialog()
     if (-not $state.Ok) { return $null }
     return [pscustomobject]@{ Name = $c.txtName.Text.Trim(); Description = ($c.txtDesc.Text -replace '\s+', ' ').Trim() }

@@ -233,7 +233,7 @@ Describe 'Modul-Update: schneller Weg ohne alle Dateien (ab 1.0.5)' {
         $script:RelId = 'Fristen'; $script:RelVer = '1.0.5'
         $r = Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x'
         $r.Status | Should -Be 'Aktuell'
-        $r.Text | Should -BeLike '*wartet auf den Neustart*'
+        $r.Text | Should -BeLike '*wartet auf den nächsten Start*'
         Should -Invoke Invoke-WebRequest -Times 1 -Exactly
     }
     It 'neuere Version: ein Archiv statt jeder Datei einzeln (ab 1.0.7)' {
@@ -248,5 +248,164 @@ Describe 'Modul-Update: schneller Weg ohne alle Dateien (ab 1.0.5)' {
         Should -Invoke Invoke-WebRequest -Times 5 -Exactly
         # 1x addon.json zum Vergleichen, 1x Archiv (kaputt), dann 3 Dateien einzeln
         Should -Invoke Invoke-WebRequest -Times 4 -Exactly -ParameterFilter { "$Uri" -like '*/contents/*' }
+    }
+}
+
+Describe 'Wartende Fassung uebernehmen (V5, Use-HUAddonPending)' {
+    BeforeEach {
+        $script:AD = Join-Path ([IO.Path]::GetTempPath()) ('hu-addpend-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        [void](New-Item -ItemType Directory -Path $script:AD)
+        [void](New-TestAddon $script:AD 'Reisen' @{ version = '1.0.4' })
+        [IO.File]::WriteAllText((Join-Path $script:AD 'Reisen\Addon.ps1'), 'alt')
+        [void](New-TestAddon (Join-Path $script:AD '.pending') 'Reisen' @{ version = '1.0.5' })
+        [IO.File]::WriteAllText((Join-Path $script:AD '.pending\Reisen\Addon.ps1'), 'neu')
+    }
+    AfterEach { Remove-Item -LiteralPath $script:AD -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'niemand sonst offen: neue Fassung uebernommen, alte weg, Status Uebernommen' {
+        $r = @(Use-HUAddonPending $script:AD)
+        $r.Count | Should -Be 1
+        $r[0].Id | Should -Be 'Reisen'
+        $r[0].Status | Should -Be 'Uebernommen'
+        (Read-HUAddonInfo (Join-Path $script:AD 'Reisen')).Version | Should -Be ([version]'1.0.5')
+        Test-Path (Join-Path $script:AD '.pending\Reisen') | Should -BeFalse
+        Test-Path (Join-Path $script:AD '.alt\Reisen') | Should -BeFalse
+    }
+    It 'andere Sitzung offen: nichts getauscht, Status Wartet, beide Fassungen bleiben' {
+        $others = @([pscustomobject]@{ UserName = 'maria'; ComputerName = 'PC-12'; Since = (Get-Date); Path = 'x' })
+        $r = @(Use-HUAddonPending $script:AD -Others $others)
+        $r[0].Status | Should -Be 'Wartet'
+        $r[0].Text | Should -Match 'maria'
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
+        Test-Path (Join-Path $script:AD '.pending\Reisen\addon.json') | Should -BeTrue
+    }
+    It 'Tausch scheitert (Datei im alten Modul offen): altes Modul vollstaendig, Status Fehler, Fassung wartet weiter' {
+        $held = [IO.File]::Open((Join-Path $script:AD 'Reisen\Addon.ps1'), 'Open', 'Read', 'None')
+        try { $r = @(Use-HUAddonPending $script:AD) } finally { $held.Dispose() }
+        $r[0].Status | Should -Be 'Fehler'
+        $r[0].Text | Should -Not -BeNullOrEmpty
+        Test-Path (Join-Path $script:AD 'Reisen\addon.json') | Should -BeTrue
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
+        Test-Path (Join-Path $script:AD '.pending\Reisen\addon.json') | Should -BeTrue
+    }
+    It 'Abbruch zwischen den Schritten (alt verschoben, neu nicht da): beim naechsten Start wird die neue Fassung uebernommen' {
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AD '.alt') -Force)
+        Move-Item -LiteralPath (Join-Path $script:AD 'Reisen') -Destination (Join-Path $script:AD '.alt\Reisen')
+        $r = @(Use-HUAddonPending $script:AD)
+        $r[-1].Status | Should -Be 'Uebernommen'
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'neu'
+        Test-Path (Join-Path $script:AD '.alt\Reisen') | Should -BeFalse
+    }
+    It 'Abbruch ohne wartende Fassung (alt verschoben, kein neues): alte Fassung wird zurueckgeholt' {
+        Remove-Item -LiteralPath (Join-Path $script:AD '.pending') -Recurse -Force
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AD '.alt') -Force)
+        Move-Item -LiteralPath (Join-Path $script:AD 'Reisen') -Destination (Join-Path $script:AD '.alt\Reisen')
+        $r = @(Use-HUAddonPending $script:AD)
+        $r[0].Status | Should -Be 'Repariert'
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
+    }
+    It 'Abbruch zwischen den Schritten, andere Sitzung offen: alte Fassung kommt sofort zurück, neue wartet' {
+        [void](New-Item -ItemType Directory -Path (Join-Path $script:AD '.alt') -Force)
+        Move-Item -LiteralPath (Join-Path $script:AD 'Reisen') -Destination (Join-Path $script:AD '.alt\Reisen')
+        $others = @([pscustomobject]@{ UserName = 'maria'; ComputerName = 'PC-12'; Since = (Get-Date); Path = 'x' })
+        $r = @(Use-HUAddonPending $script:AD -Others $others)
+        @($r | ForEach-Object Status) -contains 'Wartet' | Should -BeTrue
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'alt'
+        Test-Path (Join-Path $script:AD '.pending\Reisen\addon.json') | Should -BeTrue
+    }
+    It 'Rest in .alt neben einem vorhandenen Modul wird vor dem Tausch entfernt, Tausch klappt' {
+        [void](New-TestAddon (Join-Path $script:AD '.alt') 'Reisen' @{ version = '1.0.3' })
+        $r = @(Use-HUAddonPending $script:AD)
+        $r[-1].Status | Should -Be 'Uebernommen'
+        [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'neu'
+    }
+    It 'verwaiste Sitzung wird beim Modul-Update ignoriert und vermerkt, aktive haelt den Tausch an' {
+        $stale = [pscustomobject]@{ UserName = 'maria'; ComputerName = 'PC-12'; Since = [datetime]'2026-01-01T08:00:00'; Path = 'x'; Stale = $true }
+        $live = [pscustomobject]@{ UserName = 'bernd'; ComputerName = 'PC-3'; Since = (Get-Date); Path = 'y'; Stale = $false }
+        $s = Split-HUAddonOthers @($stale)
+        @($s.Active).Count | Should -Be 0
+        @($s.Notes).Count | Should -Be 1
+        $s.Notes[0] | Should -Match 'maria'
+        $s.Notes[0] | Should -Match 'verwaist'
+        $r = @(Use-HUAddonPending $script:AD -Others $s.Active)
+        $r[0].Status | Should -Be 'Uebernommen'
+        $s2 = Split-HUAddonOthers @($stale, $live)
+        @($s2.Active).Count | Should -Be 1
+        $s2.Active[0].UserName | Should -Be 'bernd'
+    }
+    It 'Sitzungen ohne Kennzeichen (alte Fassung) gelten als aktiv' {
+        $old = [pscustomobject]@{ UserName = 'maria'; ComputerName = 'PC-12'; Since = (Get-Date); Path = 'x' }
+        @((Split-HUAddonOthers @($old)).Active).Count | Should -Be 1
+    }
+    It 'Download: wartende Fassung wird ersetzt' {
+        $stage = New-TestAddon (Join-Path $script:AD '.staging') 'Reisen' @{ version = '1.0.6' } -Folder 'abc123'
+        $pend = Join-Path $script:AD '.pending\Reisen'
+        Move-HUAddonStageToPending $stage $pend
+        (Read-HUAddonInfo $pend).Version | Should -Be ([version]'1.0.6')
+        Test-Path $stage | Should -BeFalse
+    }
+    It 'Download: legt ein zweiter Verwalter gleichzeitig ab, landet nichts IN seiner Fassung (B2)' {
+        $stage = New-TestAddon (Join-Path $script:AD '.staging') 'Reisen' @{ version = '1.0.6' } -Folder 'abc123'
+        [IO.File]::WriteAllText((Join-Path $stage 'Addon.ps1'), 'meins')
+        $pend = Join-Path $script:AD '.pending\Reisen'
+        # Rennen nachstellen: das Entfernen der alten Fassung "gelingt", der andere PC hat sie aber gleich wieder abgelegt.
+        # Eigener Scriptblock, damit die Ersetzung von Remove-Item nicht ins AfterEach wirkt.
+        & { function Remove-Item { }; { Move-HUAddonStageToPending $stage $pend } | Should -Throw -ExpectedMessage '*anderen PC*' }
+        Test-Path (Join-Path $pend 'abc123') | Should -BeFalse
+        @(Get-ChildItem -LiteralPath $pend -Directory).Count | Should -Be 0
+        [IO.File]::ReadAllText((Join-Path $pend 'Addon.ps1')) | Should -Be 'neu'
+    }
+    It 'der Ordner .alt wird nicht als Modul geladen' {
+        [void](New-TestAddon (Join-Path $script:AD '.alt') 'Fristen')
+        @(Get-HUAddonsInDir $script:AD ([version]'9.9.9') 'Privat' | ForEach-Object { $_.Id }) | Should -Not -Contain 'Fristen'
+    }
+}
+
+Describe 'Texte im Kern stimmen mit dem Verhalten (V13)' {
+    BeforeAll {
+        $script:Rd = { param($f) [IO.File]::ReadAllText((Join-Path $script:Root $f), [Text.Encoding]::UTF8) }
+    }
+    It 'K11: Zahl am Reiter hat eine Erklaerung' {
+        Get-HUAddonInboxTip 0 | Should -Be ''
+        Get-HUAddonInboxTip 3 | Should -Match '3 Dateien'
+        Get-HUAddonInboxTip 1 | Should -Match '1 Datei '
+        (& $script:Rd 'Functions\UI-Addons.ps1') | Should -Match 'Get-HUAddonInboxTip'
+    }
+    It 'KD2: Tooltips Einstellungen und Support nennen alle Bereiche' {
+        $x = & $script:Rd 'XAML\MainWindow.xaml'
+        $x | Should -Not -Match 'ToolTip="Einstellungen: Allgemein, Sicherung, Update"'
+        $x | Should -Match 'ToolTip="Einstellungen: Allgemein, Sicherung, Update, Module, Verwalter'
+        $x | Should -Not -Match 'ToolTip="Protokolle als ZIP packen, um Hilfe anzufragen"'
+    }
+    It 'KD4: Anleitung verspricht keinen lueckenlosen Schutz beim Update, nennt GitHub-Token und Signieren' {
+        $a = & $script:Rd 'Docs\Anleitung.html'
+        $a | Should -Not -Match 'auch wenn jemand HU-Amt erst w&auml;hrend des Ladens|auch wenn jemand HU-Amt erst während des Ladens'
+        $a | Should -Match 'GitHub-Token \(nur privates Repo\)'
+        $a | Should -Match 'Release signieren \(Herausgeber\)'
+    }
+    It 'KD5: Hilfe kuendigt das Ausblenden ohne Recht nicht als bestehend an' {
+        (& $script:Rd 'Docs\Daten.html') | Should -Not -Match 'Welche Module wer sehen darf, regeln die Rechte'
+    }
+    It 'KD6: RECHTE-IT nennt keinen alten Stand als aktuell' {
+        (& $script:Rd 'RECHTE-IT.md') | Should -Not -Match 'Stand: HU-Amt 1\.0\.3'
+    }
+    It 'KD7: Reiter Update sehen alle, Knopf heisst "Paket fuer Aussenstelle erstellen"' {
+        $g = & $script:Rd 'Docs\Grundhilfe.html'
+        $g | Should -Not -Match 'die Reiter Sicherung, Update, Module und Verwalter'
+        $g | Should -Not -Match '"Paket für Außenstelle \.\.\."'
+        (& $script:Rd 'Docs\Einstieg.html') | Should -Not -Match 'Paket für Außenstelle \.\.\.</span>'
+    }
+    It 'KD8: Tooltip "Datei einlesen" sagt, dass die Datei danach geloescht wird' {
+        (& $script:Rd 'Functions\UI-Addons.ps1') | Should -Match 'x:Name="btnFile"[^>]*gelöscht'
+    }
+    It 'V5: Texte zum Neustart nennen andere offene Sitzungen, Wartet bekommt einen Hinweis fuer Verwalter' {
+        $ui = & $script:Rd 'Functions\UI-Addons.ps1'
+        (& $script:Rd 'Functions\Core-Addons.ps1') | Should -Not -Match 'geladen - wirkt nach dem Neustart"'
+        $ui | Should -Not -Match 'Es wird nach einem Neustart von \$\(\$script:AppTitle\) aktiv\. Jetzt neu starten\?'
+        $ui | Should -Match 'AddonPendingWaiting'
+        (& $script:Rd 'Functions\Core-Addons.ps1') | Should -Not -Match 'ist geladen und wartet auf den Neustart"'
+        (& $script:Rd 'Docs\Funktionen.html') | Should -Not -Match 'neue Fassung nach dem Neustart'
+    }
+    It 'KD9: Tooltip Datenordner nennt den Fall mit vorhandenen Daten' {
+        (& $script:Rd 'XAML\SettingsWindow.xaml') | Should -Match 'x:Name="btnDataLocation"[^>]*schon Daten'
     }
 }

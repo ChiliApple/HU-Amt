@@ -1,5 +1,40 @@
 ﻿# Changelog
 
+## v1.0.9
+
+### 🧩 Module
+- **Modul-Updates ohne halbes Modul:** Eine neue Modulfassung wird beim Start nur übernommen, wenn sonst niemand HU-Amt offen hat.
+  - Haben andere HU-Amt noch offen, bleibt die bisherige Fassung, bis zum nächsten Start ohne andere Sitzung. Ein Verwalter sieht dann nach dem Start einen Hinweis.
+  - Der Austausch geht in einem Schritt. Klappt er nicht, bleibt die bisherige Fassung vollständig, und nach dem Start erscheint ein Hinweis.
+  - Bricht der Austausch ab (Strom weg, Programm beendet), repariert der nächste Start das.
+  - Eine Sitzungsdatei in "Data\Laufend", die niemand mehr offen hat, die sich aber nicht löschen lässt (z. B. fehlendes Löschrecht), hält den Austausch nicht mehr auf. Das Protokoll nennt Benutzer, PC und Datei. Startet derselbe Benutzer am selben PC wieder, übernimmt HU-Amt seine liegengebliebene Datei und gilt als angemeldet.
+- **Gleichzeitiges Laden eines Moduls:** Laden zwei Verwalter gleichzeitig dieselbe neue Modulfassung, bleibt das Modul startfähig. Bisher konnte es danach nicht mehr starten.
+  - Treffen beide genau beim Ablegen zusammen, steht beim zweiten ein Hinweis im Protokoll, die Fassung des ersten bleibt.
+- **Rückfrage beim Schließen:** Module können beim Schließen eines Fensters mit ungespeicherten Änderungen fragen, ob sie verworfen werden sollen. Buchungen, Reisen und Fristen nutzen das in ihren nächsten Versionen.
+- **Zahl am Reiter erklärt:** Die Zahl in Klammern am Reiter hat einen Tooltip. Sie zeigt, wie viele Dateien im Postfach dieses Reiters warten.
+
+### 💾 Sicherung
+- **Gelöschte Dateien halten die Sicherung nicht mehr auf:** Wird während der Sicherung eine Datei gelöscht (z. B. eine alte Kopie), entsteht die Sicherung trotzdem. Die Meldung nennt die Zahl, das Protokoll die Dateien.
+  - Gesperrte oder nicht lesbare Dateien brechen die Sicherung weiter ab, damit nichts still fehlt. Fehlt ein ganzer Bereich unter dem Datenordner oder der Datenordner selbst (z. B. Freigabe getrennt), entsteht keine Sicherung. Ein inzwischen abgeholter Postfach-Eintrag wird wie eine gelöschte Datei ausgelassen.
+- **Grenzen schon beim Sichern:** Wäre eine Sicherung zu groß, um sie wiederherzustellen (mehr als 200000 Dateien, eine Datei über 512 MB oder zusammen über 2 GB), schreibt HU-Amt keine Sicherung und sagt, warum.
+  - Ab 80 Prozent einer Grenze entsteht die Sicherung, mit einer Warnung.
+- **Schnell geschlossene Fenster:** Wird ein Fenster sehr schnell wieder geschlossen, erscheint kein "Unerwarteter Fehler" mehr im Protokoll (PowerShell 7). Betrifft Meldungsfenster, das Kennwortfenster der Sicherung, die Abfrage des GitHub-Tokens und das Support-Fenster.
+
+### 💾 Daten auf der Freigabe
+- **Falsche Sperre wird abgelehnt:** Übergibt ein Modul beim Speichern die Sperre einer anderen Datei, wird nichts geschrieben.
+
+### 🎨 Oberfläche
+- **Tooltips und Hilfe stimmen mit dem Verhalten:** Einstellungen, Support, Datenordner und "Datei einlesen" erklären vollständig, was sie tun. Die Hilfe nennt beim Reiter Update und beim Paket für Außenstellen die richtigen Namen, und sie kündigt das Ausblenden von Modulen ohne Zugriff nicht mehr als bestehend an. Die Bilder der PDF-Werkzeuge und der Ideen zeigen den aktuellen Stand.
+
+### ⚠️ Nach dem Update
+- **Modul-Updates kommen etwas später an:** Hat beim Start noch jemand anderer HU-Amt offen, wird eine geladene Modulfassung erst beim nächsten Start ohne andere Sitzung übernommen.
+
+### 🚧 Grenzen
+- **Sicherung über der Grenze:** Größere Datenmengen lassen sich weiter nicht sichern. Die Meldung sagt das jetzt vorher, statt eine Sicherung zu schreiben, die sich nicht öffnen lässt.
+
+### ✅ Qualität
+- 732 Tests.
+
 ## v1.0.8
 
 ### 🔄 Update

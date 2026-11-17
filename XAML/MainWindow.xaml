@@ -36,9 +36,9 @@
                 </StackPanel>
                 <StackPanel x:Name="hdrRight" Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <Button x:Name="btnSettings" Content="&#x2699; Einstellungen" Style="{StaticResource ToolButton}" Margin="0,0,6,0"
-                            ToolTip="Einstellungen: Allgemein, Sicherung, Update"/>
+                            ToolTip="Einstellungen: Allgemein, Sicherung, Update, Module, Verwalter (Sicherung, Module und Verwalter sehen nur Verwalter)"/>
                     <Button x:Name="btnSupport" Content="&#x1F6DF; Support" Style="{StaticResource ToolButton}" Margin="0,0,6,0"
-                            ToolTip="Protokolle als ZIP packen, um Hilfe anzufragen"/>
+                            ToolTip="Hilfe anfragen: Protokolle als ZIP packen und per E-Mail vorbereiten oder ein GitHub-Issue öffnen"/>
                     <Button x:Name="btnTheme" Content="&#x2600;" Style="{StaticResource ToolButton}" Width="32" Margin="0,0,6,0"
                             ToolTip="Farbschema umschalten zwischen Dunkel und Hell (HU-Amt startet dafür neu)"/>
                     <Button x:Name="btnHelp" Content="?" Style="{StaticResource ToolButton}" Width="32" Margin="0,0,6,0"

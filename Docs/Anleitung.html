@@ -182,6 +182,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><td>gemeinsame Listen und Einstellungen, Daten aller Module, persönliche Einstellungen und Fensterzustand jedes Benutzers, Verwalter-Liste, welche Module installiert waren</td><td>Protokolle, Zugangsdaten der Module (Token), das gemerkte Kennwort der Sicherung</td></tr>
   </table>
   <p>Jede Sicherung wird nach dem Schreiben zurückgelesen und geprüft. <span class="ui">Sicherung prüfen …</span> öffnet eine Datei, ohne etwas zu schreiben. <span class="ui">Wiederherstellen …</span> zeigt die Bereiche zur Auswahl (je Modul, Benutzer, Verwalter, Allgemein; <b>Verwalter ist orange und nicht vorgewählt</b>), fragt noch einmal nach, legt den aktuellen Stand unter <code>Data\Wiederherstellung</code> ab und startet HU-Amt neu. Installierte Module werden danach neu geladen. Die 💾 in der Kopfzeile zeigt den Stand, während der Sicherung den Fortschritt, bei einem Fehler ein „!“.</p>
+  <p><b>Grenzen (ab 1.0.9):</b> Eine Sicherung lässt sich nur wiederherstellen, wenn sie höchstens 200000 Dateien hat, keine Datei über 512 MB und zusammen höchstens 2 GB. Darüber schreibt HU-Amt keine Sicherung und sagt, warum. Ab 80 Prozent einer Grenze kommt eine Warnung. Wird während der Sicherung eine Datei gelöscht, fehlt sie darin, die Meldung nennt die Zahl und das Protokoll die Dateien. Eine gesperrte Datei, ein fehlender Bereich unter dem Datenordner oder ein fehlender Datenordner (z. B. Freigabe getrennt) bricht die Sicherung ab. Ein inzwischen abgeholter Postfach-Eintrag wird wie eine gelöschte Datei ausgelassen.</p>
   <div class="note stop"><b class="h">Kennwort aufbewahren</b>Ohne Kennwort lässt sich eine Sicherung nicht öffnen. Ein neues Kennwort gilt nur für neue Sicherungen.</div>
   <h3 id="verkn">Verknüpfung</h3>
   <p><span class="ui">⚙ Einstellungen</span> › <b>Allgemein</b>: <span class="ui b">🖥 Desktop-Verknüpfung</span>, <span class="ui b">☰ Startmenü-Eintrag</span>, <i>Desktop für alle Benutzer</i> (braucht Administratorrechte) und <span class="ui">Starter neu erstellen</span>. Der Starter <code>HU-Amt.exe</code> im Programmordner hat ein eigenes Logo und kein Konsolenfenster.</p>
@@ -308,7 +309,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li><span class="ui g">Speichern</span>: neben das Original oder in einen festen Ordner, bei gleichem Namen mit <code>_2</code>, <code>_3</code>.</li>
   </ol>
   <p>Die Dateiliste zeigt Vorschau, Seiten, Größe und Hinweis. Reihenfolge per Ziehen oder ↑ ↓, Doppelklick öffnet die Datei, Klick auf die Vorschau zeigt alle Seiten groß.</p>
-  <figure><a href="screenshot-pdf-werkzeuge.png"><img src="screenshot-pdf-werkzeuge.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-pdf-werkzeuge.png'" style="max-width:620px;width:100%" alt="PDF-Werkzeuge"></a><figcaption>Aktion Seiten: drehen, löschen, mit der Maus umsortieren.</figcaption></figure>
+  <figure><a href="screenshot-pdf-werkzeuge.png"><img src="screenshot-pdf-werkzeuge.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/ChiliApple/HU-Amt/main/Docs/screenshot-pdf-werkzeuge.png'" style="max-width:620px;width:100%" alt="PDF-Werkzeuge"></a><figcaption>Aktion Schwärzen: Suchbegriffe finden, Stellen wählen, geschwärzt prüfen und speichern.</figcaption></figure>
   <table>
     <tr><th>Aktion</th><th>Wirkung</th></tr>
     <tr><td><span class="ui">🔗 Zusammenfügen</span></td><td>alle Dateien in einer PDF, auf Wunsch je Datei ein Lesezeichen mit dem Dateinamen</td></tr>
@@ -505,10 +506,12 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <tr><td>Andere Version / Vorversion installieren …</td><td>Liste aller Releases (nur Verwalter). Der Weg, um neu zu installieren oder eine ältere Version zu laden; der Klick auf <span class="ui">Update</span> tut das nicht (ab 1.0.8)</td></tr>
     <tr><td>Kanal: Testversionen annehmen</td><td>Häkchen = Kanal <b>Test</b>, auch Vorab-Versionen (nur Verwalter)</td></tr>
     <tr><td>Module (private Repositories) …</td><td>Zugänge der Module hinterlegen oder entfernen (nur Verwalter)</td></tr>
+    <tr><td>GitHub-Token (nur privates Repo) ...</td><td>Token für ein privates Programm-Repository hinterlegen oder löschen (nur Verwalter)</td></tr>
     <tr><td>Alle Releases signieren und freigeben …</td><td>nur Herausgeber (Zertifikat auf diesem PC): Programm und alle Module auf einmal. Eine Liste zeigt alles Offene, dann "Signieren und freigeben" oder "Nur signieren" (ab Version 1.0.5)</td></tr>
+    <tr><td>Release signieren (Herausgeber) ..., Release freigeben (Herausgeber) ..., dazu dasselbe für ein Modul</td><td>nur Herausgeber: ein einzelnes Release signieren bzw. freigeben</td></tr>
   </table>
   <p><span class="ui">⚙ Einstellungen</span> › <b>Update</b>: <i>Beim Start nach Updates suchen</i>, <span class="ui">Jetzt prüfen</span>, Kanal <i>Stabil</i> (freigegebene Versionen) oder <i>Test</i> (auch Vorab-Versionen), <i>Nur signierte Updates installieren (empfohlen)</i>.</p>
-  <div class="note"><b class="h">Module</b>Module aus privaten Repositories werden nur als signierte Fassung geladen und genauso aktuell gehalten: <span class="ui">⚙ Einstellungen</span> › <b>Module</b> zeigt die geladenen Module mit Version und Herkunft, <span class="ui">Module jetzt aktualisieren</span> holt die neueste signierte Fassung. Eine neue Fassung wirkt nach dem nächsten Neustart.</div>
+  <div class="note"><b class="h">Module</b>Module aus privaten Repositories werden nur als signierte Fassung geladen und genauso aktuell gehalten: <span class="ui">⚙ Einstellungen</span> › <b>Module</b> zeigt die geladenen Module mit Version und Herkunft, <span class="ui">Module jetzt aktualisieren</span> holt die neueste signierte Fassung. Eine neue Fassung wirkt nach dem nächsten Neustart, sobald sonst niemand HU-Amt offen hat. Haben andere HU-Amt noch offen, bleibt die bisherige Fassung, bis der nächste Start ohne andere Sitzung kommt; ein Verwalter sieht dann einen Hinweis (ab 1.0.9). Klappt das Übernehmen nicht, meldet HU-Amt das nach dem Start, die bisherige Fassung läuft weiter.</div>
 </section>
 
 <section id="support">
@@ -581,7 +584,7 @@ footer{color:var(--sub);font-size:12px;text-align:center;padding:10px}
     <li>Fehlt das Schreibrecht im Ordner, steht in der Meldung <i>"Kein Schreibrecht im Ordner ..."</i>, ist die Freigabe weg, <i>"Der Ordner ... ist nicht erreichbar"</i>. In beiden Fällen wird nichts gespeichert, die Daten bleiben unverändert.</li>
     <li>Stürzt ein PC ab, gibt Windows die Sperre frei; beim nächsten Versuch räumt HU-Amt sie weg.</li>
     <li>Vor dem Speichern einer gemeinsamen Liste legt HU-Amt eine Kopie mit Zeitstempel in <code>_Kopien</code> neben der Liste an.</li>
-    <li>Ein Update geht erst, wenn alle anderen HU-Amt geschlossen haben. Sonst bricht es ab, ohne etwas zu ändern, auch wenn jemand HU-Amt erst während des Ladens öffnet (ab dem Update aus Version 1.0.8). <code>Data</code>, <code>Addons</code> und <code>AddonsDev</code> fasst ein Update nie an.</li>
+    <li>Ein Update geht erst, wenn alle anderen HU-Amt geschlossen haben. Sonst bricht es ab, ohne etwas zu ändern. Kurz vor dem Ersetzen prüft es das noch einmal (ab dem Update aus Version 1.0.8). Das verkleinert die Lücke, wenn jemand HU-Amt erst während des Ladens öffnet, schließt sie aber nicht ganz. <code>Data</code>, <code>Addons</code> und <code>AddonsDev</code> fasst ein Update nie an.</li>
   </ul>
 
   <h3 id="ordner-sicherung">Was in der Sicherung ist</h3>

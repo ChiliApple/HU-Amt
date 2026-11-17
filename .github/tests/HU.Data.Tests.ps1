@@ -204,6 +204,28 @@ Describe 'Sperre und Speichern' {
         } finally { Unlock-HUDataFile $l }
         Test-Path "$script:P.lock" | Should -BeFalse
     }
+    It 'gehaltene Sperre einer anderen Datei (-Lock): nichts schreiben, Ok=$false, Sperre bleibt' {
+        $other = Join-Path (Split-Path $script:P) 'andere.json'
+        $l = Wait-HUDataFileLock -Path $other -UserName 'u1' -PcName 'pc1'
+        $l.Ok | Should -BeTrue
+        try {
+            $r = Save-HUDataFile -Path $script:P -Lock $l -Build { '{"v":10}' }
+            $r.Ok | Should -BeFalse
+            $r.Message | Should -Match 'Sperre'
+            Test-Path $script:P | Should -BeFalse
+            Test-Path "$other.lock" | Should -BeTrue
+        } finally { Unlock-HUDataFile $l }
+    }
+    It 'gehaltene Sperre derselben Datei in anderer Schreibweise (Gross/klein, ..) gilt' {
+        $l = Wait-HUDataFileLock -Path $script:P -UserName 'u1' -PcName 'pc1'
+        try {
+            $dir = Split-Path $script:P
+            $alt = Join-Path (Join-Path $dir '..') ((Split-Path $dir -Leaf) + '\' + (Split-Path $script:P -Leaf).ToUpperInvariant())
+            $r = Save-HUDataFile -Path $alt -Lock $l -Build { '{"v":11}' }
+            $r.Ok | Should -BeTrue
+            (Read-HUJson $script:P).Data.v | Should -Be 11
+        } finally { Unlock-HUDataFile $l }
+    }
     It 'Wait-HUDataFileLock: frei sofort, belegt nach Ablauf mit Ok=$false' {
         $a = Wait-HUDataFileLock -Path $script:P -UserName 'a' -PcName 'pa' -WaitMs 200
         try {

@@ -216,6 +216,56 @@ Describe 'Regel 2: laufende App' {
         @(Get-HURunningInstances -RunDir $script:Run).Count | Should -Be 0
         Test-Path (Join-Path $script:Run 'alt_PC-9.lock') | Should -BeFalse
     }
+    It 'verwaiste Datei, die sich nicht loeschen laesst (kein Loeschrecht): gezaehlt, aber als verwaist gekennzeichnet' {
+        $p = Join-Path $script:Run 'maria_PC-12.lock'
+        [IO.File]::WriteAllText($p, 'maria|PC-12|2026-01-01T08:00:00|4711')
+        [IO.File]::SetAttributes($p, [IO.FileAttributes]::ReadOnly)
+        try {
+            { [IO.File]::Delete($p) } | Should -Throw
+            $r = @(Get-HURunningInstances -RunDir $script:Run)
+            $r.Count | Should -Be 1
+            $r[0].UserName | Should -Be 'maria'
+            $r[0].Stale | Should -BeTrue
+        } finally { [IO.File]::SetAttributes($p, [IO.FileAttributes]::Normal) }
+    }
+    It 'ohne Loeschrecht: eigene liegengebliebene Datei wird beim Start uebernommen und gehalten (nicht verwaist)' {
+        $p = Join-Path $script:Run 'anna_PC-1.lock'
+        [IO.File]::WriteAllText($p, 'anna|PC-1|2026-01-01T08:00:00|4711')
+        $me = [Security.Principal.WindowsIdentity]::GetCurrent().User
+        $aclD = Get-Acl -LiteralPath $script:Run
+        $ruleD = New-Object Security.AccessControl.FileSystemAccessRule($me, 'DeleteSubdirectoriesAndFiles', 'Deny')
+        $aclD.AddAccessRule($ruleD); Set-Acl -LiteralPath $script:Run -AclObject $aclD
+        $aclF = Get-Acl -LiteralPath $p
+        $ruleF = New-Object Security.AccessControl.FileSystemAccessRule($me, 'Delete', 'Deny')
+        $aclF.AddAccessRule($ruleF); Set-Acl -LiteralPath $p -AclObject $aclF
+        $l = $null
+        try {
+            { [IO.File]::Delete($p) } | Should -Throw
+            $l = Open-HURunLock -RunDir $script:Run -UserName 'anna' -PcName 'PC-1'
+            $l | Should -Not -BeNullOrEmpty
+            $r = @(Get-HURunningInstances -RunDir $script:Run)
+            $r.Count | Should -Be 1
+            $r[0].Stale | Should -BeFalse
+            $fs = [IO.File]::Open($p, 'Open', 'Read', 'ReadWrite')
+            try { $txt = (New-Object IO.StreamReader($fs)).ReadToEnd() } finally { $fs.Dispose() }
+            $txt | Should -Not -Match '2026-01-01'
+            $txt | Should -Match "\|$PID$"
+        } finally {
+            if ($l) { Close-HURunLock $l }
+            $aclF = Get-Acl -LiteralPath $p; [void]$aclF.RemoveAccessRule($ruleF); Set-Acl -LiteralPath $p -AclObject $aclF
+            $aclD = Get-Acl -LiteralPath $script:Run; [void]$aclD.RemoveAccessRule($ruleD); Set-Acl -LiteralPath $script:Run -AclObject $aclD
+        }
+    }
+    It 'gehaltene Datei mit altem Datum bleibt aktiv (Sitzung seit Tagen offen)' {
+        $p = Join-Path $script:Run 'maria_PC-12.lock'
+        $fs = [IO.File]::Open($p, [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite, [IO.FileShare]::Read)
+        try {
+            $b = [Text.Encoding]::UTF8.GetBytes('maria|PC-12|2026-01-01T08:00:00|4711'); $fs.Write($b, 0, $b.Length); $fs.Flush()
+            $r = @(Get-HURunningInstances -RunDir $script:Run)
+            $r.Count | Should -Be 1
+            $r[0].Stale | Should -BeFalse
+        } finally { $fs.Dispose() }
+    }
     It 'Anmeldung ueberschreibt eine verwaiste eigene Datei' {
         Set-Content -LiteralPath (Join-Path $script:Run 'anna_PC-1.lock') -Value 'alt'
         $l = Open-HURunLock -RunDir $script:Run -UserName 'anna' -PcName 'PC-1'

@@ -289,6 +289,13 @@ function Remove-HUStaleLock([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return $true }
     try { [IO.File]::Delete($Path); return (-not (Test-Path -LiteralPath $Path)) } catch { return $false }
 }
+# Haelt noch jemand die Sperrdatei offen? Die laufende App haelt sie mit Schreibzugriff, darum scheitert ein Oeffnen
+# ohne Mitbenutzung mit einer Freigabeverletzung (0x80070020). Gelingt es, ist sie verwaist (z. B. kein Loeschrecht).
+# Jeder andere Fehler gilt als "gehalten" (sichere Seite, wie bisher).
+function Test-HULockHeld([string]$Path) {
+    try { $fs = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None); $fs.Dispose(); return $false }
+    catch { return $true }
+}
 
 # ============================================================================
 # Regel 2: laufende App
@@ -307,7 +314,20 @@ function Open-HURunLock {
         [string]$PcName = $env:COMPUTERNAME
     )
     $path = Join-Path $RunDir ('{0}_{1}.lock' -f (Get-HUSafeName $UserName), (Get-HUSafeName $PcName))
-    if (-not (Remove-HUStaleLock $path)) { return $null }
+    if (-not (Remove-HUStaleLock $path)) {
+        # nicht loeschbar: haelt sie eine laufende App (zweiter Start), scheitert das Oeffnen mit Schreibzugriff.
+        # Sonst ist es die eigene liegengebliebene Datei (z. B. ohne Loeschrecht in Data\Laufend): uebernehmen und halten,
+        # damit diese Sitzung angemeldet ist und beim Modul-Update nicht als verwaist gilt.
+        try {
+            $fs = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::Read)
+        } catch { return $null }
+        try {
+            $fs.SetLength(0)
+            $b = [Text.Encoding]::UTF8.GetBytes((ConvertTo-HULockText $UserName $PcName))
+            $fs.Write($b, 0, $b.Length); $fs.Flush()
+        } catch { $fs.Dispose(); return $null }
+        return [pscustomobject]@{ Path = $path; Stream = $fs }
+    }
     $fs = New-HUHeldFile $path (ConvertTo-HULockText $UserName $PcName)
     return [pscustomobject]@{ Path = $path; Stream = $fs }
 }
@@ -322,7 +342,9 @@ function Close-HURunLock($Lock) {
 .SYNOPSIS
     Wer hat die App gerade offen? Verwaiste Lock-Dateien werden dabei entfernt.
     -Self: eigene Sperre (Objekt aus Open-HURunLock), wird nicht mitgezaehlt.
-    Rueckgabe: Liste mit UserName, ComputerName, Since, Path (leer = niemand ausser mir).
+    Rueckgabe: Liste mit UserName, ComputerName, Since, Path, Stale (leer = niemand ausser mir).
+    Stale = $true: verwaist (niemand haelt die Datei offen), liess sich aber nicht loeschen, etwa ohne Loeschrecht.
+    Sie bleibt in der Liste; nur das Modul-Update uebergeht sie (Split-HUAddonOthers).
 #>
 function Get-HURunningInstances {
     [CmdletBinding()]
@@ -337,7 +359,7 @@ function Get-HURunningInstances {
         $txt = Read-HULockText $f.FullName
         if (Remove-HUStaleLock $f.FullName) { continue }
         $i = ConvertFrom-HULockText $txt
-        $out.Add([pscustomobject]@{ UserName = $i.UserName; ComputerName = $i.ComputerName; Since = $i.Since; Path = $f.FullName })
+        $out.Add([pscustomobject]@{ UserName = $i.UserName; ComputerName = $i.ComputerName; Since = $i.Since; Path = $f.FullName; Stale = (-not (Test-HULockHeld $f.FullName)) })
     }
     return @($out.ToArray())
 }

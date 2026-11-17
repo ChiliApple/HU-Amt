@@ -632,3 +632,59 @@ Describe 'Fehlerhinweis fuer alle Benutzer, gedrosselt (Befund K3)' {
         }
     }
 }
+
+Describe 'Rueckfrage beim Schliessen mit ungespeicherten Aenderungen (V15)' {
+    It 'Zustand der Felder: Haken, Datum, Text, Listen nach Anzahl, Auswahl in Listen zaehlt nicht' {
+        $c = @{
+            txt  = [pscustomobject]@{ Text = 'a' }
+            chk  = [pscustomobject]@{ IsChecked = $false; Text = 'nie' }
+            dat  = [pscustomobject]@{ SelectedDate = [datetime]'2026-11-16'; Text = '16.11.2026' }
+            lst  = [pscustomobject]@{ Items = @(1, 2); SelectedIndex = 0 }
+            pw   = [pscustomobject]@{ Password = 'geheim' }
+        }
+        $a = Get-HUControlState $c @('txt', 'chk', 'dat', 'lst', 'pw', 'fehlt')
+        $c.lst.SelectedIndex = 1
+        Get-HUControlState $c @('txt', 'chk', 'dat', 'lst', 'pw', 'fehlt') | Should -Be $a
+        $a | Should -Not -Match 'geheim'
+        $c.txt.Text = 'b'
+        Get-HUControlState $c @('txt', 'chk', 'dat', 'lst') | Should -Not -Be $a
+        $b = Get-HUControlState $c @('txt', 'chk', 'dat', 'lst')
+        $c.lst.Items = @(1, 2, 3)
+        Get-HUControlState $c @('txt', 'chk', 'dat', 'lst') | Should -Not -Be $b
+        $b = Get-HUControlState $c @('txt', 'chk', 'dat', 'lst')
+        $c.chk.IsChecked = $true
+        Get-HUControlState $c @('txt', 'chk', 'dat', 'lst') | Should -Not -Be $b
+    }
+    It 'Entscheidung: nur bei Aenderung fragen, nie nach dem Speichern und nie im automatischen Test' {
+        Test-HUCloseGuardAsk -Baseline 'a' -Current 'a' | Should -BeFalse
+        Test-HUCloseGuardAsk -Baseline 'a' -Current 'b' | Should -BeTrue
+        Test-HUCloseGuardAsk -Baseline 'a' -Current 'b' -DialogResult $false | Should -BeTrue
+        Test-HUCloseGuardAsk -Baseline 'a' -Current 'b' -DialogResult $true | Should -BeFalse
+        Test-HUCloseGuardAsk -Baseline 'a' -Current 'b' -Off $true | Should -BeFalse
+        Test-HUCloseGuardAsk -Baseline 'a' -Current 'b' -Skip $true | Should -BeFalse
+    }
+    It 'abgeschaltet im Starttest und mit HUAMT_NOCLOSEGUARD' {
+        $old = $env:HUAMT_NOCLOSEGUARD
+        try {
+            $env:HUAMT_NOCLOSEGUARD = ''
+            $script:SmokeTestFile = $null
+            Test-HUCloseGuardOff | Should -BeFalse
+            $env:HUAMT_NOCLOSEGUARD = '1'
+            Test-HUCloseGuardOff | Should -BeTrue
+            $env:HUAMT_NOCLOSEGUARD = ''
+            $script:SmokeTestFile = 'x.txt'
+            Test-HUCloseGuardOff | Should -BeTrue
+        } finally { $env:HUAMT_NOCLOSEGUARD = $old; $script:SmokeTestFile = $null }
+    }
+    It 'Register-HUCloseGuard merkt den Stand beim Anmelden, Reset nimmt den aktuellen' {
+        if (-not $script:Sta) { Set-ItResult -Skipped -Because 'WPF braucht STA'; return }
+        $w = New-Object System.Windows.Window
+        $script:GuardVal = 'eins'
+        Register-HUCloseGuard -Window $w -State { $script:GuardVal }
+        $g = $w.Resources['huCloseGuard']
+        $g.Base | Should -Be 'eins'
+        $script:GuardVal = 'zwei'
+        Reset-HUCloseGuard $w
+        $w.Resources['huCloseGuard'].Base | Should -Be 'zwei'
+    }
+}

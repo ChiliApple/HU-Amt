@@ -1,6 +1,6 @@
 ﻿# HU-Amt: Ordner und Rechte auf dem Server
 
-Anleitung für die IT. Liegt jeder Installation bei. Stand: HU-Amt 1.0.3.
+Anleitung für die IT. Liegt jeder Installation bei. Gilt ab HU-Amt 1.0.3, Ordnerrechte einzelner Module stehen zusätzlich in deren Hilfe.
 
 HU-Amt ist ein Büroprogramm ohne Installation. Es läuft aus einem Ordner auf dem Server, alle Bediensteten starten es von dort. Das Programm selbst und seine Daten liegen in zwei getrennten Ordnern. Wer was darf, regeln nur die NTFS-Rechte. HU-Amt hat keine eigene Benutzerverwaltung.
 
@@ -37,7 +37,7 @@ Liegen die Ordner unter einer Freigabe mit offenen Rechten, wird die Vererbung a
 
 Warum:
 - **Programm nur lesen:** Wer Programmdateien ändern darf, kann Code einschleusen, der bei allen anderen läuft.
-- **`Data\Laufend` im Programmordner:** Dort meldet sich jedes offene HU-Amt an, damit ein Update erst startet, wenn alle geschlossen haben. Darum müssen die Benutzer dort schreiben dürfen.
+- **`Data\Laufend` im Programmordner:** Dort meldet sich jedes offene HU-Amt an, damit ein Update erst startet, wenn alle geschlossen haben. Darum müssen die Benutzer dort schreiben dürfen. "Ändern" schließt das Löschen ein. Fehlt das Löschrecht, bleibt die Anmeldung nach dem Schließen liegen. Startet derselbe Benutzer am selben PC wieder, übernimmt HU-Amt sie. Liegengebliebene Anmeldungen anderer Benutzer oder PCs übergehen Modul-Updates (Hinweis im Protokoll). Ein Programm-Update, ein Wechsel des Datenordners und das Wiederherstellen einer Sicherung warten dagegen, bis die Datei entfernt ist.
 - **Kein Vollzugriff auf die Daten:** Vollzugriff enthält „Unterordner und Dateien löschen“ und „Berechtigungen ändern“. Damit könnte jeder auch geschützte Dateien ersetzen.
 - **`Verwalter.txt` nur lesen:** Wer diese Liste ändert, macht sich selbst zum Verwalter.
 - **Einstellung des Datenordners:** Sie steht in `HU-Amt\Config\datenort.json`. Der Ordner `Config` ist durch „Programm nur lesen“ schon geschützt. Wer die Datei ändern dürfte, könnte alle Daten samt Verwalter-Liste umlenken.
