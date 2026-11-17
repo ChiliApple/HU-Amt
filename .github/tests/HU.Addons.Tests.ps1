@@ -318,6 +318,24 @@ Describe 'Wartende Fassung uebernehmen (V5, Use-HUAddonPending)' {
         $r[-1].Status | Should -Be 'Uebernommen'
         [IO.File]::ReadAllText((Join-Path $script:AD 'Reisen\Addon.ps1')) | Should -Be 'neu'
     }
+    It 'verwaiste Sitzung wird beim Modul-Update ignoriert und vermerkt, aktive haelt den Tausch an' {
+        $stale = [pscustomobject]@{ UserName = 'maria'; ComputerName = 'PC-12'; Since = [datetime]'2026-01-01T08:00:00'; Path = 'x'; Stale = $true }
+        $live = [pscustomobject]@{ UserName = 'bernd'; ComputerName = 'PC-3'; Since = (Get-Date); Path = 'y'; Stale = $false }
+        $s = Split-HUAddonOthers @($stale)
+        @($s.Active).Count | Should -Be 0
+        @($s.Notes).Count | Should -Be 1
+        $s.Notes[0] | Should -Match 'maria'
+        $s.Notes[0] | Should -Match 'verwaist'
+        $r = @(Use-HUAddonPending $script:AD -Others $s.Active)
+        $r[0].Status | Should -Be 'Uebernommen'
+        $s2 = Split-HUAddonOthers @($stale, $live)
+        @($s2.Active).Count | Should -Be 1
+        $s2.Active[0].UserName | Should -Be 'bernd'
+    }
+    It 'Sitzungen ohne Kennzeichen (alte Fassung) gelten als aktiv' {
+        $old = [pscustomobject]@{ UserName = 'maria'; ComputerName = 'PC-12'; Since = (Get-Date); Path = 'x' }
+        @((Split-HUAddonOthers @($old)).Active).Count | Should -Be 1
+    }
     It 'der Ordner .alt wird nicht als Modul geladen' {
         [void](New-TestAddon (Join-Path $script:AD '.alt') 'Fristen')
         @(Get-HUAddonsInDir $script:AD ([version]'9.9.9') 'Privat' | ForEach-Object { $_.Id }) | Should -Not -Contain 'Fristen'
