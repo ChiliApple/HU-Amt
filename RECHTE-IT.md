@@ -37,7 +37,7 @@ Liegen die Ordner unter einer Freigabe mit offenen Rechten, wird die Vererbung a
 
 Warum:
 - **Programm nur lesen:** Wer Programmdateien ändern darf, kann Code einschleusen, der bei allen anderen läuft.
-- **`Data\Laufend` im Programmordner:** Dort meldet sich jedes offene HU-Amt an, damit ein Update erst startet, wenn alle geschlossen haben. Darum müssen die Benutzer dort schreiben dürfen.
+- **`Data\Laufend` im Programmordner:** Dort meldet sich jedes offene HU-Amt an, damit ein Update erst startet, wenn alle geschlossen haben. Darum müssen die Benutzer dort schreiben dürfen. "Ändern" schließt das Löschen ein. Fehlt es, bleiben Anmeldungen nach einem Absturz liegen: Modul-Updates übergehen sie (Hinweis im Protokoll), ein Programm-Update und ein Wechsel des Datenordners warten, bis die Datei entfernt ist.
 - **Kein Vollzugriff auf die Daten:** Vollzugriff enthält „Unterordner und Dateien löschen“ und „Berechtigungen ändern“. Damit könnte jeder auch geschützte Dateien ersetzen.
 - **`Verwalter.txt` nur lesen:** Wer diese Liste ändert, macht sich selbst zum Verwalter.
 - **Einstellung des Datenordners:** Sie steht in `HU-Amt\Config\datenort.json`. Der Ordner `Config` ist durch „Programm nur lesen“ schon geschützt. Wer die Datei ändern dürfte, könnte alle Daten samt Verwalter-Liste umlenken.

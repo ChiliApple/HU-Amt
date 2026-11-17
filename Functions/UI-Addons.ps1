@@ -55,7 +55,9 @@ function Get-HUAddonStartList {
     $script:AddonPendingIssues = @(); $script:AddonPendingWaiting = @()
     try {
         $others = @(); try { $others = @(Get-HURunningInstances -RunDir $script:Paths.RunDir -Self $script:RunLock) } catch { }
-        foreach ($r in @(Use-HUAddonPending $dir -Others $others)) {
+        $split = Split-HUAddonOthers $others
+        foreach ($n in @($split.Notes)) { Write-HULogWarn "Module: $n" }
+        foreach ($r in @(Use-HUAddonPending $dir -Others $split.Active)) {
             switch ($r.Status) {
                 'Fehler' { Write-HULogWarn "Module: $($r.Text)"; $script:AddonPendingIssues += $r.Text }
                 'Wartet' { Write-HULogInfo "Module: $($r.Text). Sie wird beim nächsten Start übernommen, wenn sonst niemand das Programm offen hat."; $script:AddonPendingWaiting += $r.Text }

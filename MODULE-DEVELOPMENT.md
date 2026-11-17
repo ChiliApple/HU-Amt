@@ -290,7 +290,7 @@ Was davon ein Modul nutzt, setzt `minApp` auf 1.0.9 (`Register-HUCloseGuard`, `G
   - `Get-HUControlState` liest Haken, Datum, Text und bei Listen nur die Anzahl der Einträge. Eine Auswahl in einer Liste zählt nicht als Änderung, Kennwortfelder werden übergangen. Statt der Steuerelemente darf `-State` jeden Text liefern, der sich bei einer Änderung ändert.
   - Im Starttest der App und mit der Umgebungsvariable `HUAMT_NOCLOSEGUARD=1` fragt es nie (für automatische Tests, die Fenster selbst schließen).
 - **`Save-HUDataFile -Lock`:** Gehört die übergebene Sperre zu einer anderen Datei als `-Path`, wird nichts geschrieben, `Ok` ist `$false`. Verglichen wird der vollständige Pfad, Groß und klein egal.
-- **Modul-Updates:** Eine neue Modulfassung wird beim Start nur übernommen, wenn sonst niemand die App offen hat. Der Tausch läuft über `Addons\.alt\<Kennung>` mit Rückfall. Module müssen dafür nichts ändern.
+- **Modul-Updates:** Eine neue Modulfassung wird beim Start nur übernommen, wenn sonst niemand die App offen hat. Der Tausch läuft über `Addons\.alt\<Kennung>` mit Rückfall. Module müssen dafür nichts ändern. `Get-HURunningInstances` liefert dazu `Stale`: verwaiste Sitzungsdatei, die niemand offen hält, die sich aber nicht löschen ließ. Nur das Modul-Update übergeht sie.
 
 ### Vorlagen für Modul-Repos
 

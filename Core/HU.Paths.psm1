@@ -289,6 +289,13 @@ function Remove-HUStaleLock([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return $true }
     try { [IO.File]::Delete($Path); return (-not (Test-Path -LiteralPath $Path)) } catch { return $false }
 }
+# Haelt noch jemand die Sperrdatei offen? Die laufende App haelt sie mit Schreibzugriff, darum scheitert ein Oeffnen
+# ohne Mitbenutzung mit einer Freigabeverletzung (0x80070020). Gelingt es, ist sie verwaist (z. B. kein Loeschrecht).
+# Jeder andere Fehler gilt als "gehalten" (sichere Seite, wie bisher).
+function Test-HULockHeld([string]$Path) {
+    try { $fs = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None); $fs.Dispose(); return $false }
+    catch { return $true }
+}
 
 # ============================================================================
 # Regel 2: laufende App
@@ -322,7 +329,9 @@ function Close-HURunLock($Lock) {
 .SYNOPSIS
     Wer hat die App gerade offen? Verwaiste Lock-Dateien werden dabei entfernt.
     -Self: eigene Sperre (Objekt aus Open-HURunLock), wird nicht mitgezaehlt.
-    Rueckgabe: Liste mit UserName, ComputerName, Since, Path (leer = niemand ausser mir).
+    Rueckgabe: Liste mit UserName, ComputerName, Since, Path, Stale (leer = niemand ausser mir).
+    Stale = $true: verwaist (niemand haelt die Datei offen), liess sich aber nicht loeschen, etwa ohne Loeschrecht.
+    Sie bleibt in der Liste; nur das Modul-Update uebergeht sie (Split-HUAddonOthers).
 #>
 function Get-HURunningInstances {
     [CmdletBinding()]
@@ -337,7 +346,7 @@ function Get-HURunningInstances {
         $txt = Read-HULockText $f.FullName
         if (Remove-HUStaleLock $f.FullName) { continue }
         $i = ConvertFrom-HULockText $txt
-        $out.Add([pscustomobject]@{ UserName = $i.UserName; ComputerName = $i.ComputerName; Since = $i.Since; Path = $f.FullName })
+        $out.Add([pscustomobject]@{ UserName = $i.UserName; ComputerName = $i.ComputerName; Since = $i.Since; Path = $f.FullName; Stale = (-not (Test-HULockHeld $f.FullName)) })
     }
     return @($out.ToArray())
 }

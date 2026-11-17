@@ -7,6 +7,7 @@
   - Haben andere HU-Amt noch offen, bleibt die bisherige Fassung, bis zum nächsten Start ohne andere Sitzung. Ein Verwalter sieht dann nach dem Start einen Hinweis.
   - Der Austausch geht in einem Schritt. Klappt er nicht, bleibt die bisherige Fassung vollständig, und nach dem Start erscheint ein Hinweis.
   - Bricht der Austausch ab (Strom weg, Programm beendet), repariert der nächste Start das.
+  - Eine Sitzungsdatei in "Data\Laufend", die niemand mehr offen hat, die sich aber nicht löschen lässt (z. B. fehlendes Löschrecht), hält den Austausch nicht mehr auf. Das Protokoll nennt Benutzer, PC und Datei.
 - **Rückfrage beim Schließen:** Module können beim Schließen eines Fensters mit ungespeicherten Änderungen fragen, ob sie verworfen werden sollen. Buchungen, Reisen und Fristen nutzen das in ihren nächsten Versionen.
 - **Zahl am Reiter erklärt:** Die Zahl in Klammern am Reiter hat einen Tooltip. Sie zeigt, wie viele Dateien im Postfach dieses Reiters warten.
 
@@ -29,7 +30,7 @@
 - **Sicherung über der Grenze:** Größere Datenmengen lassen sich weiter nicht sichern. Die Meldung sagt das jetzt vorher, statt eine Sicherung zu schreiben, die sich nicht öffnen lässt.
 
 ### ✅ Qualität
-- 725 Tests.
+- 729 Tests.
 
 ## v1.0.8
 

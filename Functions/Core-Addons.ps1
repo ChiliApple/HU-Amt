@@ -163,6 +163,20 @@ function Get-HUAddonInboxTip([int]$Count) {
     return "$Count $(if ($Count -eq 1) { 'Datei wartet' } else { 'Dateien warten' }) im Postfach dieses Reiters (weitergegeben aus einem anderen Reiter oder von einem anderen PC). Reiter öffnen, um sie zu übernehmen."
 }
 
+# Andere Sitzungen fuer das Modul-Update trennen: verwaiste (Stale, niemand haelt die Sitzungsdatei offen, sie liess
+# sich aber nicht loeschen) halten den Tausch nicht an und kommen als Vermerk ins Protokoll. Ohne Kennzeichen gilt aktiv.
+function Split-HUAddonOthers([object[]]$Others = @()) {
+    $act = New-Object System.Collections.Generic.List[object]
+    $notes = New-Object System.Collections.Generic.List[string]
+    foreach ($o in @($Others | Where-Object { $_ })) {
+        if ($o.PSObject.Properties['Stale'] -and $o.Stale) {
+            $seit = $(if ($o.Since) { ', seit ' + ([datetime]$o.Since).ToString('dd.MM.yyyy HH:mm') } else { '' })
+            $notes.Add("Verwaiste Sitzungsdatei von $($o.UserName) ($($o.ComputerName))$seit ignoriert: niemand hat sie offen, sie lässt sich aber nicht löschen (Löschrecht in Data\Laufend prüfen). Datei: $($o.Path)")
+        } else { $act.Add($o) }
+    }
+    return [pscustomobject]@{ Active = @($act.ToArray()); Notes = @($notes.ToArray()) }
+}
+
 # Wartende neue Fassungen uebernehmen (vor dem Laden, beim Start).
 # -Others: andere laufende Sitzungen (Get-HURunningInstances). Laeuft noch jemand, wird nichts getauscht (Status Wartet):
 # die anderen haben das alte Modul geladen, und auf der Freigabe liesse es sich nur halb ersetzen.
