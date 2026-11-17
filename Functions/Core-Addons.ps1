@@ -163,6 +163,13 @@ function Get-HUAddonInboxTip([int]$Count) {
     return "$Count $(if ($Count -eq 1) { 'Datei wartet' } else { 'Dateien warten' }) im Postfach dieses Reiters (weitergegeben aus einem anderen Reiter oder von einem anderen PC). Reiter öffnen, um sie zu übernehmen."
 }
 
+# Geladene und gepruefte Fassung nach Addons\.pending\<Id> legen (ersetzt eine aeltere wartende Fassung).
+function Move-HUAddonStageToPending([string]$Stage, [string]$Pending) {
+    if (Test-Path -LiteralPath $Pending) { Remove-Item -LiteralPath $Pending -Recurse -Force }
+    New-Item -ItemType Directory -Path (Split-Path $Pending -Parent) -Force | Out-Null
+    Move-Item -LiteralPath $Stage -Destination $Pending -Force
+}
+
 # Andere Sitzungen fuer das Modul-Update trennen: verwaiste (Stale, niemand haelt die Sitzungsdatei offen, sie liess
 # sich aber nicht loeschen) halten den Tausch nicht an und kommen als Vermerk ins Protokoll. Ohne Kennzeichen gilt aktiv.
 function Split-HUAddonOthers([object[]]$Others = @()) {
@@ -404,9 +411,7 @@ function Install-HUAddon([string]$Owner, [string]$Repo, [string]$Token, [string]
             $cur = Read-HUAddonInfo (Join-Path $AddonsDir $i.Id)
             if (-not $cur.Error -and $cur.Version -ge $i.Version) { $res.Status = 'Aktuell'; $res.Text = "$($i.Title) $($i.Version) ist aktuell"; return $res }
             $pend = Join-Path (Join-Path $AddonsDir '.pending') $i.Id
-            if (Test-Path -LiteralPath $pend) { Remove-Item -LiteralPath $pend -Recurse -Force }
-            New-Item -ItemType Directory -Path (Split-Path $pend -Parent) -Force | Out-Null
-            Move-Item -LiteralPath $stage -Destination $pend -Force
+            Move-HUAddonStageToPending $stage $pend
             $res.Status = 'Neu'; $res.Text = "$($i.Title) $($i.Version) geladen - wirkt nach dem nächsten Start, an dem sonst niemand das Programm offen hat"
             return $res
         } finally { if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue } }
