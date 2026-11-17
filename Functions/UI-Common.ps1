@@ -528,7 +528,8 @@ function Show-HUDialogBox {
                     $e.Handled = $true
                 }
             })
-        $w.Add_ContentRendered({ if ($first) { [void]$first.Focus() } })
+        # $first fest binden: kommt ContentRendered erst nach dem Schliessen, gaebe es $first im naechsten Fenster nicht
+        $w.Add_ContentRendered({ if ($first) { [void]$first.Focus() } }.GetNewClosure())
         [void]$w.ShowDialog()
         return $st.R
     } catch {
