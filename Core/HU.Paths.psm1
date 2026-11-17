@@ -314,7 +314,20 @@ function Open-HURunLock {
         [string]$PcName = $env:COMPUTERNAME
     )
     $path = Join-Path $RunDir ('{0}_{1}.lock' -f (Get-HUSafeName $UserName), (Get-HUSafeName $PcName))
-    if (-not (Remove-HUStaleLock $path)) { return $null }
+    if (-not (Remove-HUStaleLock $path)) {
+        # nicht loeschbar: haelt sie eine laufende App (zweiter Start), scheitert das Oeffnen mit Schreibzugriff.
+        # Sonst ist es die eigene liegengebliebene Datei (z. B. ohne Loeschrecht in Data\Laufend): uebernehmen und halten,
+        # damit diese Sitzung angemeldet ist und beim Modul-Update nicht als verwaist gilt.
+        try {
+            $fs = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::Read)
+        } catch { return $null }
+        try {
+            $fs.SetLength(0)
+            $b = [Text.Encoding]::UTF8.GetBytes((ConvertTo-HULockText $UserName $PcName))
+            $fs.Write($b, 0, $b.Length); $fs.Flush()
+        } catch { $fs.Dispose(); return $null }
+        return [pscustomobject]@{ Path = $path; Stream = $fs }
+    }
     $fs = New-HUHeldFile $path (ConvertTo-HULockText $UserName $PcName)
     return [pscustomobject]@{ Path = $path; Stream = $fs }
 }
