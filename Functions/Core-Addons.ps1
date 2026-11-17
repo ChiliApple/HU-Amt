@@ -168,8 +168,10 @@ function Get-HUAddonInboxTip([int]$Count) {
 # zwischen Entfernen und Ablegen abgelegt, entstand so ein Unterordner, und das Modul liess sich nach dem Tausch
 # nicht mehr laden ("fremde Datei"). Jetzt bleibt seine Fassung unberuehrt, und es gibt eine Meldung.
 function Move-HUAddonStageToPending([string]$Stage, [string]$Pending) {
-    if (Test-Path -LiteralPath $Pending) { Remove-Item -LiteralPath $Pending -Recurse -Force }
-    New-Item -ItemType Directory -Path (Split-Path $Pending -Parent) -Force | Out-Null
+    # -ErrorAction Stop: im Hintergrund (Runspace) gilt Continue; ein gescheitertes Loeschen (Rechte, gesperrte Datei)
+    # soll mit seiner echten Ursache gemeldet werden, nicht als "anderer PC"
+    if (Test-Path -LiteralPath $Pending) { Remove-Item -LiteralPath $Pending -Recurse -Force -ErrorAction Stop }
+    New-Item -ItemType Directory -Path (Split-Path $Pending -Parent) -Force -ErrorAction Stop | Out-Null
     try { [IO.Directory]::Move($Stage, $Pending) }
     catch {
         if (Test-Path -LiteralPath $Pending) { throw 'wird gerade auch von einem anderen PC geladen - bitte in einer Minute noch einmal prüfen' }

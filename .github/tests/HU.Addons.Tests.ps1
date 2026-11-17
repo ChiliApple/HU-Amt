@@ -347,9 +347,9 @@ Describe 'Wartende Fassung uebernehmen (V5, Use-HUAddonPending)' {
         $stage = New-TestAddon (Join-Path $script:AD '.staging') 'Reisen' @{ version = '1.0.6' } -Folder 'abc123'
         [IO.File]::WriteAllText((Join-Path $stage 'Addon.ps1'), 'meins')
         $pend = Join-Path $script:AD '.pending\Reisen'
-        # Rennen nachstellen: das Entfernen der alten Fassung "gelingt", der andere PC hat sie aber gleich wieder abgelegt
-        function Remove-Item { }
-        { Move-HUAddonStageToPending $stage $pend } | Should -Throw
+        # Rennen nachstellen: das Entfernen der alten Fassung "gelingt", der andere PC hat sie aber gleich wieder abgelegt.
+        # Eigener Scriptblock, damit die Ersetzung von Remove-Item nicht ins AfterEach wirkt.
+        & { function Remove-Item { }; { Move-HUAddonStageToPending $stage $pend } | Should -Throw -ExpectedMessage '*anderen PC*' }
         Test-Path (Join-Path $pend 'abc123') | Should -BeFalse
         @(Get-ChildItem -LiteralPath $pend -Directory).Count | Should -Be 0
         [IO.File]::ReadAllText((Join-Path $pend 'Addon.ps1')) | Should -Be 'neu'
