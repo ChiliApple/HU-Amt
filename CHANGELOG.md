@@ -8,6 +8,7 @@
   - Der Austausch geht in einem Schritt. Klappt er nicht, bleibt die bisherige Fassung vollständig, und nach dem Start erscheint ein Hinweis.
   - Bricht der Austausch ab (Strom weg, Programm beendet), repariert der nächste Start das.
   - Eine Sitzungsdatei in "Data\Laufend", die niemand mehr offen hat, die sich aber nicht löschen lässt (z. B. fehlendes Löschrecht), hält den Austausch nicht mehr auf. Das Protokoll nennt Benutzer, PC und Datei. Startet derselbe Benutzer am selben PC wieder, übernimmt HU-Amt seine liegengebliebene Datei und gilt als angemeldet.
+- **Gleichzeitiges Laden eines Moduls:** Laden zwei Verwalter gleichzeitig dieselbe neue Modulfassung, bleibt die zuerst abgelegte unverändert, der zweite bekommt einen Hinweis. Bisher konnte das Modul danach nicht mehr starten.
 - **Rückfrage beim Schließen:** Module können beim Schließen eines Fensters mit ungespeicherten Änderungen fragen, ob sie verworfen werden sollen. Buchungen, Reisen und Fristen nutzen das in ihren nächsten Versionen.
 - **Zahl am Reiter erklärt:** Die Zahl in Klammern am Reiter hat einen Tooltip. Sie zeigt, wie viele Dateien im Postfach dieses Reiters warten.
 
@@ -16,6 +17,8 @@
   - Gesperrte oder nicht lesbare Dateien brechen die Sicherung weiter ab, damit nichts still fehlt. Fehlt ein ganzer Bereich unter dem Datenordner oder der Datenordner selbst (z. B. Freigabe getrennt), entsteht keine Sicherung. Ein inzwischen abgeholter Postfach-Eintrag wird wie eine gelöschte Datei ausgelassen.
 - **Grenzen schon beim Sichern:** Wäre eine Sicherung zu groß, um sie wiederherzustellen (mehr als 200000 Dateien, eine Datei über 512 MB oder zusammen über 2 GB), schreibt HU-Amt keine Sicherung und sagt, warum.
   - Ab 80 Prozent einer Grenze entsteht die Sicherung, mit einer Warnung.
+
+- **Kennwortfenster der Sicherung:** Wird das Fenster sehr schnell wieder geschlossen, erscheint kein "Unerwarteter Fehler" mehr im Protokoll (PowerShell 7).
 
 ### 💾 Daten auf der Freigabe
 - **Falsche Sperre wird abgelehnt:** Übergibt ein Modul beim Speichern die Sperre einer anderen Datei, wird nichts geschrieben.
@@ -30,7 +33,7 @@
 - **Sicherung über der Grenze:** Größere Datenmengen lassen sich weiter nicht sichern. Die Meldung sagt das jetzt vorher, statt eine Sicherung zu schreiben, die sich nicht öffnen lässt.
 
 ### ✅ Qualität
-- 730 Tests.
+- 732 Tests.
 
 ## v1.0.8
 
