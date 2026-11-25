@@ -307,6 +307,16 @@ function Set-HUBusyDot($Dot, [bool]$On) {
     }
 }
 
+# Kennungen der Module, die gerade aus AddonsDev laufen (Kennung -> Version). Fuer sie fragt die Modulpruefung nicht nach
+# einem Neustart, weil der weiter AddonsDev laden wuerde.
+function Get-HUAddonDevVersions {
+    $h = @{}
+    foreach ($a in @($script:LoadedAddons)) {
+        if ($a -and "$($a.Source)" -eq 'Entwicklung' -and "$($a.Id)") { $h["$($a.Id)"] = "$($a.Version)" }
+    }
+    return $h
+}
+
 # ============================================================================
 # Private Module: im Hintergrund die neueste signierte Fassung holen (wirkt nach dem Neustart)
 # ============================================================================
@@ -323,17 +333,17 @@ function Start-HUAddonUpdate([switch]$Loud) {
         try { Show-HUToast -Title 'Module werden geladen' -Text "$($src.Count) Module werden geprüft und geladen. Das kann einige Minuten dauern, danach kommt eine Meldung." -Icon Info } catch { }
     }
     Invoke-AsyncCommand -ScriptBlock {
-        param($lib, $addonLib, $pathsMod, $sources, $dir, $ver, $chan, $tp)
+        param($lib, $addonLib, $pathsMod, $sources, $dir, $ver, $chan, $tp, $devVer)
         Import-Module $pathsMod -DisableNameChecking
         . $lib; . $addonLib
         try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
         $out = @()
         foreach ($s in @($sources)) {
-            $r = Install-HUAddon -Owner $s.Owner -Repo $s.Repo -Token $s.Token -AddonsDir $dir -AppVersion ([Version]$ver) -Channel $chan -Thumbprint $tp
+            $r = Install-HUAddon -Owner $s.Owner -Repo $s.Repo -Token $s.Token -AddonsDir $dir -AppVersion ([Version]$ver) -Channel $chan -Thumbprint $tp -DevVersions $devVer
             $out += "$($r.Status)|$($s.Owner)/$($s.Repo)|$($r.Text)"
         }
         return ($out -join "`n")
-    } -ArgumentList @($script:UpdateLib, (Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src, (Get-HUAddonsDir), "$($script:Version)", $chan, $tp) -TimeoutSec 300 -BusyText 'Module werden geladen ...' -OnComplete {
+    } -ArgumentList @($script:UpdateLib, (Join-Path $script:AppRoot 'Functions\Core-Addons.ps1'), (Join-Path $script:AppRoot 'Core\HU.Paths.psm1'), $src, (Get-HUAddonsDir), "$($script:Version)", $chan, $tp, (Get-HUAddonDevVersions)) -TimeoutSec 300 -BusyText 'Module werden geladen ...' -OnComplete {
         param($result)
         $neu = @()
         foreach ($ln in @("$result" -split "`n" | Where-Object { $_ })) {
@@ -341,12 +351,13 @@ function Start-HUAddonUpdate([switch]$Loud) {
             switch ($p[0]) {
                 'Neu' { Write-HULogOK "Modul: $($p[2])"; $neu += ($p[2] -replace ' geladen - .*$', '') }
                 'Aktuell' { if ($script:AddonUpdateLoud) { Write-HULogInfo "Modul: $($p[2])" } }
+                'Entwicklung' { Write-HULogInfo "Modul: $($p[2])" }   # läuft aus AddonsDev: kein Neustart-Hinweis
                 default { Write-HULogWarn "Modul $($p[1]): $($p[2])" }
             }
         }
         if ($neu.Count) { Show-HUAddonRestartPrompt $neu }
         elseif ($script:AddonUpdateLoud) {
-            $warn = @("$result" -split "`n" | Where-Object { $_ -and $_ -notmatch '^(Neu|Aktuell)\|' }).Count
+            $warn = @("$result" -split "`n" | Where-Object { $_ -and $_ -notmatch '^(Neu|Aktuell|Entwicklung)\|' }).Count
             try { Show-HUToast -Title 'Module geladen' -Text $(if ($warn) { "Nicht alle Module ließen sich laden. Details im Protokoll." } else { 'Alle Module sind aktuell.' }) -Icon $(if ($warn) { 'Warning' } else { 'Success' }) } catch { }
         }
     }
