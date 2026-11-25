@@ -251,6 +251,76 @@ Describe 'Modul-Update: schneller Weg ohne alle Dateien (ab 1.0.5)' {
     }
 }
 
+Describe 'Modul-Update: AddonsDev ohne Neustart-Hinweis (ab 1.0.10)' {
+    BeforeAll {
+        # GitHub nachgestellt wie oben, ohne Archiv: Datei fuer Datei
+        Mock Get-HMReleases { @([pscustomobject]@{ Version = [version]'1.0.5'; Tag = 'v1.0.5'; Prerelease = $false; ManifestUrl = 'm'; ManifestApi = 'm'; SignatureUrl = 's'; SignatureApi = 's' }) }
+        Mock Get-HMReleaseAsset { [byte[]](1, 2, 3) }
+        Mock Test-HMManifestSignature { '' }
+        Mock ConvertFrom-HMManifest { @{ 'addon.json' = 'HASH'; 'Addon.ps1' = 'HASH'; 'Tab.xaml' = 'HASH' } }
+        Mock Get-HMFileSha256 { 'HASH' }
+        Mock Invoke-WebRequest {
+            if ("$Uri" -like '*zipball*') { [IO.File]::WriteAllText($OutFile, 'kein zip'); return }
+            $j = [ordered]@{ id = 'Reisen'; title = 'Reisen'; version = '1.0.5'; minApp = '0.0.1'; tab = [ordered]@{ header = 'Reisen'; xaml = 'Tab.xaml'; script = 'Addon.ps1'; init = 'Initialize-HUAddonReisen' } }
+            [IO.File]::WriteAllText($OutFile, ($j | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
+        }
+    }
+    BeforeEach {
+        $script:AD = Join-Path ([IO.Path]::GetTempPath()) ('hu-adddev-' + [guid]::NewGuid().ToString('N'))
+        [void](New-Item -ItemType Directory -Path $script:AD)
+    }
+    AfterEach { Remove-Item -LiteralPath $script:AD -Recurse -Force -ErrorAction SilentlyContinue }
+    It 'Modul laeuft gleich aus AddonsDev: Fassung wird abgelegt, Status Entwicklung, kein Neustart noetig' {
+        [void](New-TestAddon $script:AD 'Reisen' @{ version = '1.0.4' })
+        $r = Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x' -DevVersions @{ Reisen = '1.0.5' }
+        $r.Status | Should -Be 'Entwicklung'
+        $r.Text | Should -BeLike '*läuft schon aus AddonsDev (1.0.5), kein Neustart nötig'
+        (Read-HUAddonInfo (Join-Path $script:AD '.pending\Reisen')).Version | Should -Be ([version]'1.0.5')
+    }
+    It 'AddonsDev ist aelter: Fassung wird abgelegt, Text nennt die aeltere Fassung' {
+        $r = Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x' -DevVersions @{ Reisen = '1.0.3' }
+        $r.Status | Should -Be 'Entwicklung'
+        $r.Text | Should -BeLike '*ältere Fassung 1.0.3 aus AddonsDev*'
+        Test-Path -LiteralPath (Join-Path $script:AD '.pending\Reisen') | Should -BeTrue
+    }
+    It 'anderes Modul in AddonsDev: wie bisher Status Neu' {
+        (Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x' -DevVersions @{ Fristen = '9.0.0' }).Status | Should -Be 'Neu'
+    }
+    It 'installiert schon aktuell und AddonsDev vorhanden: Aktuell, nichts abgelegt' {
+        [void](New-TestAddon $script:AD 'Reisen' @{ version = '1.0.5' })
+        (Install-HUAddon -Owner 'o' -Repo 'r' -Token 't' -AddonsDir $script:AD -AppVersion ([version]'9.9.9') -Thumbprint 'x' -DevVersions @{ Reisen = '1.0.5' }).Status | Should -Be 'Aktuell'
+        Test-Path -LiteralPath (Join-Path $script:AD '.pending\Reisen') | Should -BeFalse
+    }
+    It 'Get-HUAddonDevVersions nennt nur Module aus AddonsDev' {
+        . (Join-Path $script:Root 'Functions\UI-Addons.ps1')
+        $script:LoadedAddons = @(
+            [pscustomobject]@{ Id = 'Reisen'; Version = [version]'1.0.5'; Source = 'Entwicklung' }
+            [pscustomobject]@{ Id = 'Fristen'; Version = [version]'0.1.1'; Source = 'Privat' })
+        $h = Get-HUAddonDevVersions
+        @($h.Keys) | Should -Be @('Reisen')
+        $h['Reisen'] | Should -Be '1.0.5'
+        $script:LoadedAddons = @()
+        (Get-HUAddonDevVersions).Count | Should -Be 0
+    }
+    It 'Hintergrundlauf uebergibt AddonsDev, Entwicklung ist weder Hinweis noch Warnung' {
+        $ui = [IO.File]::ReadAllText((Join-Path $script:Root 'Functions\UI-Addons.ps1'), [Text.Encoding]::UTF8)
+        $fn = [regex]::Match($ui, '(?s)function Start-HUAddonUpdate.*?\n\}').Value
+        $fn | Should -Match '-DevVersions \$devVer'
+        $fn | Should -Match '\(Get-HUAddonDevVersions\)\) -TimeoutSec'
+        $fn | Should -Match "'Entwicklung' \{ Write-HULogInfo"
+        $fn | Should -Match ([regex]::Escape("-notmatch '^(Neu|Aktuell|Entwicklung)\|'"))
+    }
+    It 'Freigabe eines Moduls prueft gleich die Module (nur Verwalter), Programm-Freigabe wie bisher das Programm' {
+        $up = [IO.File]::ReadAllText((Join-Path $script:Root 'Functions\UI-Update.ps1'), [Text.Encoding]::UTF8)
+        $fn = [regex]::Match($up, '(?s)function Start-HUReleasePublish.*?\n\}').Value
+        $fn.IndexOf('$wasAddon = $false; try { $wasAddon = [bool]$script:PubCtx.Addon }') | Should -BeGreaterThan 0
+        $fn.IndexOf('$wasAddon = $false') | Should -BeLessThan $fn.LastIndexOf('$script:PubCtx = $null')
+        $fn | Should -Match 'Test-HUVerwalter'
+        $fn | Should -Match 'if \(\$vw\) \{ try \{ Start-HUAddonUpdate -Loud \}'
+        $fn | Should -Match 'else \{ Invoke-UpdateCheck \}'
+    }
+}
+
 Describe 'Wartende Fassung uebernehmen (V5, Use-HUAddonPending)' {
     BeforeEach {
         $script:AD = Join-Path ([IO.Path]::GetTempPath()) ('hu-addpend-' + [guid]::NewGuid().ToString('N').Substring(0, 8))

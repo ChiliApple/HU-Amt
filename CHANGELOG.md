@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## v1.0.10
+
+### 🧩 Module
+- **Freigabe lädt das Modul gleich:** Nach "Modul: Release freigeben" prüft HU-Amt bei Verwaltern sofort die Module und lädt die freigegebene Fassung. Der Hinweis "Jetzt neu starten?" kommt damit in derselben Sitzung, ein Neustart reicht, wenn sonst niemand HU-Amt offen hat.
+  - Bisher wurde nach der Freigabe nur das Programm geprüft. Das Modul kam erst nach dem nächsten Start im Hintergrund und verlangte einen zweiten Neustart.
+  - Wer kein Verwalter ist, bekommt nach der Freigabe einen Hinweis im Protokoll, dass die Module beim nächsten Start geprüft werden.
+- **Kein Neustart-Hinweis für Module aus AddonsDev:** Läuft ein Modul aus dem Entwicklungsordner AddonsDev, fragt HU-Amt nach dem Laden einer neuen Fassung nicht mehr nach einem Neustart. Der Neustart würde weiter AddonsDev laden.
+  - Die neue Fassung wird trotzdem abgelegt. Wer AddonsDev wegnimmt, hat nach dem nächsten Start die freigegebene Fassung.
+  - Das Protokoll nennt beide Versionen, z. B. "läuft schon aus AddonsDev (1.0.5), kein Neustart nötig" oder dass in AddonsDev eine ältere Fassung liegt. Die Meldung "Nicht alle Module ließen sich laden" kommt dafür nicht.
+
 ## v1.0.9
 
 ### 🧩 Module

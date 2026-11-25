@@ -45,7 +45,7 @@ Funktionen in `Addon.ps1` (Konvention statt Schnittstelle):
 |---|---|
 | `Modules\<Id>\` | mitgeliefert, kommt mit dem Programm-Update |
 | `Addons\<Id>\` | aus einem eigenen Repository, nur signiert. Neue Fassungen warten in `Addons\.pending\<Id>\` und werden beim nächsten Start übernommen |
-| `AddonsDev\<Id>\` | Entwicklung, ohne Signaturprüfung, ersetzt ein Modul gleicher Kennung |
+| `AddonsDev\<Id>\` | Entwicklung, ohne Signaturprüfung, ersetzt ein Modul gleicher Kennung. Neue signierte Fassungen landen trotzdem in `Addons\.pending\<Id>\`, ohne Neustart-Hinweis (ab 1.0.10) |
 
 - **Daten:** `Data\<Id>\`, gemeinsam für alle Benutzer und in der Sicherung enthalten (`Get-HUAddonDataDir`).
 - **Zugang zu privaten Repositories:** Token je Windows-Benutzer, verschlüsselt mit DPAPI.
